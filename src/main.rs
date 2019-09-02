@@ -12,6 +12,8 @@ extern crate clap;
 extern crate derivative;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate log;
 
 mod config;
 mod crypto;
@@ -68,7 +70,7 @@ async fn udp_acceptor(globals: Arc<Globals>, mut udp_listener: UdpSocket) -> Res
         dbg!(&packet);
         let mut packet = &mut packet[..packet_len];
         if let Some(synth_packet) =
-            serve_certificates(&packet, "2.dnscrypt.example.com", &globals.dnscrypt_certs)?
+            serve_certificates(&packet, &globals.provider_name, &globals.dnscrypt_certs)?
         {
             let _ = udp_listener.send_to(&synth_packet, client_addr).await;
             continue;
@@ -79,7 +81,7 @@ async fn udp_acceptor(globals: Arc<Globals>, mut udp_listener: UdpSocket) -> Res
 }
 
 async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error> {
-    let socket_addr: SocketAddr = "127.0.0.1:5300".parse()?;
+    let socket_addr: SocketAddr = globals.listen_addr;
     let tcp_listener = TcpListener::bind(&socket_addr).await?;
     let udp_listener = UdpSocket::bind(&socket_addr).await?;
     runtime.spawn(tcp_acceptor(globals.clone(), tcp_listener).map(|_| {}));
@@ -91,17 +93,49 @@ fn main() -> Result<(), Error> {
     env_logger::init();
     crypto::init()?;
 
-    let _matches = app_from_crate!().get_matches();
-
+    let matches = app_from_crate!()
+        .arg(
+            Arg::with_name("listen-addr")
+                .value_name("listen-addr")
+                .takes_value(true)
+                .default_value("0.0.0.0:4443")
+                .required(true)
+                .help("Address and port to listen to"),
+        )
+        .arg(
+            Arg::with_name("provider-name")
+                .value_name("provider-name")
+                .takes_value(true)
+                .default_value("2.dnscrypt.test")
+                .required(true)
+                .help("Provider name"),
+        )
+        .get_matches();
+    let listen_addr = matches
+        .value_of("listen-addr")
+        .unwrap()
+        .to_ascii_lowercase();
+    let provider_name = match matches.value_of("provider-name").unwrap() {
+        provider_name if provider_name.starts_with("2.dnscrypt.") => provider_name.to_string(),
+        provider_name => format!("2.dnscrypt.{}", provider_name),
+    };
+    let listen_addr: SocketAddr = matches.value_of("listen-addr").unwrap().parse()?;
     let resolver_kp = SignKeyPair::new();
+
+    println!("Server address: {}", listen_addr);
+    println!("Provider public key: {}", resolver_kp.pk.as_string());
+    println!("Provider name: {}", provider_name);
+
     let dnscrypt_cert = DNSCryptCert::new(&resolver_kp);
 
     let runtime = Arc::new(Runtime::new()?);
-    let globals = Arc::new(Globals::new(
-        runtime.clone(),
+    let globals = Arc::new(Globals {
+        runtime: runtime.clone(),
         resolver_kp,
-        vec![dnscrypt_cert],
-    ));
+        dnscrypt_certs: vec![dnscrypt_cert],
+        provider_name,
+        listen_addr,
+    });
     runtime.spawn(start(globals, runtime.clone()).map(|_| ()));
     runtime.block_on(future::pending::<()>());
 

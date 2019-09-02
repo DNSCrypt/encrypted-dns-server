@@ -17,7 +17,7 @@ fn now() -> u32 {
 pub struct DNSCryptCertInner {
     resolver_pk: [u8; 32],
     client_magic: [u8; 8],
-    serial: [u8; 8],
+    serial: [u8; 4],
     ts_start: [u8; 4],
     ts_end: [u8; 4],
 }
@@ -54,7 +54,7 @@ impl DNSCryptCert {
         dnscrypt_cert_inner
             .client_magic
             .copy_from_slice(&dnscrypt_cert_inner.resolver_pk[..8]);
-        BigEndian::write_u64(&mut dnscrypt_cert_inner.serial, 1);
+        BigEndian::write_u32(&mut dnscrypt_cert_inner.serial, 1);
         BigEndian::write_u32(&mut dnscrypt_cert_inner.ts_start, ts_start);
         BigEndian::write_u32(&mut dnscrypt_cert_inner.ts_end, ts_end);
 
