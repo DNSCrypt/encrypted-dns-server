@@ -30,6 +30,7 @@ use globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
+use dnsstamps::{InformalProperty, WithInformalProperty};
 use failure::{bail, ensure};
 use futures::prelude::*;
 use futures::{FutureExt, StreamExt};
@@ -98,7 +99,7 @@ fn main() -> Result<(), Error> {
             Arg::with_name("listen-addr")
                 .value_name("listen-addr")
                 .takes_value(true)
-                .default_value("0.0.0.0:4443")
+                .default_value("127.0.0.1:4443")
                 .required(true)
                 .help("Address and port to listen to"),
         )
@@ -119,12 +120,25 @@ fn main() -> Result<(), Error> {
         provider_name if provider_name.starts_with("2.dnscrypt.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt.{}", provider_name),
     };
-    let listen_addr: SocketAddr = matches.value_of("listen-addr").unwrap().parse()?;
+    let listen_addr_s = matches.value_of("listen-addr").unwrap();
+    let listen_addr: SocketAddr = listen_addr_s.parse()?;
     let resolver_kp = SignKeyPair::new();
 
-    println!("Server address: {}", listen_addr);
-    println!("Provider public key: {}", resolver_kp.pk.as_string());
-    println!("Provider name: {}", provider_name);
+    info!("Server address: {}", listen_addr);
+    info!("Provider public key: {}", resolver_kp.pk.as_string());
+    info!("Provider name: {}", provider_name);
+
+    let stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
+        provider_name.clone(),
+        resolver_kp.pk.as_bytes().to_vec(),
+    ))
+    .with_addr(listen_addr_s.to_string())
+    .with_informal_property(InformalProperty::DNSSEC)
+    .with_informal_property(InformalProperty::NoFilters)
+    .with_informal_property(InformalProperty::NoLogs)
+    .serialize()
+    .unwrap();
+    println!("DNS Stamp: {}", stamp);
 
     let dnscrypt_cert = DNSCryptCert::new(&resolver_kp);
 

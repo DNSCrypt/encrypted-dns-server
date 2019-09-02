@@ -9,6 +9,7 @@ bincode = "1.1.4"
 byteorder = "1.3.2"
 clap = { version="2.33.0", features=["suggestions", "wrap_help", "nightly"] }
 derivative = "1.0.3"
+dnsstamps = "0.1.1"
 env_logger = "0.6.2"
 failure = "0.1.5"
 futures-preview = { version = "=0.3.0-alpha.18", features = ["compat", "async-await", "nightly", "io-compat", "cfg-target-has-atomic"] }
