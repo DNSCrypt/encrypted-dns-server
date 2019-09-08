@@ -2,6 +2,7 @@ use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 
 use std::net::SocketAddr;
+use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::runtime::Runtime;
@@ -17,4 +18,6 @@ pub struct Globals {
     pub upstream_addr: SocketAddr,
     pub udp_timeout: Duration,
     pub tcp_timeout: Duration,
+    pub udp_concurrent_connections: Arc<AtomicU32>,
+    pub tcp_concurrent_connections: Arc<AtomicU32>,
 }
