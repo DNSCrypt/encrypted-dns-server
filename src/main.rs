@@ -113,9 +113,11 @@ async fn handle_client_query(
     loop {
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
         let response_len = ext_socket.recv(&mut response[..]).await?;
-        ensure!(response_len > DNS_HEADER_SIZE, "Short packet");
         response.truncate(response_len);
-        if dns::tid(&response) == tid && dns::qname(&packet)? == dns::qname(&response)? {
+        if response_len >= DNS_HEADER_SIZE
+            && dns::tid(&response) == tid
+            && dns::qname(&packet)? == dns::qname(&response)?
+        {
             break;
         }
         dbg!("Response collision");
