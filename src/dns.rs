@@ -18,12 +18,12 @@ const DNS_TYPE_TXT: u16 = 16;
 const DNS_CLASS_INET: u16 = 1;
 
 #[inline]
-fn qdcount(packet: &[u8]) -> u16 {
+pub fn qdcount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[4..])
 }
 
 #[inline]
-fn ancount(packet: &[u8]) -> u16 {
+pub fn ancount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[6..])
 }
 
@@ -41,7 +41,7 @@ fn nscount(packet: &[u8]) -> u16 {
 }
 
 #[inline]
-fn arcount(packet: &[u8]) -> u16 {
+pub fn arcount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[10..])
 }
 
@@ -79,6 +79,16 @@ pub fn truncate(packet: &mut [u8]) {
         &mut packet[DNS_OFFSET_FLAGS..],
         current_flags | DNS_FLAGS_TC | DNS_FLAGS_QR | DNS_FLAGS_RA,
     );
+}
+
+#[inline]
+pub fn is_response(packet: &[u8]) -> bool {
+    BigEndian::read_u16(&packet[DNS_OFFSET_FLAGS..]) & DNS_FLAGS_QR == DNS_FLAGS_QR
+}
+
+#[inline]
+pub fn is_truncated(packet: &[u8]) -> bool {
+    BigEndian::read_u16(&packet[DNS_OFFSET_FLAGS..]) & DNS_FLAGS_TC == DNS_FLAGS_TC
 }
 
 pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
