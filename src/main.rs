@@ -112,9 +112,10 @@ async fn handle_client_query(
     let mut response;
     loop {
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
-        let response_len = ext_socket.recv(&mut response[..]).await?;
+        let (response_len, response_addr) = ext_socket.recv_from(&mut response[..]).await?;
         response.truncate(response_len);
-        if response_len >= DNS_HEADER_SIZE
+        if response_addr == globals.upstream_addr
+            && response_len >= DNS_HEADER_SIZE
             && dns::tid(&response) == tid
             && dns::qname(&packet)? == dns::qname(&response)?
         {
