@@ -3,14 +3,15 @@ use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
-const DNS_MAX_HOSTNAME_LEN: usize = 256;
+pub const DNS_MAX_HOSTNAME_LEN: usize = 256;
+pub const DNS_HEADER_SIZE: usize = 12;
+pub const DNS_OFFSET_FLAGS: usize = 2;
+pub const DNS_MAX_PACKET_SIZE: usize = 8192;
+
 const DNS_MAX_INDIRECTIONS: usize = 16;
-const DNS_HEADER_SIZE: usize = 12;
-const DNS_OFFSET_FLAGS: usize = 2;
 const DNS_FLAGS_TC: u16 = 2u16 << 8;
 const DNS_FLAGS_QR: u16 = 128u16 << 8;
 const DNS_FLAGS_RA: u16 = 128;
-const DNS_MAX_PACKET_SIZE: usize = 65_533;
 const DNS_OFFSET_QUESTION: usize = DNS_HEADER_SIZE;
 const DNS_TYPE_OPT: u16 = 41;
 const DNS_TYPE_TXT: u16 = 16;
@@ -50,6 +51,16 @@ fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
     arcount += 1;
     BigEndian::write_u16(&mut packet[10..], arcount);
     Ok(())
+}
+
+#[inline]
+pub fn tid(packet: &[u8]) -> u16 {
+    BigEndian::read_u16(&packet[0..])
+}
+
+#[inline]
+pub fn set_tid(packet: &mut [u8], tid: u16) {
+    BigEndian::write_u16(&mut packet[0..], tid);
 }
 
 #[inline]
@@ -248,12 +259,11 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
 
     let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
     assert!(offset > DNS_OFFSET_QUESTION);
-    ensure!(packet_len - offset <= 4, "Short packet");
+    ensure!(packet_len - offset >= 4, "Short packet");
     offset += 4;
     let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
     offset = traverse_rrs(packet, offset, ancount + nscount, |_offset| Ok(()))?;
     let mut edns_payload_set = false;
-
     traverse_rrs_mut(packet, offset, arcount, |packet, offset| {
         let qtype = BigEndian::read_u16(&packet[offset..]);
         if qtype == DNS_TYPE_OPT {
