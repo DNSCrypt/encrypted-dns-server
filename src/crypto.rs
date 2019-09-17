@@ -183,11 +183,22 @@ impl SharedKey {
         Ok(decrypted)
     }
 
-    pub fn encrypt(&self, nonce: &[u8], mut plaintext: Vec<u8>) -> Result<Vec<u8>, Error> {
+    pub fn encrypt_into(
+        &self,
+        target: &mut Vec<u8>,
+        nonce: &[u8],
+        mut plaintext: Vec<u8>,
+    ) -> Result<(), Error> {
         plaintext.push(0x80);
         let plaintext_len = plaintext.len();
-        let mut encrypted =
-            vec![0u8; plaintext_len + crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
+        let target_header_len = target.len();
+        target.resize(
+            target_header_len
+                + plaintext_len
+                + crypto_box_curve25519xchacha20poly1305_MACBYTES as usize,
+            0,
+        );
+        let encrypted = &mut target[target_header_len..];
         let res = unsafe {
             libsodium_sys::crypto_box_curve25519xchacha20poly1305_easy_afternm(
                 encrypted.as_mut_ptr(),
@@ -198,7 +209,7 @@ impl SharedKey {
             )
         };
         ensure!(res == 0, "Unable to encrypt");
-        Ok(encrypted)
+        Ok(())
     }
 }
 

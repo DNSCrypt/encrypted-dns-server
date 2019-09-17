@@ -58,7 +58,6 @@ pub fn encrypt(
 ) -> Result<Vec<u8>, Error> {
     let mut wrapped_packet = vec![0x72u8, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38];
     wrapped_packet.extend_from_slice(nonce);
-    let encrypted_packet = shared_key.encrypt(nonce, packet)?;
-    wrapped_packet.extend_from_slice(&encrypted_packet);
+    shared_key.encrypt_into(&mut wrapped_packet, nonce, packet)?;
     Ok(wrapped_packet)
 }
