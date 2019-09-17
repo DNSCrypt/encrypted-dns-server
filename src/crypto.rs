@@ -182,6 +182,24 @@ impl SharedKey {
         decrypted.truncate(idx);
         Ok(decrypted)
     }
+
+    pub fn encrypt(&self, nonce: &[u8], mut plaintext: Vec<u8>) -> Result<Vec<u8>, Error> {
+        plaintext.push(0x80);
+        let plaintext_len = plaintext.len();
+        let mut encrypted =
+            vec![0u8; plaintext_len + crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
+        let res = unsafe {
+            libsodium_sys::crypto_box_curve25519xchacha20poly1305_easy_afternm(
+                encrypted.as_mut_ptr(),
+                plaintext.as_ptr(),
+                plaintext_len as _,
+                nonce.as_ptr(),
+                self.0.as_ptr(),
+            )
+        };
+        ensure!(res == 0, "Unable to encrypt");
+        Ok(encrypted)
+    }
 }
 
 pub fn bin2hex(bin: &[u8]) -> String {

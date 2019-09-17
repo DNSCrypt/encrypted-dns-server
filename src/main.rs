@@ -76,8 +76,13 @@ async fn respond_to_query(
     client_ctx: ClientCtx,
     packet: Vec<u8>,
     shared_key: Option<SharedKey>,
+    nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
 ) -> Result<(), Error> {
     ensure!(dns::is_response(&packet), "Packet is not a response");
+    let packet = match &shared_key {
+        None => packet,
+        Some(shared_key) => dnscrypt::encrypt(packet, shared_key, nonce.as_ref().unwrap())?,
+    };
     match client_ctx {
         ClientCtx::Udp(client_ctx) => {
             let net_udp_socket = client_ctx.net_udp_socket;
@@ -112,7 +117,7 @@ async fn handle_client_query(
                     &globals.provider_name,
                     &globals.dnscrypt_encryption_params_set,
                 )? {
-                    return respond_to_query(client_ctx, synth_packet, None).await;
+                    return respond_to_query(client_ctx, synth_packet, None, None).await;
                 }
                 bail!("Unencrypted query");
             }
@@ -175,7 +180,7 @@ async fn handle_client_query(
         );
     }
     dns::set_tid(&mut response, original_tid);
-    respond_to_query(client_ctx, response, Some(shared_key)).await
+    respond_to_query(client_ctx, response, Some(shared_key), Some(nonce)).await
 }
 
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
