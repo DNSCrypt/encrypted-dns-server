@@ -16,9 +16,11 @@ futures-preview = { version = "=0.3.0-alpha.18", features = ["compat", "async-aw
 jemallocator = "0.3.2"
 libsodium-sys="0.2.4"
 log = "0.4.8"
+net2 = "0.2.33"
 parking_lot = "0.9.0"
-rand = "0.7.0"
+rand = "0.7.2"
 tokio = "=0.2.0-alpha.4"
+tokio-net = "=0.2.0-alpha.4"
 
 [profile.release]
 lto = true

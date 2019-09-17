@@ -46,8 +46,9 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::prelude::*;
-use tokio::runtime::{current_thread::Handle, Runtime};
+use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
+use tokio_net::driver::Handle;
 
 const DNSCRYPT_QUERY_MIN_SIZE: usize = 12;
 const DNSCRYPT_QUERY_MAX_SIZE: usize = 512;
@@ -112,7 +113,7 @@ async fn handle_client_query(
     let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
     ext_socket.connect(&globals.upstream_addr).await?;
     set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
-    ext_socket.send(&packet).await.unwrap();
+    ext_socket.send(&packet).await?;
     let mut response;
     loop {
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
@@ -128,7 +129,14 @@ async fn handle_client_query(
         dbg!("Response collision");
     }
     if dns::is_truncated(&response) {
-        let mut ext_socket = TcpStream::connect(&globals.upstream_addr).await?;
+        let std_socket = match globals.external_addr {
+            SocketAddr::V4(_) => net2::TcpBuilder::new_v4(),
+            SocketAddr::V6(_) => net2::TcpBuilder::new_v6(),
+        }?
+        .bind(&globals.external_addr)?
+        .to_tcp_stream()?;
+        let mut ext_socket =
+            TcpStream::connect_std(std_socket, &globals.upstream_addr, &Handle::default()).await?;
         ext_socket.set_nodelay(true)?;
         let mut binlen = [0u8, 0];
         BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
