@@ -142,29 +142,45 @@ impl CryptKeyPair {
         kp
     }
 
-    pub fn decrypt(
-        &self,
-        client_pk: &[u8],
-        nonce: &[u8],
-        encrypted: &[u8],
-    ) -> Result<Vec<u8>, Error> {
+    pub fn compute_shared_key(&self, pk: &[u8]) -> Result<SharedKey, Error> {
+        let mut shared_key = SharedKey::default();
+        let res = unsafe {
+            crypto_box_curve25519xchacha20poly1305_beforenm(
+                shared_key.0.as_mut_ptr(),
+                pk.as_ptr(),
+                self.sk.0.as_ptr(),
+            )
+        };
+        ensure!(res == 0, "Weak public key");
+        Ok(shared_key)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SharedKey([u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES as usize]);
+
+impl SharedKey {
+    pub fn decrypt(&self, nonce: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
         let encrypted_len = encrypted.len();
         let mut decrypted =
             vec![0u8; encrypted_len - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
         let res = unsafe {
-            libsodium_sys::crypto_box_curve25519xchacha20poly1305_open_easy(
+            libsodium_sys::crypto_box_curve25519xchacha20poly1305_open_easy_afternm(
                 decrypted.as_mut_ptr(),
                 encrypted.as_ptr(),
                 encrypted_len as _,
                 nonce.as_ptr(),
-                client_pk.as_ptr(),
-                self.sk.as_bytes().as_ptr(),
+                self.0.as_ptr(),
             )
         };
-        match res {
-            0 => Ok(decrypted),
-            _ => bail!("Unable to decrypt"),
-        }
+        ensure!(res == 0, "Unable to decrypt");
+        let idx = decrypted
+            .iter()
+            .rposition(|x| *x != 0x00)
+            .ok_or_else(|| format_err!("Padding error"))?;
+        ensure!(decrypted[idx] == 0x80, "Padding error");
+        decrypted.truncate(idx);
+        Ok(decrypted)
     }
 }
 

@@ -295,6 +295,12 @@ pub fn serve_certificates<'t>(
     expected_qname: &str,
     dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t DNSCryptEncryptionParams>,
 ) -> Result<Option<Vec<u8>>, Error> {
+    ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    ensure!(qdcount(&client_packet) == 1, "No question");
+    ensure!(
+        !is_response(&client_packet),
+        "Question expected, but got a response instead"
+    );
     let offset = skip_name(client_packet, DNS_HEADER_SIZE)?;
     ensure!(client_packet.len() - offset >= 4, "Short packet");
     let qtype = BigEndian::read_u16(&client_packet[offset..]);
