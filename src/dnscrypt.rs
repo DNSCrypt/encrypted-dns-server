@@ -56,7 +56,8 @@ pub fn encrypt(
     shared_key: &SharedKey,
     nonce: &[u8; DNSCRYPT_FULL_NONCE_SIZE as usize],
 ) -> Result<Vec<u8>, Error> {
-    let mut wrapped_packet = vec![0x72u8, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38];
+    let mut wrapped_packet = Vec::with_capacity(DNS_MAX_PACKET_SIZE);
+    wrapped_packet.extend_from_slice(&[0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38]);
     wrapped_packet.extend_from_slice(nonce);
     shared_key.encrypt_into(&mut wrapped_packet, nonce, packet)?;
     Ok(wrapped_packet)
