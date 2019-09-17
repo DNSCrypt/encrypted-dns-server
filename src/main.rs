@@ -72,7 +72,11 @@ enum ClientCtx {
     Tcp(TcpClientCtx),
 }
 
-async fn respond_to_query(client_ctx: ClientCtx, packet: Vec<u8>) -> Result<(), Error> {
+async fn respond_to_query(
+    client_ctx: ClientCtx,
+    packet: Vec<u8>,
+    shared_key: Option<SharedKey>,
+) -> Result<(), Error> {
     ensure!(dns::is_response(&packet), "Packet is not a response");
     match client_ctx {
         ClientCtx::Udp(client_ctx) => {
@@ -98,21 +102,21 @@ async fn handle_client_query(
     client_ctx: ClientCtx,
     encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
-    let packet = dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set);
-    let mut packet = match packet {
-        Ok(packet) => packet,
-        Err(_) => {
-            let packet = encrypted_packet;
-            if let Some(synth_packet) = serve_certificates(
-                &packet,
-                &globals.provider_name,
-                &globals.dnscrypt_encryption_params_set,
-            )? {
-                return respond_to_query(client_ctx, synth_packet).await;
+    let (shared_key, nonce, mut packet) =
+        match dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set) {
+            Ok(x) => x,
+            Err(_) => {
+                let packet = encrypted_packet;
+                if let Some(synth_packet) = serve_certificates(
+                    &packet,
+                    &globals.provider_name,
+                    &globals.dnscrypt_encryption_params_set,
+                )? {
+                    return respond_to_query(client_ctx, synth_packet, None).await;
+                }
+                bail!("Unencrypted query");
             }
-            bail!("Unencrypted query");
-        }
-    };
+        };
     ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&packet) == 1, "No question");
     ensure!(
@@ -171,7 +175,7 @@ async fn handle_client_query(
         );
     }
     dns::set_tid(&mut response, original_tid);
-    respond_to_query(client_ctx, response).await
+    respond_to_query(client_ctx, response, Some(shared_key)).await
 }
 
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
