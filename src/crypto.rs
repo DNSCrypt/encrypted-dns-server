@@ -4,6 +4,10 @@ use libsodium_sys::*;
 use std::ffi::CStr;
 use std::ptr;
 
+#[allow(non_upper_case_globals)]
+pub const crypto_box_curve25519xchacha20poly1305_HALFNONCEBYTES: usize =
+    crypto_box_curve25519xchacha20poly1305_NONCEBYTES as usize / 2;
+
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct Signature(
@@ -83,6 +87,84 @@ impl SignKeyPair {
         let mut kp = SignKeyPair::default();
         unsafe { crypto_sign_keypair(kp.pk.0.as_mut_ptr(), kp.sk.0.as_mut_ptr()) };
         kp
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CryptSK([u8; crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES as usize]);
+
+impl CryptSK {
+    pub fn as_bytes(
+        &self,
+    ) -> &[u8; crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES as usize] {
+        &self.0
+    }
+
+    pub fn from_bytes(
+        bytes: [u8; crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES as usize],
+    ) -> Self {
+        CryptSK(bytes)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CryptPK([u8; crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES as usize]);
+
+impl CryptPK {
+    pub fn as_bytes(
+        &self,
+    ) -> &[u8; crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES as usize] {
+        &self.0
+    }
+
+    pub fn from_bytes(
+        bytes: [u8; crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES as usize],
+    ) -> Self {
+        CryptPK(bytes)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct CryptKeyPair {
+    pub sk: CryptSK,
+    pub pk: CryptPK,
+}
+
+impl CryptKeyPair {
+    pub fn new() -> Self {
+        let mut kp = CryptKeyPair::default();
+        unsafe {
+            crypto_box_curve25519xchacha20poly1305_keypair(
+                kp.pk.0.as_mut_ptr(),
+                kp.sk.0.as_mut_ptr(),
+            )
+        };
+        kp
+    }
+
+    pub fn decrypt(
+        &self,
+        client_pk: &[u8],
+        nonce: &[u8],
+        encrypted: &[u8],
+    ) -> Result<Vec<u8>, Error> {
+        let encrypted_len = encrypted.len();
+        let mut decrypted =
+            vec![0u8; encrypted_len - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
+        let res = unsafe {
+            libsodium_sys::crypto_box_curve25519xchacha20poly1305_open_easy(
+                decrypted.as_mut_ptr(),
+                encrypted.as_ptr(),
+                encrypted_len as _,
+                nonce.as_ptr(),
+                client_pk.as_ptr(),
+                self.sk.as_bytes().as_ptr(),
+            )
+        };
+        match res {
+            0 => Ok(decrypted),
+            _ => bail!("Unable to decrypt"),
+        }
     }
 }
 

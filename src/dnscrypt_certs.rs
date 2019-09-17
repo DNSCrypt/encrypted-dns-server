@@ -41,7 +41,7 @@ pub struct DNSCryptCert {
 }
 
 impl DNSCryptCert {
-    pub fn new(resolver_kp: &SignKeyPair) -> Self {
+    pub fn new(provider_kp: &SignKeyPair, resolver_kp: &CryptKeyPair) -> Self {
         let ts_start = now();
         let ts_end = ts_start + 86400;
 
@@ -63,7 +63,7 @@ impl DNSCryptCert {
         BigEndian::write_u16(&mut dnscrypt_cert.minor_version, 0);
 
         dnscrypt_cert.signature.copy_from_slice(
-            resolver_kp
+            provider_kp
                 .sk
                 .sign(dnscrypt_cert_inner.as_bytes())
                 .as_bytes(),
@@ -73,5 +73,38 @@ impl DNSCryptCert {
 
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { slice::from_raw_parts(self as *const _ as *const u8, mem::size_of_val(self)) }
+    }
+
+    pub fn client_magic(&self) -> &[u8] {
+        &self.inner.client_magic
+    }
+}
+
+#[derive(Debug)]
+pub struct DNSCryptEncryptionParams {
+    dnscrypt_cert: DNSCryptCert,
+    resolver_kp: CryptKeyPair,
+}
+
+impl DNSCryptEncryptionParams {
+    pub fn new(provider_kp: &SignKeyPair) -> Self {
+        let resolver_kp = CryptKeyPair::new();
+        let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
+        DNSCryptEncryptionParams {
+            dnscrypt_cert,
+            resolver_kp,
+        }
+    }
+
+    pub fn client_magic(&self) -> &[u8] {
+        self.dnscrypt_cert.client_magic()
+    }
+
+    pub fn dnscrypt_cert(&self) -> &DNSCryptCert {
+        &self.dnscrypt_cert
+    }
+
+    pub fn resolver_kp(&self) -> &CryptKeyPair {
+        &self.resolver_kp
     }
 }

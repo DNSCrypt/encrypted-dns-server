@@ -18,12 +18,14 @@ extern crate log;
 mod config;
 mod crypto;
 mod dns;
+mod dnscrypt;
 mod dnscrypt_certs;
 mod errors;
 mod globals;
 
 use crypto::*;
 use dns::*;
+use dnscrypt::*;
 use dnscrypt_certs::*;
 use errors::*;
 use globals::*;
@@ -94,19 +96,30 @@ async fn respond_to_query(client_ctx: ClientCtx, packet: Vec<u8>) -> Result<(), 
 async fn handle_client_query(
     globals: Arc<Globals>,
     client_ctx: ClientCtx,
-    mut packet: Vec<u8>,
+    encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
-    ensure!(packet.len() >= DNSCRYPT_QUERY_MIN_SIZE, "Short packet");
-    ensure!(dns::qdcount(&packet) == 1, "No question");
-    ensure!(
-        !dns::is_response(&packet),
-        "Question expected, but got a response instead"
-    );
-    if let Some(synth_packet) =
-        serve_certificates(&packet, &globals.provider_name, &globals.dnscrypt_certs)?
-    {
-        return respond_to_query(client_ctx, synth_packet).await;
-    }
+    let packet = DNSCryptQuery::new(&encrypted_packet, &globals.dnscrypt_encryption_params_set);
+    let mut packet = match packet {
+        Err(_) => {
+            let packet = encrypted_packet;
+            ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
+            ensure!(dns::qdcount(&packet) == 1, "No question");
+            ensure!(
+                !dns::is_response(&packet),
+                "Question expected, but got a response instead"
+            );
+            if let Some(synth_packet) = serve_certificates(
+                &packet,
+                &globals.provider_name,
+                &globals.dnscrypt_encryption_params_set,
+            )? {
+                return respond_to_query(client_ctx, synth_packet).await;
+            }
+            bail!("Unencrypted query");
+        }
+        Ok(packet) => packet.into_packet(),
+    };
+
     let original_tid = dns::tid(&packet);
     let tid = random();
     dns::set_tid(&mut packet, tid);
@@ -317,15 +330,15 @@ fn main() -> Result<(), Error> {
     let udp_timeout = Duration::from_secs(10);
     let tcp_timeout = Duration::from_secs(10);
 
-    let resolver_kp = SignKeyPair::new();
+    let provider_kp = SignKeyPair::new();
 
     info!("Server address: {}", listen_addr);
-    info!("Provider public key: {}", resolver_kp.pk.as_string());
+    info!("Provider public key: {}", provider_kp.pk.as_string());
     info!("Provider name: {}", provider_name);
 
     let stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
         provider_name.clone(),
-        resolver_kp.pk.as_bytes().to_vec(),
+        provider_kp.pk.as_bytes().to_vec(),
     ))
     .with_addr(listen_addr_s.to_string())
     .with_informal_property(InformalProperty::DNSSEC)
@@ -335,15 +348,17 @@ fn main() -> Result<(), Error> {
     .unwrap();
     println!("DNS Stamp: {}", stamp);
 
-    let dnscrypt_cert = DNSCryptCert::new(&resolver_kp);
+    let resolver_kp = CryptKeyPair::new();
+    let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
+
+    let dnscrypt_encryption_params = DNSCryptEncryptionParams::new(&provider_kp);
 
     let runtime = Arc::new(Runtime::new()?);
     let udp_max_active_connections = 1000;
     let tcp_max_active_connections = 100;
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
-        resolver_kp,
-        dnscrypt_certs: vec![dnscrypt_cert],
+        dnscrypt_encryption_params_set: vec![dnscrypt_encryption_params],
         provider_name,
         listen_addr,
         upstream_addr,

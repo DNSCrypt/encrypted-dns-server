@@ -3,7 +3,7 @@ use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 
-pub const DNS_MAX_HOSTNAME_LEN: usize = 256;
+pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
 pub const DNS_HEADER_SIZE: usize = 12;
 pub const DNS_OFFSET_FLAGS: usize = 2;
 pub const DNS_MAX_PACKET_SIZE: usize = 8192;
@@ -96,7 +96,7 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
     ensure!(qdcount(packet) == 1, "Unexpected query count");
     let packet_len = packet.len();
     let mut offset = DNS_HEADER_SIZE;
-    let mut qname = Vec::with_capacity(DNS_MAX_HOSTNAME_LEN);
+    let mut qname = Vec::with_capacity(DNS_MAX_HOSTNAME_SIZE);
     let mut indirections = 0;
     loop {
         ensure!(offset < packet_len, "Short packet");
@@ -127,7 +127,7 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
                     qname.push(b'.')
                 }
                 ensure!(
-                    qname.len() < DNS_MAX_HOSTNAME_LEN - label_len,
+                    qname.len() < DNS_MAX_HOSTNAME_SIZE - label_len,
                     "Name too long"
                 );
                 qname.extend_from_slice(&packet[offset..offset + label_len]);
@@ -157,7 +157,7 @@ fn skip_name(packet: &[u8], offset: usize) -> Result<usize, Error> {
             "Malformed packet with an out-of-bounds name"
         );
         qname_len += label_len + 1;
-        ensure!(qname_len <= DNS_MAX_HOSTNAME_LEN, "Name too long");
+        ensure!(qname_len <= DNS_MAX_HOSTNAME_SIZE, "Name too long");
         offset += label_len + 1;
         if label_len == 0 {
             break;
@@ -293,7 +293,7 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
 pub fn serve_certificates<'t>(
     client_packet: &[u8],
     expected_qname: &str,
-    dnscrypt_certs: impl IntoIterator<Item = &'t DNSCryptCert>,
+    dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t DNSCryptEncryptionParams>,
 ) -> Result<Option<Vec<u8>>, Error> {
     let offset = skip_name(client_packet, DNS_HEADER_SIZE)?;
     ensure!(client_packet.len() - offset >= 4, "Short packet");
@@ -309,9 +309,8 @@ pub fn serve_certificates<'t>(
     }
     let mut packet = (&client_packet[..offset + 4]).to_vec();
     authoritative_response(&mut packet);
-
-    for dnscrypt_cert in dnscrypt_certs {
-        let cert_bin = dnscrypt_cert.as_bytes();
+    for dnscrypt_encryption_params in dnscrypt_encryption_params_set {
+        let cert_bin = dnscrypt_encryption_params.dnscrypt_cert().as_bytes();
         ensure!(cert_bin.len() <= 0xff, "Certificate too long");
         ancount_inc(&mut packet)?;
         packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
