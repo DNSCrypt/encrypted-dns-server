@@ -258,8 +258,10 @@ async fn tls_proxy(
     ewh.write_all(&binlen).await?;
     let fut_proxy_1 = rh.copy(&mut ewh);
     let fut_proxy_2 = erh.copy(&mut wh);
-    let _ = join!(fut_proxy_1, fut_proxy_2);
-    Ok(())
+    match join!(fut_proxy_1, fut_proxy_2) {
+        (Ok(_), Ok(_)) => Ok(()),
+        _ => Err(format_err!("TLS proxy error")),
+    }
 }
 
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
