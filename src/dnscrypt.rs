@@ -66,7 +66,7 @@ pub fn decrypt(
         .ok_or_else(|| format_err!("Client magic not found"))?;
 
     let mut nonce = [0u8; DNSCRYPT_FULL_NONCE_SIZE as usize];
-    &mut nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);
+    nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);
     let resolver_kp = dnscrypt_encryption_params.resolver_kp();
     let shared_key = resolver_kp.compute_shared_key(client_pk)?;
     let packet = shared_key.decrypt(&nonce, encrypted_packet)?;
@@ -79,10 +79,22 @@ pub fn encrypt(
     packet: Vec<u8>,
     shared_key: &SharedKey,
     nonce: &[u8; DNSCRYPT_FULL_NONCE_SIZE as usize],
+    max_packet_size: usize,
 ) -> Result<Vec<u8>, Error> {
     let mut wrapped_packet = Vec::with_capacity(DNS_MAX_PACKET_SIZE);
     wrapped_packet.extend_from_slice(&[0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38]);
     wrapped_packet.extend_from_slice(nonce);
-    shared_key.encrypt_into(&mut wrapped_packet, nonce, packet)?;
+    ensure!(
+        max_packet_size >= wrapped_packet.len(),
+        "Max packet size too short"
+    );
+    let max_encrypted_size = max_packet_size - wrapped_packet.len();
+    shared_key.encrypt_into(
+        &mut wrapped_packet,
+        nonce,
+        &nonce[..DNSCRYPT_QUERY_NONCE_SIZE],
+        packet,
+        max_encrypted_size,
+    )?;
     Ok(wrapped_packet)
 }

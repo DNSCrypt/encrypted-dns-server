@@ -73,12 +73,11 @@ fn maybe_truncate_response(
     client_ctx: &ClientCtx,
     packet: Vec<u8>,
     response: Vec<u8>,
-    original_packet_len: usize,
+    original_packet_size: usize,
 ) -> Result<Vec<u8>, Error> {
     if let ClientCtx::Udp(_) = client_ctx {
-        let encrypted_response_min_len =
-            response.len() + DNSCRYPT_RESPONSE_HEADER_SIZE + DNSCRYPT_RESPONSE_MIN_PADDING_SIZE;
-        if encrypted_response_min_len > original_packet_len
+        let encrypted_response_min_len = response.len() + DNSCRYPT_RESPONSE_MIN_OVERHEAD;
+        if encrypted_response_min_len > original_packet_size
             || encrypted_response_min_len > DNSCRYPT_UDP_RESPONSE_MAX_SIZE
         {
             return Ok(dns::serve_truncated(packet)?);
@@ -91,17 +90,22 @@ async fn respond_to_query(
     client_ctx: ClientCtx,
     packet: Vec<u8>,
     response: Vec<u8>,
-    original_packet_len: usize,
+    original_packet_size: usize,
     shared_key: Option<SharedKey>,
     nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
 ) -> Result<(), Error> {
     ensure!(dns::is_response(&response), "Packet is not a response");
+    let max_response_size = match client_ctx {
+        ClientCtx::Udp(_) => original_packet_size,
+        ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
+    };
     let response = match &shared_key {
         None => response,
         Some(shared_key) => dnscrypt::encrypt(
-            maybe_truncate_response(&client_ctx, packet, response, original_packet_len)?,
+            maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
             shared_key,
             nonce.as_ref().unwrap(),
+            max_response_size,
         )?,
     };
     match client_ctx {
@@ -131,7 +135,7 @@ async fn handle_client_query(
     client_ctx: ClientCtx,
     encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
-    let original_packet_len = encrypted_packet.len();
+    let original_packet_size = encrypted_packet.len();
     let (shared_key, nonce, mut packet) =
         match dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set) {
             Ok(x) => x,
@@ -146,7 +150,7 @@ async fn handle_client_query(
                         client_ctx,
                         packet,
                         synth_packet,
-                        original_packet_len,
+                        original_packet_size,
                         None,
                         None,
                     )
@@ -217,7 +221,7 @@ async fn handle_client_query(
         client_ctx,
         packet,
         response,
-        original_packet_len,
+        original_packet_size,
         Some(shared_key),
         Some(nonce),
     )

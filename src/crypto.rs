@@ -1,7 +1,9 @@
 use crate::errors::*;
 
 use libsodium_sys::*;
+use siphasher::sip::SipHasher13;
 use std::ffi::CStr;
+use std::hash::Hasher;
 use std::ptr;
 
 #[allow(non_upper_case_globals)]
@@ -187,14 +189,39 @@ impl SharedKey {
         &self,
         target: &mut Vec<u8>,
         nonce: &[u8],
-        mut plaintext: Vec<u8>,
+        client_nonce: &[u8],
+        plaintext: Vec<u8>,
+        max_target_size: usize,
     ) -> Result<(), Error> {
-        plaintext.push(0x80);
+        ensure!(
+            max_target_size >= crypto_box_curve25519xchacha20poly1305_MACBYTES as usize,
+            "Max target size too small"
+        );
         let plaintext_len = plaintext.len();
+        let max_padded_plaintext_len =
+            max_target_size - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize;
+        let mut hasher = SipHasher13::new();
+        hasher.write(&self.0);
+        hasher.write(&client_nonce);
+        let pad_size: usize = 1 + (hasher.finish() as usize & 0xff);
+        let mut padded_plaintext_len = (plaintext_len + pad_size) & !63;
+        if padded_plaintext_len < plaintext_len {
+            padded_plaintext_len += 64;
+        }
+        if padded_plaintext_len > max_padded_plaintext_len {
+            padded_plaintext_len = max_padded_plaintext_len;
+        }
+        ensure!(padded_plaintext_len > plaintext_len, "No room for padding");
+        let mut padded_plaintext = plaintext;
+        padded_plaintext.push(0x80);
+        while padded_plaintext.len() != padded_plaintext_len {
+            padded_plaintext.push(0x00);
+        }
+        let padded_plaintext_len = padded_plaintext.len();
         let target_header_len = target.len();
         target.resize(
             target_header_len
-                + plaintext_len
+                + padded_plaintext_len
                 + crypto_box_curve25519xchacha20poly1305_MACBYTES as usize,
             0,
         );
@@ -202,8 +229,8 @@ impl SharedKey {
         let res = unsafe {
             libsodium_sys::crypto_box_curve25519xchacha20poly1305_easy_afternm(
                 encrypted.as_mut_ptr(),
-                plaintext.as_ptr(),
-                plaintext_len as _,
+                padded_plaintext.as_ptr(),
+                padded_plaintext_len as _,
                 nonce.as_ptr(),
                 self.0.as_ptr(),
             )
