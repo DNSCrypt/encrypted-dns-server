@@ -35,12 +35,11 @@ use dnscrypt_certs::*;
 use errors::*;
 use globals::*;
 
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
 use dnsstamps::{InformalProperty, WithInformalProperty};
 use failure::{bail, ensure};
 use futures::prelude::*;
-use futures::{pin_mut, FutureExt, StreamExt};
 use parking_lot::Mutex;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
@@ -49,8 +48,7 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
-use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -147,7 +145,7 @@ async fn handle_client_query(
     let (shared_key, nonce, mut packet) =
         match dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set) {
             Ok(x) => x,
-            Err(e) => {
+            Err(_) => {
                 let packet = encrypted_packet;
                 if let Some(synth_packet) = serve_certificates(
                     &packet,
@@ -295,6 +293,9 @@ async fn udp_acceptor(
     loop {
         let mut packet = vec![0u8; DNSCRYPT_UDP_QUERY_MAX_SIZE];
         let (packet_len, client_addr) = tokio_udp_socket.recv_from(&mut packet).await?;
+        if packet_len < DNSCRYPT_UDP_QUERY_MIN_SIZE {
+            continue;
+        }
         let net_udp_socket = net_udp_socket.try_clone()?;
         packet.truncate(packet_len);
         let client_ctx = ClientCtx::Udp(UdpClientCtx {
@@ -334,6 +335,8 @@ async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error
 fn main() -> Result<(), Error> {
     env_logger::init();
     crypto::init()?;
+    let updater = coarsetime::Updater::new(1000).start()?;
+    mem::forget(updater);
 
     let matches = app_from_crate!()
         .arg(
@@ -377,11 +380,6 @@ fn main() -> Result<(), Error> {
                 .help("File to store the server state"),
         )
         .get_matches();
-
-    let listen_addr = matches
-        .value_of("listen-addr")
-        .unwrap()
-        .to_ascii_lowercase();
 
     let provider_name = match matches.value_of("provider-name").unwrap() {
         provider_name if provider_name.starts_with("2.dnscrypt.") => provider_name.to_string(),
@@ -439,9 +437,6 @@ fn main() -> Result<(), Error> {
     .serialize()
     .unwrap();
     println!("DNS Stamp: {}", stamp);
-
-    let resolver_kp = CryptKeyPair::new();
-    let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
 
     let dnscrypt_encryption_params = DNSCryptEncryptionParams::new(&provider_kp);
 

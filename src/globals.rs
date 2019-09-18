@@ -1,4 +1,3 @@
-use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 
 use parking_lot::Mutex;

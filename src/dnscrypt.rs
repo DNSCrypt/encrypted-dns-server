@@ -5,8 +5,6 @@ use crate::errors::*;
 
 use libsodium_sys::*;
 use rand::prelude::*;
-use std::ffi::CStr;
-use std::ptr;
 
 pub const DNSCRYPT_FULL_NONCE_SIZE: usize =
     crypto_box_curve25519xchacha20poly1305_NONCEBYTES as usize;
@@ -58,7 +56,6 @@ pub fn decrypt(
     let client_nonce = &wrapped_packet[DNSCRYPT_QUERY_MAGIC_SIZE + DNSCRYPT_QUERY_PK_SIZE
         ..DNSCRYPT_QUERY_MAGIC_SIZE + DNSCRYPT_QUERY_PK_SIZE + DNSCRYPT_QUERY_NONCE_SIZE];
     let encrypted_packet = &wrapped_packet[DNSCRYPT_QUERY_HEADER_SIZE..];
-    let encrypted_packet_len = encrypted_packet.len();
 
     let dnscrypt_encryption_params = dnscrypt_encryption_params_set
         .iter()

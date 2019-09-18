@@ -1,6 +1,7 @@
 use crate::crypto::*;
 
 use byteorder::{BigEndian, ByteOrder};
+use coarsetime::{Clock, Duration};
 use std::mem;
 use std::slice;
 use std::time::SystemTime;
@@ -77,6 +78,10 @@ impl DNSCryptCert {
 
     pub fn client_magic(&self) -> &[u8] {
         &self.inner.client_magic
+    }
+
+    pub fn ts_end(&self) -> Duration {
+        Duration::from_secs(u64::from(BigEndian::read_u32(&self.inner.ts_end)))
     }
 }
 

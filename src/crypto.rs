@@ -6,10 +6,6 @@ use std::ffi::CStr;
 use std::hash::Hasher;
 use std::ptr;
 
-#[allow(non_upper_case_globals)]
-pub const crypto_box_curve25519xchacha20poly1305_HALFNONCEBYTES: usize =
-    crypto_box_curve25519xchacha20poly1305_NONCEBYTES as usize / 2;
-
 #[derive(Derivative)]
 #[derivative(Default)]
 pub struct Signature(
