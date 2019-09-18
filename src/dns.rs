@@ -6,7 +6,7 @@ use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
 pub const DNS_HEADER_SIZE: usize = 12;
 pub const DNS_OFFSET_FLAGS: usize = 2;
-pub const DNS_MAX_PACKET_SIZE: usize = 8192;
+pub const DNS_MAX_PACKET_SIZE: usize = 0x1600;
 
 const DNS_MAX_INDIRECTIONS: usize = 16;
 const DNS_FLAGS_TC: u16 = 2u16 << 8;

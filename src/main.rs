@@ -262,6 +262,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             let mut binlen = [0u8, 0];
             client_connection.read_exact(&mut binlen).await?;
             let packet_len = BigEndian::read_u16(&binlen) as usize;
+            ensure!(packet_len != 0x1603, "TLS traffic");
             ensure!(
                 (DNS_HEADER_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
                 "Unexpected query size"
