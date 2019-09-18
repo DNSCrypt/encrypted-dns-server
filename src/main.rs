@@ -39,6 +39,7 @@ use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
 use dnsstamps::{InformalProperty, WithInformalProperty};
 use failure::{bail, ensure};
+use futures::join;
 use futures::prelude::*;
 use parking_lot::Mutex;
 use rand::prelude::*;
@@ -52,6 +53,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
@@ -234,6 +236,32 @@ async fn handle_client_query(
     .await
 }
 
+async fn tls_proxy(
+    globals: Arc<Globals>,
+    binlen: [u8; 2],
+    client_connection: TcpStream,
+) -> Result<(), Error> {
+    let tls_upstream_addr = match &globals.tls_upstream_addr {
+        None => return Ok(()),
+        Some(tls_upstream_addr) => tls_upstream_addr,
+    };
+    let std_socket = match globals.external_addr {
+        SocketAddr::V4(_) => net2::TcpBuilder::new_v4(),
+        SocketAddr::V6(_) => net2::TcpBuilder::new_v6(),
+    }?
+    .bind(&globals.external_addr)?
+    .to_tcp_stream()?;
+    let ext_socket =
+        TcpStream::connect_std(std_socket, tls_upstream_addr, &Handle::default()).await?;
+    let (mut erh, mut ewh) = ext_socket.split();
+    let (mut rh, mut wh) = client_connection.split();
+    ewh.write_all(&binlen).await?;
+    let fut_proxy_1 = rh.copy(&mut ewh);
+    let fut_proxy_2 = erh.copy(&mut wh);
+    let _ = join!(fut_proxy_1, fut_proxy_2);
+    Ok(())
+}
+
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
     let runtime = globals.runtime.clone();
     let mut tcp_listener = tcp_listener.incoming();
@@ -262,7 +290,9 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             let mut binlen = [0u8, 0];
             client_connection.read_exact(&mut binlen).await?;
             let packet_len = BigEndian::read_u16(&binlen) as usize;
-            ensure!(packet_len != 0x1603, "TLS traffic");
+            if packet_len == 0x1603 {
+                return tls_proxy(globals, binlen, client_connection).await;
+            }
             ensure!(
                 (DNS_HEADER_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
                 "Unexpected query size"
@@ -342,42 +372,49 @@ fn main() -> Result<(), Error> {
     let matches = app_from_crate!()
         .arg(
             Arg::with_name("listen-addr")
-                .value_name("listen-addr")
+                .long("listen-addr")
+                .value_name("addr:port")
                 .takes_value(true)
                 .default_value("127.0.0.1:4443")
-                .required(true)
                 .help("Address and port to listen to"),
         )
         .arg(
             Arg::with_name("provider-name")
-                .value_name("provider-name")
+                .long("provider-name")
+                .value_name("string")
                 .takes_value(true)
                 .default_value("2.dnscrypt.test")
-                .required(true)
                 .help("Provider name"),
         )
         .arg(
             Arg::with_name("upstream-addr")
-                .value_name("upstream-addr")
+                .long("upstream-addr")
+                .value_name("addr:port")
                 .takes_value(true)
                 .default_value("9.9.9.9:53")
-                .required(true)
                 .help("Address and port of the upstream server"),
         )
         .arg(
+            Arg::with_name("tls-upstream-addr")
+                .long("tls-upstream-addr")
+                .value_name("addr:port")
+                .takes_value(true)
+                .help("Address and port of an optional upstream TLS (HTTPS / DoH) server"),
+        )
+        .arg(
             Arg::with_name("external-addr")
-                .value_name("external-addr")
+                .long("external-addr")
+                .value_name("addr:port")
                 .takes_value(true)
                 .default_value("0.0.0.0:0")
-                .required(true)
                 .help("Address and port to connect from"),
         )
         .arg(
             Arg::with_name("state-file")
-                .value_name("state-file")
+                .long("state-file")
+                .value_name("file")
                 .takes_value(true)
                 .default_value("dnscrypt-server.state")
-                .required(true)
                 .help("File to store the server state"),
         )
         .get_matches();
@@ -392,6 +429,11 @@ fn main() -> Result<(), Error> {
 
     let upstream_addr_s = matches.value_of("upstream-addr").unwrap();
     let upstream_addr: SocketAddr = upstream_addr_s.parse()?;
+
+    let tls_upstream_addr_s = matches.value_of("tls-upstream-addr");
+    dbg!(tls_upstream_addr_s);
+    let tls_upstream_addr: Option<SocketAddr> =
+        tls_upstream_addr_s.map(|x| x.parse().expect("Invalid TLS upstream address"));
 
     let external_addr_s = matches.value_of("external-addr").unwrap();
     let external_addr: SocketAddr = external_addr_s.parse()?;
@@ -450,6 +492,7 @@ fn main() -> Result<(), Error> {
         provider_name,
         listen_addr,
         upstream_addr,
+        tls_upstream_addr,
         external_addr,
         tcp_timeout,
         udp_timeout,

@@ -17,6 +17,7 @@ pub struct Globals {
     pub listen_addr: SocketAddr,
     pub external_addr: SocketAddr,
     pub upstream_addr: SocketAddr,
+    pub tls_upstream_addr: Option<SocketAddr>,
     pub udp_timeout: Duration,
     pub tcp_timeout: Duration,
     pub udp_concurrent_connections: Arc<AtomicU32>,
