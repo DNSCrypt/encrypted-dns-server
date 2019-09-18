@@ -205,7 +205,7 @@ impl SharedKey {
         let pad_size: usize = 1 + (hasher.finish() as usize & 0xff);
         let mut padded_plaintext_len = (plaintext_len + pad_size) & !63;
         if padded_plaintext_len < plaintext_len {
-            padded_plaintext_len += 64;
+            padded_plaintext_len += 256;
         }
         if padded_plaintext_len > max_padded_plaintext_len {
             padded_plaintext_len = max_padded_plaintext_len;
