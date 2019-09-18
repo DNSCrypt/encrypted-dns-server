@@ -27,9 +27,12 @@ impl Signature {
     }
 }
 
-#[derive(Derivative)]
+big_array! { BigArray; }
+
+#[derive(Serialize, Deserialize, Derivative)]
 #[derivative(Default)]
 pub struct SignSK(
+    #[serde(with = "BigArray")]
     #[derivative(Default(value = "[0u8; crypto_sign_SECRETKEYBYTES as usize]"))]
     [u8; crypto_sign_SECRETKEYBYTES as usize],
 );
@@ -59,7 +62,7 @@ impl SignSK {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct SignPK([u8; crypto_sign_PUBLICKEYBYTES as usize]);
 
 impl SignPK {
@@ -76,7 +79,7 @@ impl SignPK {
     }
 }
 
-#[derive(Derivative)]
+#[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Debug, Default)]
 pub struct SignKeyPair {
     #[derivative(Debug = "ignore")]

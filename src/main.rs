@@ -14,6 +14,10 @@ extern crate derivative;
 extern crate failure;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate serde_derive;
+#[macro_use]
+extern crate serde_big_array;
 
 mod config;
 mod crypto;
@@ -23,6 +27,7 @@ mod dnscrypt_certs;
 mod errors;
 mod globals;
 
+use config::*;
 use crypto::*;
 use dns::*;
 use dnscrypt::*;
@@ -40,9 +45,12 @@ use parking_lot::Mutex;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
+use std::fs::File;
+use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
 use std::os::unix::io::{AsRawFd, FromRawFd, RawFd};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -360,6 +368,14 @@ fn main() -> Result<(), Error> {
                 .required(true)
                 .help("Address and port to connect from"),
         )
+        .arg(
+            Arg::with_name("state-file")
+                .value_name("state-file")
+                .takes_value(true)
+                .default_value("dnscrypt-server.state")
+                .required(true)
+                .help("File to store the server state"),
+        )
         .get_matches();
 
     let listen_addr = matches
@@ -384,7 +400,29 @@ fn main() -> Result<(), Error> {
     let udp_timeout = Duration::from_secs(10);
     let tcp_timeout = Duration::from_secs(10);
 
-    let provider_kp = SignKeyPair::new();
+    let state_file_s = matches.value_of("state-file").unwrap();
+    let state_file = PathBuf::from(state_file_s);
+
+    let state = match File::open(&state_file) {
+        Err(_) => {
+            println!("No state file found... creating a new provider key");
+            let state = State::new();
+            let mut fp = File::create(&state_file)?;
+            let state_bin = bincode::serialize(&state)?;
+            fp.write_all(&state_bin)?;
+            state
+        }
+        Ok(mut fp) => {
+            println!(
+                "State file [{}] found; using existing provider key",
+                state_file.as_os_str().to_string_lossy()
+            );
+            let mut state_bin = vec![];
+            fp.read_to_end(&mut state_bin)?;
+            bincode::deserialize(&state_bin)?
+        }
+    };
+    let provider_kp = state.provider_kp;
 
     info!("Server address: {}", listen_addr);
     info!("Provider public key: {}", provider_kp.pk.as_string());
