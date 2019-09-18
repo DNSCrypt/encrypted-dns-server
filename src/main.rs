@@ -263,7 +263,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             client_connection.read_exact(&mut binlen).await?;
             let packet_len = BigEndian::read_u16(&binlen) as usize;
             ensure!(
-                (DNSCRYPT_TCP_QUERY_MIN_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
+                (DNS_HEADER_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
                 "Unexpected query size"
             );
             let mut packet = vec![0u8; packet_len];
@@ -293,7 +293,7 @@ async fn udp_acceptor(
     loop {
         let mut packet = vec![0u8; DNSCRYPT_UDP_QUERY_MAX_SIZE];
         let (packet_len, client_addr) = tokio_udp_socket.recv_from(&mut packet).await?;
-        if packet_len < DNSCRYPT_UDP_QUERY_MIN_SIZE {
+        if packet_len < DNS_HEADER_SIZE {
             continue;
         }
         let net_udp_socket = net_udp_socket.try_clone()?;
