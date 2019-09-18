@@ -52,9 +52,6 @@ use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 use tokio_net::driver::Handle;
 
-const DNSCRYPT_QUERY_MIN_SIZE: usize = 12;
-const DNSCRYPT_QUERY_MAX_SIZE: usize = 512;
-
 #[derive(Debug)]
 struct UdpClientCtx {
     net_udp_socket: std::net::UdpSocket,
@@ -72,30 +69,57 @@ enum ClientCtx {
     Tcp(TcpClientCtx),
 }
 
+fn maybe_truncate_response(
+    client_ctx: &ClientCtx,
+    packet: Vec<u8>,
+    response: Vec<u8>,
+    original_packet_len: usize,
+) -> Result<Vec<u8>, Error> {
+    if let ClientCtx::Udp(_) = client_ctx {
+        let encrypted_response_min_len =
+            response.len() + DNSCRYPT_RESPONSE_HEADER_SIZE + DNSCRYPT_RESPONSE_MIN_PADDING_SIZE;
+        if encrypted_response_min_len > original_packet_len
+            || encrypted_response_min_len > DNSCRYPT_UDP_RESPONSE_MAX_SIZE
+        {
+            return Ok(dns::serve_truncated(packet)?);
+        }
+    }
+    Ok(response)
+}
+
 async fn respond_to_query(
     client_ctx: ClientCtx,
     packet: Vec<u8>,
+    response: Vec<u8>,
+    original_packet_len: usize,
     shared_key: Option<SharedKey>,
     nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
 ) -> Result<(), Error> {
-    ensure!(dns::is_response(&packet), "Packet is not a response");
-    let packet = match &shared_key {
-        None => packet,
-        Some(shared_key) => dnscrypt::encrypt(packet, shared_key, nonce.as_ref().unwrap())?,
+    ensure!(dns::is_response(&response), "Packet is not a response");
+    let response = match &shared_key {
+        None => response,
+        Some(shared_key) => dnscrypt::encrypt(
+            maybe_truncate_response(&client_ctx, packet, response, original_packet_len)?,
+            shared_key,
+            nonce.as_ref().unwrap(),
+        )?,
     };
     match client_ctx {
         ClientCtx::Udp(client_ctx) => {
             let net_udp_socket = client_ctx.net_udp_socket;
-            net_udp_socket.send_to(&packet, client_ctx.client_addr)?;
+            net_udp_socket.send_to(&response, client_ctx.client_addr)?;
         }
         ClientCtx::Tcp(client_ctx) => {
-            let packet_len = packet.len();
-            ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Packet too large");
+            let response_len = response.len();
+            ensure!(
+                response_len <= DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
+                "Packet too large"
+            );
             let mut client_connection = client_ctx.client_connection;
             let mut binlen = [0u8, 0];
-            BigEndian::write_u16(&mut binlen[..], packet_len as u16);
+            BigEndian::write_u16(&mut binlen[..], response_len as u16);
             client_connection.write_all(&binlen).await?;
-            client_connection.write_all(&packet).await?;
+            client_connection.write_all(&response).await?;
             client_connection.flush();
         }
     }
@@ -107,17 +131,26 @@ async fn handle_client_query(
     client_ctx: ClientCtx,
     encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
+    let original_packet_len = encrypted_packet.len();
     let (shared_key, nonce, mut packet) =
         match dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set) {
             Ok(x) => x,
-            Err(_) => {
+            Err(e) => {
                 let packet = encrypted_packet;
                 if let Some(synth_packet) = serve_certificates(
                     &packet,
                     &globals.provider_name,
                     &globals.dnscrypt_encryption_params_set,
                 )? {
-                    return respond_to_query(client_ctx, synth_packet, None, None).await;
+                    return respond_to_query(
+                        client_ctx,
+                        packet,
+                        synth_packet,
+                        original_packet_len,
+                        None,
+                        None,
+                    )
+                    .await;
                 }
                 bail!("Unencrypted query");
             }
@@ -180,7 +213,15 @@ async fn handle_client_query(
         );
     }
     dns::set_tid(&mut response, original_tid);
-    respond_to_query(client_ctx, response, Some(shared_key), Some(nonce)).await
+    respond_to_query(
+        client_ctx,
+        packet,
+        response,
+        original_packet_len,
+        Some(shared_key),
+        Some(nonce),
+    )
+    .await
 }
 
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
@@ -212,7 +253,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             client_connection.read_exact(&mut binlen).await?;
             let packet_len = BigEndian::read_u16(&binlen) as usize;
             ensure!(
-                (DNSCRYPT_QUERY_MIN_SIZE..=DNSCRYPT_QUERY_MAX_SIZE).contains(&packet_len),
+                (DNSCRYPT_TCP_QUERY_MIN_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
                 "Unexpected query size"
             );
             let mut packet = vec![0u8; packet_len];
@@ -240,7 +281,7 @@ async fn udp_acceptor(
     let concurrent_connections = globals.udp_concurrent_connections.clone();
     let active_connections = globals.udp_active_connections.clone();
     loop {
-        let mut packet = vec![0u8; DNSCRYPT_QUERY_MAX_SIZE];
+        let mut packet = vec![0u8; DNSCRYPT_UDP_QUERY_MAX_SIZE];
         let (packet_len, client_addr) = tokio_udp_socket.recv_from(&mut packet).await?;
         let net_udp_socket = net_udp_socket.try_clone()?;
         packet.truncate(packet_len);
