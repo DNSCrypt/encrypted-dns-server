@@ -1,7 +1,7 @@
-#![allow(clippy::assertions_on_constants)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
-#![allow(dead_code)]
+//#![allow(clippy::assertions_on_constants)]
+//#![allow(unused_imports)]
+//#![allow(unused_variables)]
+//#![allow(dead_code)]
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -50,12 +50,10 @@ use std::convert::TryFrom;
 use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::mem;
-use std::net::{IpAddr, SocketAddr};
-use std::path::PathBuf;
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;

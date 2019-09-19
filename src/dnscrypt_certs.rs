@@ -2,12 +2,10 @@ use crate::crypto::*;
 use crate::globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
-use coarsetime::{Clock, Duration};
-use parking_lot::RwLock;
+use coarsetime::Clock;
 use std::mem;
 use std::slice;
 use std::sync::Arc;
-use std::time::SystemTime;
 
 pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
 pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;
