@@ -374,86 +374,31 @@ fn main() -> Result<(), Error> {
 
     let matches = app_from_crate!()
         .arg(
-            Arg::with_name("listen-addrs")
-                .long("listen-addrs")
-                .value_name("addr:port")
+            Arg::with_name("config")
+                .long("config")
+                .short("c")
+                .value_name("FILE")
                 .takes_value(true)
-                .multiple(true)
-                .default_value("127.0.0.1:4443")
-                .help("Address and port to listen to"),
-        )
-        .arg(
-            Arg::with_name("provider-name")
-                .long("provider-name")
-                .value_name("string")
-                .takes_value(true)
-                .default_value("2.dnscrypt.test")
-                .help("Provider name"),
-        )
-        .arg(
-            Arg::with_name("upstream-addr")
-                .long("upstream-addr")
-                .value_name("addr:port")
-                .takes_value(true)
-                .default_value("9.9.9.9:53")
-                .help("Address and port of the upstream server"),
-        )
-        .arg(
-            Arg::with_name("tls-upstream-addr")
-                .long("tls-upstream-addr")
-                .value_name("addr:port")
-                .takes_value(true)
-                .help("Address and port of an optional upstream TLS (HTTPS / DoH) server"),
-        )
-        .arg(
-            Arg::with_name("external-addr")
-                .long("external-addr")
-                .value_name("addr:port")
-                .takes_value(true)
-                .default_value("0.0.0.0:0")
-                .help("Address and port to connect from"),
-        )
-        .arg(
-            Arg::with_name("state-file")
-                .long("state-file")
-                .value_name("file")
-                .takes_value(true)
-                .default_value("encrypted-dns.state")
-                .help("File to store the server state"),
+                .default_value("encrypted-dns.toml")
+                .help("Path to the configuration file"),
         )
         .get_matches();
 
-    let provider_name = match matches.value_of("provider-name").unwrap() {
+    let config_path = matches.value_of("config").unwrap();
+    let config = Config::from_path(config_path)?;
+
+    let provider_name = match config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt.{}", provider_name),
     };
+    let external_addr = SocketAddr::new(config.external_addr, 0);
 
-    let listen_addrs_s = matches.values_of("listen-addrs").unwrap();
-    let listen_addrs: Vec<SocketAddr> = listen_addrs_s
-        .map(|x| x.parse().expect("Invalid TLS upstream address"))
-        .collect();
-
-    let upstream_addr_s = matches.value_of("upstream-addr").unwrap();
-    let upstream_addr: SocketAddr = upstream_addr_s.parse()?;
-
-    let tls_upstream_addr_s = matches.value_of("tls-upstream-addr");
-    let tls_upstream_addr: Option<SocketAddr> =
-        tls_upstream_addr_s.map(|x| x.parse().expect("Invalid TLS upstream address"));
-
-    let external_addr_s = matches.value_of("external-addr").unwrap();
-    let external_addr: SocketAddr = SocketAddr::new(external_addr_s.parse::<IpAddr>()?, 0);
-
-    let udp_timeout = Duration::from_secs(10);
-    let tcp_timeout = Duration::from_secs(10);
-
-    let state_file_s = matches.value_of("state-file").unwrap();
-    let state_file = PathBuf::from(state_file_s);
-
-    let state = match File::open(&state_file) {
+    let state_file = &config.state_file;
+    let state = match File::open(state_file) {
         Err(_) => {
             println!("No state file found... creating a new provider key");
             let state = State::new();
-            let mut fp = File::create(&state_file)?;
+            let mut fp = File::create(state_file)?;
             let state_bin = toml::to_vec(&state)?;
             fp.write_all(&state_bin)?;
             state
@@ -470,7 +415,7 @@ fn main() -> Result<(), Error> {
     };
     let provider_kp = state.provider_kp;
 
-    for listen_addr_s in &listen_addrs {
+    for listen_addr_s in &config.listen_addrs {
         info!("Server address: {}", listen_addr_s);
         info!("Provider public key: {}", provider_kp.pk.as_string());
         info!("Provider name: {}", provider_name);
@@ -488,29 +433,28 @@ fn main() -> Result<(), Error> {
     }
 
     let dnscrypt_encryption_params = DNSCryptEncryptionParams::new(&provider_kp);
-
-    let runtime = Arc::new(Runtime::new()?);
-    let udp_max_active_connections = 1000;
-    let tcp_max_active_connections = 100;
+    let mut runtime_builder = tokio::runtime::Builder::new();
+    runtime_builder.name_prefix("encrypted-dns-");
+    let runtime = Arc::new(runtime_builder.build()?);
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         dnscrypt_encryption_params_set: vec![dnscrypt_encryption_params],
         provider_name,
-        listen_addrs,
-        upstream_addr,
-        tls_upstream_addr,
+        listen_addrs: config.listen_addrs,
+        upstream_addr: config.upstream_addr,
+        tls_upstream_addr: config.tls.upstream_addr,
         external_addr,
-        tcp_timeout,
-        udp_timeout,
+        tcp_timeout: Duration::from_secs(u64::from(config.tcp_timeout)),
+        udp_timeout: Duration::from_secs(u64::from(config.udp_timeout)),
         udp_concurrent_connections: Arc::new(AtomicU32::new(0)),
         tcp_concurrent_connections: Arc::new(AtomicU32::new(0)),
-        udp_max_active_connections,
-        tcp_max_active_connections,
+        udp_max_active_connections: config.udp_max_active_connections,
+        tcp_max_active_connections: config.tcp_max_active_connections,
         udp_active_connections: Arc::new(Mutex::new(VecDeque::with_capacity(
-            udp_max_active_connections as _,
+            config.udp_max_active_connections as _,
         ))),
         tcp_active_connections: Arc::new(Mutex::new(VecDeque::with_capacity(
-            tcp_max_active_connections as _,
+            config.tcp_max_active_connections as _,
         ))),
     });
     runtime.spawn(start(globals, runtime.clone()).map(|_| ()));
