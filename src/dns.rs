@@ -316,19 +316,22 @@ pub fn serve_certificates<'t>(
     }
     let mut packet = (&client_packet[..offset + 4]).to_vec();
     authoritative_response(&mut packet);
-    for dnscrypt_encryption_params in dnscrypt_encryption_params_set {
-        let cert_bin = dnscrypt_encryption_params.dnscrypt_cert().as_bytes();
-        ensure!(cert_bin.len() <= 0xff, "Certificate too long");
-        ancount_inc(&mut packet)?;
-        packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
-        packet.write_u16::<BigEndian>(DNS_TYPE_TXT)?;
-        packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
-        packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
-        packet.write_u16::<BigEndian>(1 + cert_bin.len() as u16)?;
-        packet.write_u8(cert_bin.len() as u8)?;
-        packet.extend_from_slice(&cert_bin[..]);
-        ensure!(packet.len() < DNS_MAX_PACKET_SIZE, "Packet too large");
-    }
+    let dnscrypt_encryption_params = dnscrypt_encryption_params_set
+        .into_iter()
+        .max_by_key(|x| x.dnscrypt_cert().ts_end())
+        .ok_or_else(|| format_err!("No certificattes"))?;
+    let cert_bin = dnscrypt_encryption_params.dnscrypt_cert().as_bytes();
+    ensure!(cert_bin.len() <= 0xff, "Certificate too long");
+    ancount_inc(&mut packet)?;
+    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
+    packet.write_u16::<BigEndian>(DNS_TYPE_TXT)?;
+    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+    packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
+    packet.write_u16::<BigEndian>(1 + cert_bin.len() as u16)?;
+    packet.write_u8(cert_bin.len() as u8)?;
+    packet.extend_from_slice(&cert_bin[..]);
+    ensure!(packet.len() < DNS_MAX_PACKET_SIZE, "Packet too large");
+
     Ok(Some(packet))
 }
 
