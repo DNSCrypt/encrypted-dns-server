@@ -1,3 +1,4 @@
+use crate::config::*;
 use crate::crypto::*;
 use crate::globals::*;
 
@@ -14,7 +15,7 @@ fn now() -> u32 {
     Clock::now_since_epoch().as_secs() as u32
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct DNSCryptCertInner {
     resolver_pk: [u8; 32],
@@ -30,7 +31,9 @@ impl DNSCryptCertInner {
     }
 }
 
-#[derive(Derivative)]
+big_array! { BigArray; }
+
+#[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Debug, Default, Clone)]
 #[repr(C, packed)]
 pub struct DNSCryptCert {
@@ -38,6 +41,7 @@ pub struct DNSCryptCert {
     es_version: [u8; 2],
     minor_version: [u8; 2],
     #[derivative(Debug = "ignore", Default(value = "[0u8; 64]"))]
+    #[serde(with = "BigArray")]
     signature: [u8; 64],
     inner: DNSCryptCertInner,
 }
@@ -86,7 +90,7 @@ impl DNSCryptCert {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct DNSCryptEncryptionParams {
     dnscrypt_cert: DNSCryptCert,
     resolver_kp: CryptKeyPair,
@@ -137,6 +141,13 @@ impl DNSCryptEncryptionParamsUpdater {
         }
         let new_params = DNSCryptEncryptionParams::new(&self.globals.provider_kp);
         new_params_set.push(Arc::new(new_params));
+
+        let state = State {
+            provider_kp: self.globals.provider_kp.clone(),
+            dnscrypt_encryption_params_set: new_params_set,
+        };
+        state.save(&self.globals.state_file);
+
         *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
     }
 

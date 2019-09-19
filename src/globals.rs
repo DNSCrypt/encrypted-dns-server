@@ -4,6 +4,7 @@ use crate::dnscrypt_certs::*;
 use parking_lot::{Mutex, RwLock};
 use std::collections::vec_deque::VecDeque;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
@@ -13,6 +14,7 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub struct Globals {
     pub runtime: Arc<Runtime>,
+    pub state_file: PathBuf,
     pub dnscrypt_encryption_params_set: Arc<RwLock<Arc<Vec<Arc<DNSCryptEncryptionParams>>>>>,
     pub provider_name: String,
     pub provider_kp: SignKeyPair,

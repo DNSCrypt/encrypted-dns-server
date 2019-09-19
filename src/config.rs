@@ -1,10 +1,14 @@
 use crate::crypto::*;
+use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
+
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DNSCryptConfig {
@@ -53,11 +57,37 @@ impl Config {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct State {
     pub provider_kp: SignKeyPair,
+    pub dnscrypt_encryption_params_set: Vec<DNSCryptEncryptionParams>,
 }
 
 impl State {
     pub fn new() -> Self {
         let provider_kp = SignKeyPair::new();
-        State { provider_kp }
+        let dnscrypt_encryption_params_set = vec![DNSCryptEncryptionParams::new(&provider_kp)];
+        State {
+            provider_kp,
+            dnscrypt_encryption_params_set,
+        }
+    }
+
+    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        let mut fpb = OpenOptions::new();
+        let mut fpb = fpb.create(true).write(true);
+        #[cfg(unix)]
+        {
+            fpb = fpb.mode(0o600);
+        }
+        let mut fp = fpb.open(path.as_ref())?;
+        let state_bin = toml::to_vec(&self)?;
+        fp.write_all(&state_bin)?;
+        Ok(())
+    }
+
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+        let mut fp = File::open(path.as_ref())?;
+        let mut state_bin = vec![];
+        fp.read_to_end(&mut state_bin)?;
+        let state = toml::from_slice(&state_bin)?;
+        Ok(state)
     }
 }

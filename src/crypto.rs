@@ -25,7 +25,7 @@ impl Signature {
 
 big_array! { BigArray; }
 
-#[derive(Serialize, Deserialize, Derivative)]
+#[derive(Serialize, Deserialize, Derivativ, Clone)]
 #[derivative(Default)]
 pub struct SignSK(
     #[serde(with = "BigArray")]
@@ -58,7 +58,7 @@ impl SignSK {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, Clone)]
 pub struct SignPK([u8; crypto_sign_PUBLICKEYBYTES as usize]);
 
 impl SignPK {
@@ -75,7 +75,7 @@ impl SignPK {
     }
 }
 
-#[derive(Derivative, Serialize, Deserialize)]
+#[derive(Derivative, Serialize, Deserialize, Clone)]
 #[derivative(Debug, Default)]
 pub struct SignKeyPair {
     #[derivative(Debug = "ignore")]
@@ -91,7 +91,7 @@ impl SignKeyPair {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CryptSK([u8; crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES as usize]);
 
 impl CryptSK {
@@ -108,7 +108,7 @@ impl CryptSK {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CryptPK([u8; crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES as usize]);
 
 impl CryptPK {
@@ -125,7 +125,7 @@ impl CryptPK {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct CryptKeyPair {
     pub sk: CryptSK,
     pub pk: CryptPK,

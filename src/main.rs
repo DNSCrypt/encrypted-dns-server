@@ -1,7 +1,7 @@
-//#![allow(clippy::assertions_on_constants)]
-//#![allow(unused_imports)]
-//#![allow(unused_variables)]
-//#![allow(dead_code)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -47,7 +47,7 @@ use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
@@ -59,9 +59,6 @@ use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 use tokio_net::driver::Handle;
-
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
 
 #[derive(Debug)]
 struct UdpClientCtx {
@@ -401,29 +398,19 @@ fn main() -> Result<(), Error> {
     let external_addr = SocketAddr::new(config.external_addr, 0);
 
     let state_file = &config.state_file;
-    let state = match File::open(state_file) {
+    let state = match State::from_file(state_file) {
         Err(_) => {
             println!("No state file found... creating a new provider key");
             let state = State::new();
-            let mut fpb = OpenOptions::new();
-            let mut fpb = fpb.create(true).write(true);
-            #[cfg(unix)]
-            {
-                fpb = fpb.mode(0o600);
-            }
-            let mut fp = fpb.open(state_file)?;
-            let state_bin = toml::to_vec(&state)?;
-            fp.write_all(&state_bin)?;
+            state.save(state_file)?;
             state
         }
-        Ok(mut fp) => {
+        Ok(state) => {
             println!(
                 "State file [{}] found; using existing provider key",
                 state_file.as_os_str().to_string_lossy()
             );
-            let mut state_bin = vec![];
-            fp.read_to_end(&mut state_bin)?;
-            toml::from_slice(&state_bin)?
+            state
         }
     };
     let provider_kp = state.provider_kp;
@@ -445,7 +432,11 @@ fn main() -> Result<(), Error> {
         println!("DNS Stamp: {}", stamp);
     }
 
-    let dnscrypt_encryption_params = DNSCryptEncryptionParams::new(&provider_kp);
+    let dnscrypt_encryption_params = state
+        .dnscrypt_encryption_params
+        .into_iter()
+        .map(Arc::new)
+        .collect::<Vec<_>>();
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");
     let runtime = Arc::new(runtime_builder.build()?);
@@ -466,9 +457,7 @@ fn main() -> Result<(), Error> {
     }
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
-        dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(vec![Arc::new(
-            dnscrypt_encryption_params,
-        )]))),
+        dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(dnscrypt_encryption_params))),
         provider_name,
         provider_kp,
         listen_addrs: config.listen_addrs,
