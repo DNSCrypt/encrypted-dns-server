@@ -1,4 +1,5 @@
 pub use failure::{bail, ensure, Error};
+use privdrop::PrivDropError;
 use std::io;
 use std::net::AddrParseError;
 
@@ -10,4 +11,6 @@ pub enum ProxyError {
     Io(#[cause] io::Error),
     #[fail(display = "Unable to parse address: [{}]", _0)]
     AddrParseError(#[cause] AddrParseError),
+    #[fail(display = "Privilege drop error: [{}]", _0)]
+    PrivDrop(#[cause] PrivDropError),
 }

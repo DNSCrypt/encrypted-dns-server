@@ -42,6 +42,7 @@ use failure::{bail, ensure};
 use futures::join;
 use futures::prelude::*;
 use parking_lot::Mutex;
+use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
@@ -436,6 +437,21 @@ fn main() -> Result<(), Error> {
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");
     let runtime = Arc::new(runtime_builder.build()?);
+
+    let mut pd = PrivDrop::default();
+    if let Some(user) = &config.user {
+        pd = pd.user(user);
+    }
+    if let Some(group) = &config.group {
+        pd = pd.group(group);
+    }
+    if let Some(chroot) = &config.chroot {
+        pd = pd.chroot(chroot);
+    }
+    if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
+        info!("Dropping privileges");
+        pd.apply()?;
+    }
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         dnscrypt_encryption_params_set: vec![dnscrypt_encryption_params],
