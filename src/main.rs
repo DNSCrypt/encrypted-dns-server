@@ -42,6 +42,7 @@ use failure::{bail, ensure};
 use futures::join;
 use futures::prelude::*;
 use parking_lot::Mutex;
+use parking_lot::RwLock;
 use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
@@ -148,15 +149,19 @@ async fn handle_client_query(
     encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
     let original_packet_size = encrypted_packet.len();
+    let mut dnscrypt_encryption_params_set = vec![];
+    for params in &*globals.dnscrypt_encryption_params_set.read() {
+        dnscrypt_encryption_params_set.push((*params).clone())
+    }
     let (shared_key, nonce, mut packet) =
-        match dnscrypt::decrypt(&encrypted_packet, &globals.dnscrypt_encryption_params_set) {
+        match dnscrypt::decrypt(&encrypted_packet, &dnscrypt_encryption_params_set) {
             Ok(x) => x,
             Err(_) => {
                 let packet = encrypted_packet;
                 if let Some(synth_packet) = serve_certificates(
                     &packet,
                     &globals.provider_name,
-                    &globals.dnscrypt_encryption_params_set,
+                    &dnscrypt_encryption_params_set,
                 )? {
                     return respond_to_query(
                         client_ctx,
@@ -463,8 +468,11 @@ fn main() -> Result<(), Error> {
     }
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
-        dnscrypt_encryption_params_set: vec![dnscrypt_encryption_params],
+        dnscrypt_encryption_params_set: Arc::new(RwLock::new(vec![Arc::new(
+            dnscrypt_encryption_params,
+        )])),
         provider_name,
+        provider_kp,
         listen_addrs: config.listen_addrs,
         upstream_addr: config.upstream_addr,
         tls_upstream_addr: config.tls.upstream_addr,
@@ -482,6 +490,8 @@ fn main() -> Result<(), Error> {
             config.tcp_max_active_connections as _,
         ))),
     });
+    let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
+    runtime.spawn(updater.run());
     runtime.spawn(start(globals, runtime.clone()).map(|_| ()));
     runtime.block_on(future::pending::<()>());
 

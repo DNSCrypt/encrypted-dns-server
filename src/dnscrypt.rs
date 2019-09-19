@@ -5,6 +5,7 @@ use crate::errors::*;
 
 use libsodium_sys::*;
 use rand::prelude::*;
+use std::sync::Arc;
 
 pub const DNSCRYPT_FULL_NONCE_SIZE: usize =
     crypto_box_curve25519xchacha20poly1305_NONCEBYTES as usize;
@@ -40,7 +41,7 @@ pub const DNSCRYPT_TCP_RESPONSE_MAX_SIZE: usize =
 
 pub fn decrypt(
     wrapped_packet: &[u8],
-    dnscrypt_encryption_params_set: &[DNSCryptEncryptionParams],
+    dnscrypt_encryption_params_set: &[Arc<DNSCryptEncryptionParams>],
 ) -> Result<(SharedKey, [u8; DNSCRYPT_FULL_NONCE_SIZE as usize], Vec<u8>), Error> {
     ensure!(
         wrapped_packet.len()

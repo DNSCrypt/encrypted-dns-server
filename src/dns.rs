@@ -2,6 +2,7 @@ use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use std::sync::Arc;
 
 pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
 pub const DNS_HEADER_SIZE: usize = 12;
@@ -293,7 +294,7 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
 pub fn serve_certificates<'t>(
     client_packet: &[u8],
     expected_qname: &str,
-    dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t DNSCryptEncryptionParams>,
+    dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t Arc<DNSCryptEncryptionParams>>,
 ) -> Result<Option<Vec<u8>>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&client_packet) == 1, "No question");
@@ -322,7 +323,7 @@ pub fn serve_certificates<'t>(
         packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
         packet.write_u16::<BigEndian>(DNS_TYPE_TXT)?;
         packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
-        packet.write_u32::<BigEndian>(28800)?;
+        packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
         packet.write_u16::<BigEndian>(1 + cert_bin.len() as u16)?;
         packet.write_u8(cert_bin.len() as u8)?;
         packet.extend_from_slice(&cert_bin[..]);

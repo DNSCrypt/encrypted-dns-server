@@ -91,7 +91,7 @@ impl SignKeyPair {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CryptSK([u8; crypto_box_curve25519xchacha20poly1305_SECRETKEYBYTES as usize]);
 
 impl CryptSK {
@@ -108,7 +108,7 @@ impl CryptSK {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CryptPK([u8; crypto_box_curve25519xchacha20poly1305_PUBLICKEYBYTES as usize]);
 
 impl CryptPK {
@@ -125,7 +125,7 @@ impl CryptPK {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct CryptKeyPair {
     pub sk: CryptSK,
     pub pk: CryptPK,
