@@ -397,6 +397,21 @@ fn main() -> Result<(), Error> {
     };
     let external_addr = SocketAddr::new(config.external_addr, 0);
 
+    let mut pd = PrivDrop::default();
+    if let Some(user) = &config.user {
+        pd = pd.user(user);
+    }
+    if let Some(group) = &config.group {
+        pd = pd.group(group);
+    }
+    if let Some(chroot) = &config.chroot {
+        pd = pd.chroot(chroot);
+    }
+    if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
+        info!("Dropping privileges");
+        pd.apply()?;
+    }
+
     let state_file = &config.state_file;
     let state = match State::from_file(state_file) {
         Err(_) => {
@@ -414,7 +429,6 @@ fn main() -> Result<(), Error> {
         }
     };
     let provider_kp = state.provider_kp;
-
     for listen_addr_s in &config.listen_addrs {
         info!("Server address: {}", listen_addr_s);
         info!("Provider public key: {}", provider_kp.pk.as_string());
@@ -431,33 +445,20 @@ fn main() -> Result<(), Error> {
         .unwrap();
         println!("DNS Stamp: {}", stamp);
     }
-
-    let dnscrypt_encryption_params = state
-        .dnscrypt_encryption_params
+    let dnscrypt_encryption_params_set = state
+        .dnscrypt_encryption_params_set
         .into_iter()
         .map(Arc::new)
         .collect::<Vec<_>>();
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");
     let runtime = Arc::new(runtime_builder.build()?);
-
-    let mut pd = PrivDrop::default();
-    if let Some(user) = &config.user {
-        pd = pd.user(user);
-    }
-    if let Some(group) = &config.group {
-        pd = pd.group(group);
-    }
-    if let Some(chroot) = &config.chroot {
-        pd = pd.chroot(chroot);
-    }
-    if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
-        info!("Dropping privileges");
-        pd.apply()?;
-    }
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
-        dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(dnscrypt_encryption_params))),
+        state_file: state_file.to_path_buf(),
+        dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(
+            dnscrypt_encryption_params_set,
+        ))),
         provider_name,
         provider_kp,
         listen_addrs: config.listen_addrs,

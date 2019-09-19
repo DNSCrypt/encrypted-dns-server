@@ -25,7 +25,7 @@ impl Signature {
 
 big_array! { BigArray; }
 
-#[derive(Serialize, Deserialize, Derivativ, Clone)]
+#[derive(Serialize, Deserialize, Derivative, Clone)]
 #[derivative(Default)]
 pub struct SignSK(
     #[serde(with = "BigArray")]

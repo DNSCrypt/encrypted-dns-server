@@ -90,7 +90,7 @@ impl DNSCryptCert {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DNSCryptEncryptionParams {
     dnscrypt_cert: DNSCryptCert,
     resolver_kp: CryptKeyPair,
@@ -141,13 +141,11 @@ impl DNSCryptEncryptionParamsUpdater {
         }
         let new_params = DNSCryptEncryptionParams::new(&self.globals.provider_kp);
         new_params_set.push(Arc::new(new_params));
-
         let state = State {
             provider_kp: self.globals.provider_kp.clone(),
-            dnscrypt_encryption_params_set: new_params_set,
+            dnscrypt_encryption_params_set: new_params_set.iter().map(|x| (**x).clone()).collect(),
         };
-        state.save(&self.globals.state_file);
-
+        let _ = state.save(&self.globals.state_file);
         *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
     }
 
