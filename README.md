@@ -4,7 +4,7 @@ A new server-side proxy for encrypted DNS, written in Rust, supporting:
 
 - [DNSCrypt v2](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
-- [DNS-over-HTTP (DoH)]
+- DNS-over-HTTP (DoH)
 
 Distinctive features:
 
