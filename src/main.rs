@@ -150,7 +150,7 @@ async fn handle_client_query(
 ) -> Result<(), Error> {
     let original_packet_size = encrypted_packet.len();
     let mut dnscrypt_encryption_params_set = vec![];
-    for params in &*globals.dnscrypt_encryption_params_set.read() {
+    for params in &**globals.dnscrypt_encryption_params_set.read() {
         dnscrypt_encryption_params_set.push((*params).clone())
     }
     let (shared_key, nonce, mut packet) =
@@ -468,9 +468,9 @@ fn main() -> Result<(), Error> {
     }
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
-        dnscrypt_encryption_params_set: Arc::new(RwLock::new(vec![Arc::new(
+        dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(vec![Arc::new(
             dnscrypt_encryption_params,
-        )])),
+        )]))),
         provider_name,
         provider_kp,
         listen_addrs: config.listen_addrs,

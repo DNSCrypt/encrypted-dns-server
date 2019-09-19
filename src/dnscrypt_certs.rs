@@ -13,10 +13,7 @@ pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
 pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;
 
 fn now() -> u32 {
-    SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as u32
+    Clock::now_since_epoch().as_secs() as u32
 }
 
 #[derive(Debug, Default, Clone)]
@@ -86,8 +83,8 @@ impl DNSCryptCert {
         &self.inner.client_magic
     }
 
-    pub fn ts_end(&self) -> Duration {
-        Duration::from_secs(u64::from(BigEndian::read_u32(&self.inner.ts_end)))
+    pub fn ts_end(&self) -> u32 {
+        BigEndian::read_u32(&self.inner.ts_end)
     }
 }
 
@@ -129,20 +126,30 @@ impl DNSCryptEncryptionParamsUpdater {
         DNSCryptEncryptionParamsUpdater { globals }
     }
 
+    fn update(&self) {
+        let now = now();
+        let mut new_params_set = vec![];
+        {
+            let params_set = self.globals.dnscrypt_encryption_params_set.read();
+            for params in &**params_set {
+                if params.dnscrypt_cert().ts_end() >= now {
+                    new_params_set.push(params.clone());
+                }
+            }
+        }
+        let new_params = DNSCryptEncryptionParams::new(&self.globals.provider_kp);
+        new_params_set.push(Arc::new(new_params));
+        *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
+    }
+
     pub async fn run(self) {
         let mut fut_interval = tokio::timer::Interval::new_interval(
             std::time::Duration::from_secs(u64::from(DNSCRYPT_CERTS_RENEWAL)),
         );
-        let fut = async {
-            loop {
-                fut_interval.next().await;
-                let new_params = DNSCryptEncryptionParams::new(&self.globals.provider_kp);
+        let fut = async move {
+            while fut_interval.next().await.is_some() {
+                self.update();
                 debug!("New cert issued");
-                let mut params_set = self.globals.dnscrypt_encryption_params_set.write();
-                if params_set.len() >= (DNSCRYPT_CERTS_TTL / DNSCRYPT_CERTS_RENEWAL) as usize {
-                    params_set.swap_remove(0);
-                }
-                params_set.push(Arc::new(new_params));
             }
         };
         fut.await

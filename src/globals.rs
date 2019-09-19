@@ -13,7 +13,7 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub struct Globals {
     pub runtime: Arc<Runtime>,
-    pub dnscrypt_encryption_params_set: Arc<RwLock<Vec<Arc<DNSCryptEncryptionParams>>>>,
+    pub dnscrypt_encryption_params_set: Arc<RwLock<Arc<Vec<Arc<DNSCryptEncryptionParams>>>>>,
     pub provider_name: String,
     pub provider_kp: SignKeyPair,
     pub listen_addrs: Vec<SocketAddr>,
