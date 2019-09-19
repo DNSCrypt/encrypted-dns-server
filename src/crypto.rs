@@ -157,7 +157,7 @@ impl CryptKeyPair {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct SharedKey([u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES as usize]);
 
 impl SharedKey {

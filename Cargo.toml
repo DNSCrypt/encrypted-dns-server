@@ -6,15 +6,16 @@ edition = "2018"
 
 [dependencies]
 byteorder = "1.3.2"
-clap = { version="2.33.0", features=["suggestions", "wrap_help", "nightly"] }
+clap = { version="2.33.0", features=["wrap_help", "nightly"] }
+clockpro-cache = "0.1.8"
 coarsetime = "0.1.11"
 derivative = "1.0.3"
 dnsstamps = "0.1.1"
 env_logger = "0.6.2"
 failure = "0.1.5"
-futures-preview = { version = "=0.3.0-alpha.18", features = ["compat", "async-await", "nightly", "io-compat", "cfg-target-has-atomic"] }
+futures-preview = { version = "=0.3.0-alpha.18", features = ["async-await", "nightly", "cfg-target-has-atomic"] }
 jemallocator = "0.3.2"
-libsodium-sys="0.2.4"
+libsodium-sys-stable="0.0.18"
 log = "0.4.8"
 net2 = "0.2.33"
 parking_lot = "0.9.0"
