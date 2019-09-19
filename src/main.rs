@@ -46,7 +46,7 @@ use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::prelude::*;
 use std::mem;
 use std::net::{IpAddr, SocketAddr};
@@ -60,6 +60,9 @@ use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 use tokio_net::driver::Handle;
+
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 
 #[derive(Debug)]
 struct UdpClientCtx {
@@ -399,7 +402,13 @@ fn main() -> Result<(), Error> {
         Err(_) => {
             println!("No state file found... creating a new provider key");
             let state = State::new();
-            let mut fp = File::create(state_file)?;
+            let mut fpb = OpenOptions::new();
+            let mut fpb = fpb.create(true).write(true);
+            #[cfg(unix)]
+            {
+                fpb = fpb.mode(0o600);
+            }
+            let mut fp = fpb.open(state_file)?;
             let state_bin = toml::to_vec(&state)?;
             fp.write_all(&state_bin)?;
             state
