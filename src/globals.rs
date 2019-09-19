@@ -14,7 +14,7 @@ pub struct Globals {
     pub runtime: Arc<Runtime>,
     pub dnscrypt_encryption_params_set: Vec<DNSCryptEncryptionParams>,
     pub provider_name: String,
-    pub listen_addr: SocketAddr,
+    pub listen_addrs: Vec<SocketAddr>,
     pub external_addr: SocketAddr,
     pub upstream_addr: SocketAddr,
     pub tls_upstream_addr: Option<SocketAddr>,

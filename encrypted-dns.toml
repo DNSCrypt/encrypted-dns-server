@@ -1,0 +1,74 @@
+####################################################
+#                                                  #
+#        Encrypted DNS Server configuration        #
+#                                                  #
+####################################################
+
+
+##################################
+#         Global settings        #
+##################################
+
+
+## IP addresses and ports to listen to
+
+listen_addrs = ["127.0.0.1:4443"]
+
+
+## IP address to connect to upstream servers from
+
+external_addr = "0.0.0.0"
+
+
+## File name to save the state to
+
+state_file = "encrypted-dns.state"
+
+
+## Upstream DNS server and port
+
+upstream_addr = "9.9.9.9:53"
+
+
+## UDP timeout in seconds
+
+udp_timeout = 10
+
+
+## TCP timeout in seconds
+
+tcp_timeout = 10
+
+
+## Maximum active UDP sockets
+
+udp_max_active_connections = 1000
+
+
+## Maximum active TCP connections
+
+tcp_max_active_connections = 100
+
+
+
+####################################
+#         DNSCrypt settings        #
+####################################
+
+[dnscrypt]
+
+## Provider name (without the `2.dnscrypt.` prefixe)
+
+provider_name = "secure.dns.test"
+
+
+
+###############################
+#         TLS settings        #
+###############################
+
+[tls]
+
+## Where to prooxy TLS connections to (e.g. DoH server)
+
+# upstream_addr = "127.0.0.1:4343"

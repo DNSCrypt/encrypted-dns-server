@@ -48,7 +48,7 @@ use std::convert::TryFrom;
 use std::fs::File;
 use std::io::prelude::*;
 use std::mem;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
@@ -357,11 +357,12 @@ async fn udp_acceptor(
 }
 
 async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error> {
-    let socket_addr: SocketAddr = globals.listen_addr;
-    let tcp_listener = TcpListener::bind(&socket_addr).await?;
-    let udp_socket = std::net::UdpSocket::bind(&socket_addr)?;
-    runtime.spawn(tcp_acceptor(globals.clone(), tcp_listener).map(|_| {}));
-    runtime.spawn(udp_acceptor(globals.clone(), udp_socket).map(|_| {}));
+    for listen_addr in &globals.listen_addrs {
+        let tcp_listener = TcpListener::bind(&listen_addr).await?;
+        let udp_socket = std::net::UdpSocket::bind(&listen_addr)?;
+        runtime.spawn(tcp_acceptor(globals.clone(), tcp_listener).map(|_| {}));
+        runtime.spawn(udp_acceptor(globals.clone(), udp_socket).map(|_| {}));
+    }
     Ok(())
 }
 
@@ -373,10 +374,11 @@ fn main() -> Result<(), Error> {
 
     let matches = app_from_crate!()
         .arg(
-            Arg::with_name("listen-addr")
-                .long("listen-addr")
+            Arg::with_name("listen-addrs")
+                .long("listen-addrs")
                 .value_name("addr:port")
                 .takes_value(true)
+                .multiple(true)
                 .default_value("127.0.0.1:4443")
                 .help("Address and port to listen to"),
         )
@@ -416,7 +418,7 @@ fn main() -> Result<(), Error> {
                 .long("state-file")
                 .value_name("file")
                 .takes_value(true)
-                .default_value("dnscrypt-server.state")
+                .default_value("encrypted-dns.state")
                 .help("File to store the server state"),
         )
         .get_matches();
@@ -426,19 +428,20 @@ fn main() -> Result<(), Error> {
         provider_name => format!("2.dnscrypt.{}", provider_name),
     };
 
-    let listen_addr_s = matches.value_of("listen-addr").unwrap();
-    let listen_addr: SocketAddr = listen_addr_s.parse()?;
+    let listen_addrs_s = matches.values_of("listen-addrs").unwrap();
+    let listen_addrs: Vec<SocketAddr> = listen_addrs_s
+        .map(|x| x.parse().expect("Invalid TLS upstream address"))
+        .collect();
 
     let upstream_addr_s = matches.value_of("upstream-addr").unwrap();
     let upstream_addr: SocketAddr = upstream_addr_s.parse()?;
 
     let tls_upstream_addr_s = matches.value_of("tls-upstream-addr");
-    dbg!(tls_upstream_addr_s);
     let tls_upstream_addr: Option<SocketAddr> =
         tls_upstream_addr_s.map(|x| x.parse().expect("Invalid TLS upstream address"));
 
     let external_addr_s = matches.value_of("external-addr").unwrap();
-    let external_addr: SocketAddr = external_addr_s.parse()?;
+    let external_addr: SocketAddr = SocketAddr::new(external_addr_s.parse::<IpAddr>()?, 0);
 
     let udp_timeout = Duration::from_secs(10);
     let tcp_timeout = Duration::from_secs(10);
@@ -451,7 +454,7 @@ fn main() -> Result<(), Error> {
             println!("No state file found... creating a new provider key");
             let state = State::new();
             let mut fp = File::create(&state_file)?;
-            let state_bin = bincode::serialize(&state)?;
+            let state_bin = toml::to_vec(&state)?;
             fp.write_all(&state_bin)?;
             state
         }
@@ -462,26 +465,27 @@ fn main() -> Result<(), Error> {
             );
             let mut state_bin = vec![];
             fp.read_to_end(&mut state_bin)?;
-            bincode::deserialize(&state_bin)?
+            toml::from_slice(&state_bin)?
         }
     };
     let provider_kp = state.provider_kp;
 
-    info!("Server address: {}", listen_addr);
-    info!("Provider public key: {}", provider_kp.pk.as_string());
-    info!("Provider name: {}", provider_name);
-
-    let stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
-        provider_name.clone(),
-        provider_kp.pk.as_bytes().to_vec(),
-    ))
-    .with_addr(listen_addr_s.to_string())
-    .with_informal_property(InformalProperty::DNSSEC)
-    .with_informal_property(InformalProperty::NoFilters)
-    .with_informal_property(InformalProperty::NoLogs)
-    .serialize()
-    .unwrap();
-    println!("DNS Stamp: {}", stamp);
+    for listen_addr_s in &listen_addrs {
+        info!("Server address: {}", listen_addr_s);
+        info!("Provider public key: {}", provider_kp.pk.as_string());
+        info!("Provider name: {}", provider_name);
+        let stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
+            provider_name.clone(),
+            provider_kp.pk.as_bytes().to_vec(),
+        ))
+        .with_addr(listen_addr_s.to_string())
+        .with_informal_property(InformalProperty::DNSSEC)
+        .with_informal_property(InformalProperty::NoFilters)
+        .with_informal_property(InformalProperty::NoLogs)
+        .serialize()
+        .unwrap();
+        println!("DNS Stamp: {}", stamp);
+    }
 
     let dnscrypt_encryption_params = DNSCryptEncryptionParams::new(&provider_kp);
 
@@ -492,7 +496,7 @@ fn main() -> Result<(), Error> {
         runtime: runtime.clone(),
         dnscrypt_encryption_params_set: vec![dnscrypt_encryption_params],
         provider_name,
-        listen_addr,
+        listen_addrs,
         upstream_addr,
         tls_upstream_addr,
         external_addr,
