@@ -62,3 +62,7 @@ The proxy creates and updates a file named `encrypted-dns.state` by default. Tha
 Do not delete the file, unless you want to change parameters (such as the provider name), and keep it secret, or the keys will be lost.
 
 Putting it in a directory that is only readable by the super-user is not a bad idea.
+
+## WIP
+
+This is still a work in progress.
