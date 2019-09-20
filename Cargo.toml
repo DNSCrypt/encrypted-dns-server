@@ -9,6 +9,7 @@ license = "MIT"
 homepage = "https://github.com/jedisct1/encrypted-dns-server"
 repository = "https://github.com/jedisct1/encrypted-dns-server"
 categories = ["asynchronous", "network-programming","command-line-utilities"]
+readme = "README.md"
 
 [dependencies]
 byteorder = "1.3.2"
