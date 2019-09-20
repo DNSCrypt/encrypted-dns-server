@@ -2,4 +2,4 @@
 *~
 /target/
 Cargo.lock
-dnscrypt-server.state
+encrypted-dns.state
