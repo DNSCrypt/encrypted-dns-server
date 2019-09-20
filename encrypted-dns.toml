@@ -72,7 +72,7 @@ tcp_max_active_connections = 100
 
 [dnscrypt]
 
-## Provider name (without the `2.dnscrypt.` prefixe)
+## Provider name (with or without the `2.dnscrypt-cert.` prefix)
 
 provider_name = "secure.dns.test"
 

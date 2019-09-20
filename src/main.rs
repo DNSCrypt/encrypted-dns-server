@@ -1,6 +1,5 @@
 #![allow(clippy::assertions_on_constants)]
-#![allow(unused_imports)]
-#![allow(unused_variables)]
+#![allow(clippy::type_complexity)]
 #![allow(dead_code)]
 
 #[global_allocator]
@@ -47,8 +46,11 @@ use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
+use std::fs::File;
+use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
+use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -385,10 +387,17 @@ fn main() -> Result<(), Error> {
             Arg::with_name("config")
                 .long("config")
                 .short("c")
-                .value_name("FILE")
+                .value_name("file")
                 .takes_value(true)
                 .default_value("encrypted-dns.toml")
                 .help("Path to the configuration file"),
+        )
+        .arg(
+            Arg::with_name("import-from-dnscrypt-wrapper")
+                .long("import-from-dnscrypt-wrapper")
+                .value_name("secret.key file")
+                .takes_value(true)
+                .help("Path to the dnscrypt-wrapper secret key"),
         )
         .get_matches();
 
@@ -396,8 +405,8 @@ fn main() -> Result<(), Error> {
     let config = Config::from_path(config_path)?;
 
     let provider_name = match config.dnscrypt.provider_name {
-        provider_name if provider_name.starts_with("2.dnscrypt.") => provider_name.to_string(),
-        provider_name => format!("2.dnscrypt.{}", provider_name),
+        provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
+        provider_name => format!("2.dnscrypt-cert.{}", provider_name),
     };
     let external_addr = SocketAddr::new(config.external_addr, 0);
 
@@ -422,6 +431,29 @@ fn main() -> Result<(), Error> {
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let state_file = &config.state_file;
+
+    if let Some(secret_key_path) = matches.value_of("import-from-dnscrypt-wrapper") {
+        let secret_key_path = Path::new(secret_key_path);
+        warn!("Importing dnscrypt-wrapper key");
+        let mut key = vec![];
+        File::open(secret_key_path)?.read_to_end(&mut key)?;
+        if key.len() != 64 {
+            bail!("Key doesn't have the expected size");
+        }
+        let mut sign_sk_u8 = [0u8; 64];
+        let mut sign_pk_u8 = [0u8; 32];
+        sign_sk_u8.copy_from_slice(&key);
+        sign_pk_u8.copy_from_slice(&key[32..]);
+        let provider_kp = SignKeyPair {
+            sk: SignSK::from_bytes(sign_sk_u8),
+            pk: SignPK::from_bytes(sign_pk_u8),
+        };
+        runtime.block_on(
+            State::with_key_pair(provider_kp, key_cache_capacity).async_save(state_file),
+        )?;
+        warn!("Key successfully imported");
+    }
+
     let state = match State::from_file(state_file, key_cache_capacity) {
         Err(_) => {
             warn!("No state file found... creating a new provider key");

@@ -61,8 +61,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(key_cache_capacity: usize) -> Self {
-        let provider_kp = SignKeyPair::new();
+    pub fn with_key_pair(provider_kp: SignKeyPair, key_cache_capacity: usize) -> Self {
         let dnscrypt_encryption_params_set = vec![DNSCryptEncryptionParams::new(
             &provider_kp,
             key_cache_capacity,
@@ -71,6 +70,11 @@ impl State {
             provider_kp,
             dnscrypt_encryption_params_set,
         }
+    }
+
+    pub fn new(key_cache_capacity: usize) -> Self {
+        let provider_kp = SignKeyPair::new();
+        State::with_key_pair(provider_kp, key_cache_capacity)
     }
 
     pub async fn async_save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {

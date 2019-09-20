@@ -1,7 +1,6 @@
 use crate::config::*;
 use crate::crypto::*;
 use crate::dnscrypt::*;
-use crate::errors::*;
 use crate::globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
