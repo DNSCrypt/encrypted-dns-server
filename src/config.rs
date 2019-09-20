@@ -2,13 +2,12 @@ use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
-use std::fs::{File, OpenOptions};
+use std::fs::File;
 use std::io::prelude::*;
+use std::mem;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-
-#[cfg(unix)]
-use std::os::unix::fs::OpenOptionsExt;
+use tokio::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DNSCryptConfig {
@@ -70,16 +69,16 @@ impl State {
         }
     }
 
-    pub fn save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
-        let mut fpb = OpenOptions::new();
-        let mut fpb = fpb.create(true).write(true);
-        #[cfg(unix)]
-        {
-            fpb = fpb.mode(0o600);
-        }
-        let mut fp = fpb.open(path.as_ref())?;
+    pub async fn async_save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+        let path_tmp = path.as_ref().with_extension("tmp");
+        let mut fpb = tokio::fs::OpenOptions::new();
+        let fpb = fpb.create(true).write(true);
+        let mut fp = fpb.open(&path_tmp).await?;
         let state_bin = toml::to_vec(&self)?;
-        fp.write_all(&state_bin)?;
+        fp.write_all(&state_bin).await?;
+        fp.sync_data().await?;
+        mem::drop(fp);
+        tokio::fs::rename(path_tmp, path).await?;
         Ok(())
     }
 

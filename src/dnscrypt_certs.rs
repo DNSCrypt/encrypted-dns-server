@@ -145,7 +145,10 @@ impl DNSCryptEncryptionParamsUpdater {
             provider_kp: self.globals.provider_kp.clone(),
             dnscrypt_encryption_params_set: new_params_set.iter().map(|x| (**x).clone()).collect(),
         };
-        let _ = state.save(&self.globals.state_file);
+        let state_file = self.globals.state_file.to_path_buf();
+        self.globals.runtime.spawn(async move {
+            let _ = state.async_save(state_file).await;
+        });
         *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
     }
 

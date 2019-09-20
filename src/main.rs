@@ -47,8 +47,6 @@ use privdrop::PrivDrop;
 use rand::prelude::*;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
-use std::fs::File;
-use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -412,12 +410,16 @@ fn main() -> Result<(), Error> {
         pd.apply()?;
     }
 
+    let mut runtime_builder = tokio::runtime::Builder::new();
+    runtime_builder.name_prefix("encrypted-dns-");
+    let runtime = Arc::new(runtime_builder.build()?);
+
     let state_file = &config.state_file;
     let state = match State::from_file(state_file) {
         Err(_) => {
             println!("No state file found... creating a new provider key");
             let state = State::new();
-            state.save(state_file)?;
+            runtime.block_on(state.async_save(state_file))?;
             state
         }
         Ok(state) => {
@@ -450,9 +452,7 @@ fn main() -> Result<(), Error> {
         .into_iter()
         .map(Arc::new)
         .collect::<Vec<_>>();
-    let mut runtime_builder = tokio::runtime::Builder::new();
-    runtime_builder.name_prefix("encrypted-dns-");
-    let runtime = Arc::new(runtime_builder.build()?);
+
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
