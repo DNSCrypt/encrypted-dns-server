@@ -30,6 +30,8 @@ Once rust is installed, the proxy can be compiled and installed as follows:
 cargo install encrypted-dns
 ```
 
+The executable file will be copied to `~/.cargo/bin/encrypted-dns` by default.
+
 ## Setup
 
 The proxy requires a recursive DNS resolver, such as Knot, PowerDNS or Unbound.
