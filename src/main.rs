@@ -318,6 +318,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
     Ok(())
 }
 
+#[allow(unreachable_code)]
 async fn udp_acceptor(
     globals: Arc<Globals>,
     net_udp_socket: std::net::UdpSocket,
