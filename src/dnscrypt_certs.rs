@@ -1,9 +1,13 @@
 use crate::config::*;
 use crate::crypto::*;
+use crate::dnscrypt::*;
+use crate::errors::*;
 use crate::globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
+use clockpro_cache::ClockProCache;
 use coarsetime::Clock;
+use parking_lot::Mutex;
 use std::mem;
 use std::slice;
 use std::sync::Arc;
@@ -90,20 +94,31 @@ impl DNSCryptCert {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Derivative)]
+#[derivative(Debug)]
 pub struct DNSCryptEncryptionParams {
     dnscrypt_cert: DNSCryptCert,
     resolver_kp: CryptKeyPair,
+    #[serde(skip)]
+    #[derivative(Debug = "ignore")]
+    pub cache: Option<Arc<Mutex<ClockProCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
 }
 
 impl DNSCryptEncryptionParams {
-    pub fn new(provider_kp: &SignKeyPair) -> Self {
+    pub fn new(provider_kp: &SignKeyPair, cache_capacity: usize) -> Self {
         let resolver_kp = CryptKeyPair::new();
         let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
+        let cache = ClockProCache::new(cache_capacity).unwrap();
         DNSCryptEncryptionParams {
             dnscrypt_cert,
             resolver_kp,
+            cache: Some(Arc::new(Mutex::new(cache))),
         }
+    }
+
+    pub fn add_key_cache(&mut self, cache_capacity: usize) {
+        let cache = ClockProCache::new(cache_capacity).unwrap();
+        self.cache = Some(Arc::new(Mutex::new(cache)));
     }
 
     pub fn client_magic(&self) -> &[u8] {
@@ -139,7 +154,10 @@ impl DNSCryptEncryptionParamsUpdater {
                 }
             }
         }
-        let new_params = DNSCryptEncryptionParams::new(&self.globals.provider_kp);
+        let new_params = DNSCryptEncryptionParams::new(
+            &self.globals.provider_kp,
+            self.globals.key_cache_capacity,
+        );
         new_params_set.push(Arc::new(new_params));
         let state = State {
             provider_kp: self.globals.provider_kp.clone(),
@@ -150,6 +168,7 @@ impl DNSCryptEncryptionParamsUpdater {
             let _ = state.async_save(state_file).await;
         });
         *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
+        debug!("New certificate issued");
     }
 
     pub async fn run(self) {

@@ -77,6 +77,11 @@ tcp_max_active_connections = 100
 provider_name = "secure.dns.test"
 
 
+## Key cache capacity, per certificate
+
+key_cache_capacity = 10000
+
+
 
 ###############################
 #         TLS settings        #

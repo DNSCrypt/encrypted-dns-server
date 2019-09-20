@@ -65,8 +65,31 @@ pub fn decrypt(
 
     let mut nonce = [0u8; DNSCRYPT_FULL_NONCE_SIZE as usize];
     nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);
-    let resolver_kp = dnscrypt_encryption_params.resolver_kp();
-    let shared_key = resolver_kp.compute_shared_key(client_pk)?;
+
+    let cached_shared_key = {
+        let mut cache = dnscrypt_encryption_params.cache.as_ref().unwrap().lock();
+        match cache.get(&client_pk[..]) {
+            None => None,
+            Some(cached_shared_key) => Some((*cached_shared_key).clone()),
+        }
+    };
+    let shared_key = match cached_shared_key {
+        Some(cached_shared_key) => cached_shared_key,
+        None => {
+            let shared_key = dnscrypt_encryption_params
+                .resolver_kp()
+                .compute_shared_key(client_pk)?;
+            let mut client_pk_ = [0u8; DNSCRYPT_QUERY_PK_SIZE];
+            client_pk_.copy_from_slice(&client_pk[..]);
+            dnscrypt_encryption_params
+                .cache
+                .as_ref()
+                .unwrap()
+                .lock()
+                .insert(client_pk_, shared_key.clone());
+            shared_key
+        }
+    };
     let packet = shared_key.decrypt(&nonce, encrypted_packet)?;
     rand::thread_rng().fill_bytes(&mut nonce[DNSCRYPT_QUERY_NONCE_SIZE..]);
 

@@ -30,4 +30,5 @@ pub struct Globals {
     pub tcp_max_active_connections: u32,
     pub udp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
     pub tcp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
+    pub key_cache_capacity: usize,
 }

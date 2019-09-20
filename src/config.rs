@@ -12,6 +12,7 @@ use tokio::prelude::*;
 #[derive(Serialize, Deserialize, Debug)]
 pub struct DNSCryptConfig {
     pub provider_name: String,
+    pub key_cache_capacity: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -60,9 +61,12 @@ pub struct State {
 }
 
 impl State {
-    pub fn new() -> Self {
+    pub fn new(key_cache_capacity: usize) -> Self {
         let provider_kp = SignKeyPair::new();
-        let dnscrypt_encryption_params_set = vec![DNSCryptEncryptionParams::new(&provider_kp)];
+        let dnscrypt_encryption_params_set = vec![DNSCryptEncryptionParams::new(
+            &provider_kp,
+            key_cache_capacity,
+        )];
         State {
             provider_kp,
             dnscrypt_encryption_params_set,
@@ -82,11 +86,14 @@ impl State {
         Ok(())
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn from_file<P: AsRef<Path>>(path: P, key_cache_capacity: usize) -> Result<Self, Error> {
         let mut fp = File::open(path.as_ref())?;
         let mut state_bin = vec![];
         fp.read_to_end(&mut state_bin)?;
-        let state = toml::from_slice(&state_bin)?;
+        let mut state: State = toml::from_slice(&state_bin)?;
+        for params_set in &mut state.dnscrypt_encryption_params_set {
+            params_set.add_key_cache(key_cache_capacity);
+        }
         Ok(state)
     }
 }

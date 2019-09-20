@@ -369,7 +369,13 @@ async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error
 }
 
 fn main() -> Result<(), Error> {
-    env_logger::init();
+    env_logger::Builder::from_default_env()
+        .default_format_module_path(false)
+        .default_format_timestamp(false)
+        .filter_level(log::LevelFilter::Info)
+        .target(env_logger::Target::Stdout)
+        .init();
+
     crypto::init()?;
     let updater = coarsetime::Updater::new(1000).start()?;
     mem::forget(updater);
@@ -414,16 +420,17 @@ fn main() -> Result<(), Error> {
     runtime_builder.name_prefix("encrypted-dns-");
     let runtime = Arc::new(runtime_builder.build()?);
 
+    let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let state_file = &config.state_file;
-    let state = match State::from_file(state_file) {
+    let state = match State::from_file(state_file, key_cache_capacity) {
         Err(_) => {
-            println!("No state file found... creating a new provider key");
-            let state = State::new();
+            warn!("No state file found... creating a new provider key");
+            let state = State::new(key_cache_capacity);
             runtime.block_on(state.async_save(state_file))?;
             state
         }
         Ok(state) => {
-            println!(
+            info!(
                 "State file [{}] found; using existing provider key",
                 state_file.as_os_str().to_string_lossy()
             );
@@ -445,7 +452,7 @@ fn main() -> Result<(), Error> {
         .with_informal_property(InformalProperty::NoLogs)
         .serialize()
         .unwrap();
-        println!("DNS Stamp: {}", stamp);
+        info!("DNS Stamp: {}", stamp);
     }
     let dnscrypt_encryption_params_set = state
         .dnscrypt_encryption_params_set
@@ -477,6 +484,7 @@ fn main() -> Result<(), Error> {
         tcp_active_connections: Arc::new(Mutex::new(VecDeque::with_capacity(
             config.tcp_max_active_connections as _,
         ))),
+        key_cache_capacity,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     runtime.spawn(updater.run());
