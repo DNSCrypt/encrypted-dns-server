@@ -18,6 +18,18 @@ const DNS_TYPE_OPT: u16 = 41;
 const DNS_TYPE_TXT: u16 = 16;
 const DNS_CLASS_INET: u16 = 1;
 
+const DNS_RCODE_SERVFAIL: u8 = 2;
+
+#[inline]
+pub fn rcode(packet: &[u8]) -> u8 {
+    packet[3] & 0x0f
+}
+
+#[inline]
+pub fn rcode_servfail(packet: &[u8]) -> bool {
+    rcode(packet) == DNS_RCODE_SERVFAIL
+}
+
 #[inline]
 pub fn qdcount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[4..])

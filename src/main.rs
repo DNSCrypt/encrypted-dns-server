@@ -36,6 +36,7 @@ use globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
+use clockpro_cache::ClockProCache;
 use dnsstamps::{InformalProperty, WithInformalProperty};
 use failure::{bail, ensure};
 use futures::join;
@@ -44,9 +45,11 @@ use parking_lot::Mutex;
 use parking_lot::RwLock;
 use privdrop::PrivDrop;
 use rand::prelude::*;
+use siphasher::sip128::{Hasher128, SipHasher13};
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
 use std::fs::File;
+use std::hash::Hasher;
 use std::io::prelude::*;
 use std::mem;
 use std::net::SocketAddr;
@@ -140,6 +143,21 @@ async fn respond_to_query(
 
 async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
     let original_tid = dns::tid(&packet);
+
+    dns::set_tid(&mut packet, 0);
+    let mut hasher = globals.hasher.clone();
+    hasher.write(&packet);
+    let packet_hash = hasher.finish128().as_u128();
+    let cached_response = {
+        match globals.cache.lock().get(&packet_hash) {
+            None => None,
+            Some(response) => Some((*response).clone()),
+        }
+    };
+    if let Some(mut cached_response) = cached_response {
+        dns::set_tid(&mut cached_response, original_tid);
+        return Ok(cached_response);
+    }
     let tid = random();
     dns::set_tid(&mut packet, tid);
     let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
@@ -188,6 +206,9 @@ async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>,
             dns::qname(&packet)? == dns::qname(&response)?,
             "Unexpected query name in the response"
         );
+    }
+    if !dns::rcode_servfail(&response) {
+        globals.cache.lock().insert(packet_hash, response.clone());
     }
     dns::set_tid(&mut response, original_tid);
     Ok(response)
@@ -435,6 +456,7 @@ fn main() -> Result<(), Error> {
     let runtime = Arc::new(runtime_builder.build()?);
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
+    let cache_capacity = config.cache_capacity;
     let state_file = &config.state_file;
 
     if let Some(secret_key_path) = matches.value_of("import-from-dnscrypt-wrapper") {
@@ -497,6 +519,12 @@ fn main() -> Result<(), Error> {
         .map(Arc::new)
         .collect::<Vec<_>>();
 
+    let (sh_k0, sh_k1) = rand::thread_rng().gen();
+    let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
+
+    let cache = ClockProCache::new(cache_capacity)
+        .map_err(|e| format_err!("Unable to create the DNS cache: [{}]", e))?;
+
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
@@ -522,6 +550,8 @@ fn main() -> Result<(), Error> {
             config.tcp_max_active_connections as _,
         ))),
         key_cache_capacity,
+        hasher,
+        cache: Arc::new(Mutex::new(cache)),
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     runtime.spawn(updater.run());

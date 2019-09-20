@@ -30,6 +30,7 @@ pub struct Config {
     pub tcp_timeout: u32,
     pub udp_max_active_connections: u32,
     pub tcp_max_active_connections: u32,
+    pub cache_capacity: usize,
     pub user: Option<String>,
     pub group: Option<String>,
     pub chroot: Option<String>,

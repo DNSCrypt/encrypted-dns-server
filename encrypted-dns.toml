@@ -50,6 +50,11 @@ udp_max_active_connections = 1000
 tcp_max_active_connections = 100
 
 
+## DNS cache capacity
+
+cache_capacity = 10000
+
+
 ## User name to drop privileges to, when started as root.
 
 # user = "nobody"

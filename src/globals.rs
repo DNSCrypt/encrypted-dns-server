@@ -1,7 +1,9 @@
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 
+use clockpro_cache::ClockProCache;
 use parking_lot::{Mutex, RwLock};
+use siphasher::sip128::SipHasher13;
 use std::collections::vec_deque::VecDeque;
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -11,7 +13,8 @@ use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug)]
 pub struct Globals {
     pub runtime: Arc<Runtime>,
     pub state_file: PathBuf,
@@ -31,4 +34,7 @@ pub struct Globals {
     pub udp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
     pub tcp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
     pub key_cache_capacity: usize,
+    pub hasher: SipHasher13,
+    #[derivative(Debug = "ignore")]
+    pub cache: Arc<Mutex<ClockProCache<u128, Vec<u8>>>>,
 }
