@@ -138,46 +138,7 @@ async fn respond_to_query(
     Ok(())
 }
 
-async fn handle_client_query(
-    globals: Arc<Globals>,
-    client_ctx: ClientCtx,
-    encrypted_packet: Vec<u8>,
-) -> Result<(), Error> {
-    let original_packet_size = encrypted_packet.len();
-    let mut dnscrypt_encryption_params_set = vec![];
-    for params in &**globals.dnscrypt_encryption_params_set.read() {
-        dnscrypt_encryption_params_set.push((*params).clone())
-    }
-    let (shared_key, nonce, mut packet) =
-        match dnscrypt::decrypt(&encrypted_packet, &dnscrypt_encryption_params_set) {
-            Ok(x) => x,
-            Err(_) => {
-                let packet = encrypted_packet;
-                if let Some(synth_packet) = serve_certificates(
-                    &packet,
-                    &globals.provider_name,
-                    &dnscrypt_encryption_params_set,
-                )? {
-                    return respond_to_query(
-                        client_ctx,
-                        packet,
-                        synth_packet,
-                        original_packet_size,
-                        None,
-                        None,
-                    )
-                    .await;
-                }
-                bail!("Unencrypted query");
-            }
-        };
-    ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
-    ensure!(qdcount(&packet) == 1, "No question");
-    ensure!(
-        !dns::is_response(&packet),
-        "Question expected, but got a response instead"
-    );
-
+async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
     let original_tid = dns::tid(&packet);
     let tid = random();
     dns::set_tid(&mut packet, tid);
@@ -229,6 +190,49 @@ async fn handle_client_query(
         );
     }
     dns::set_tid(&mut response, original_tid);
+    Ok(response)
+}
+
+async fn handle_client_query(
+    globals: Arc<Globals>,
+    client_ctx: ClientCtx,
+    encrypted_packet: Vec<u8>,
+) -> Result<(), Error> {
+    let original_packet_size = encrypted_packet.len();
+    let mut dnscrypt_encryption_params_set = vec![];
+    for params in &**globals.dnscrypt_encryption_params_set.read() {
+        dnscrypt_encryption_params_set.push((*params).clone())
+    }
+    let (shared_key, nonce, mut packet) =
+        match dnscrypt::decrypt(&encrypted_packet, &dnscrypt_encryption_params_set) {
+            Ok(x) => x,
+            Err(_) => {
+                let packet = encrypted_packet;
+                if let Some(synth_packet) = serve_certificates(
+                    &packet,
+                    &globals.provider_name,
+                    &dnscrypt_encryption_params_set,
+                )? {
+                    return respond_to_query(
+                        client_ctx,
+                        packet,
+                        synth_packet,
+                        original_packet_size,
+                        None,
+                        None,
+                    )
+                    .await;
+                }
+                bail!("Unencrypted query");
+            }
+        };
+    ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    ensure!(qdcount(&packet) == 1, "No question");
+    ensure!(
+        !dns::is_response(&packet),
+        "Question expected, but got a response instead"
+    );
+    let response = resolve(&globals, &mut packet).await?;
     respond_to_query(
         client_ctx,
         packet,
