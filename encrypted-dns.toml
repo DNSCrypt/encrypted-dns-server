@@ -12,7 +12,7 @@
 
 ## IP addresses and ports to listen to
 
-listen_addrs = ["127.0.0.1:4443", "[::1]:4443"]
+listen_addrs = ["0.0.0.0:443", "[::1]:4443"]
 
 
 ## IP address to connect to upstream servers from
@@ -61,8 +61,9 @@ tcp_max_active_connections = 100
 
 
 ## Path to chroot() to, when started as root.
+## The path to the state file is relative to the chroot base.
 
-# chroot = "/tmp"
+# chroot = "/var/empty"
 
 
 

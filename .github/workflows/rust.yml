@@ -1,0 +1,21 @@
+name: Rust
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: hecrj/setup-rust-action@master
+        with:
+          rust-version: nightly
+      - name: Check Cargo availability
+        run: cargo --version
+      - name: Check Rustup default toolchain
+        run: rustup default | grep nightly
+      - name: Build
+        run: cargo build
+      - name: Run tests
+        run: cargo test
