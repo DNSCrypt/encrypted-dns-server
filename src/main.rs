@@ -143,7 +143,6 @@ async fn respond_to_query(
 
 async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
     let original_tid = dns::tid(&packet);
-
     dns::set_tid(&mut packet, 0);
     let mut hasher = globals.hasher.clone();
     hasher.write(&packet);
