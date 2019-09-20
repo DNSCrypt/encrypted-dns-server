@@ -24,10 +24,10 @@ Rust can installed with:
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
-Once rust is installed, the proxy can be compiled and installed with the following command, to be run in the source directory:
+Once rust is installed, the proxy can be compiled and installed as follows:
 
 ```sh
-cargo install --path .
+cargo install encrypted-dns
 ```
 
 ## Setup
