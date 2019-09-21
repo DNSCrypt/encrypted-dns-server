@@ -16,6 +16,19 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 
 ## Installation
 
+### Option 1: precompiled binary for Linux
+
+Download the Encrypted DNS Server [precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/233684204/artifacts/46375).
+
+And make the application executable:
+
+```sh
+cd encrypted-dns-linux-x86_64
+chmod +x encrypted-dns
+```
+
+### Option 2: compilation from source code
+
 The proxy uses recent features of the Rust compiler, and currently requires rust-nightly.
 
 Rust can installed with:
