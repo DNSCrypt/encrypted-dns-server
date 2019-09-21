@@ -1,6 +1,6 @@
 # Encrypted DNS Server
 
-An easy to install, zero maintenance proxy to run an encrypted DNS server.
+An easy to install, high-performance, zero maintenance proxy to run an encrypted DNS server.
 
 Written in Rust.
 
@@ -57,6 +57,12 @@ If you are currently running an encrypted DNS server using `dnscrypt-wrapper`, m
 
 Done. Your server is now running the new proxy.
 
+## Built-in DNS cache
+
+The proxy includes a key cache, as well as a DNS cache to significantly reduce the load on upstream servers.
+
+In addition, if a server is slow or unresponsive, expired cached queries will be returned, improving reliabilitty of popular domain names.
+
 ## State file
 
 The proxy creates and updates a file named `encrypted-dns.state` by default. That file contains the provider secret key, as well as certificates and encryption keys.
@@ -64,7 +70,3 @@ The proxy creates and updates a file named `encrypted-dns.state` by default. Tha
 Do not delete the file, unless you want to change parameters (such as the provider name), and keep it secret, or the keys will be lost.
 
 Putting it in a directory that is only readable by the super-user is not a bad idea.
-
-## WIP
-
-This is still a work in progress.
