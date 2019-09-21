@@ -38,6 +38,6 @@ tokio-net = "=0.2.0-alpha.4"
 toml = "0.5.3"
 
 [profile.release]
+codegen-units = 1
 lto = true
 panic = "abort"
-opt-level = 3
