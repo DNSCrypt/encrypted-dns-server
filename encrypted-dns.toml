@@ -56,6 +56,21 @@ tcp_max_active_connections = 100
 cache_capacity = 10000
 
 
+## DNS cache: minimum TTL
+
+cache_ttl_min = 600
+
+
+## DNS cache: max TTL
+
+cache_ttl_max = 86400
+
+
+## DNS cache: error TTL
+
+cache_ttl_error = 600
+
+
 ## User name to drop privileges to, when started as root.
 
 # user = "nobody"

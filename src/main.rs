@@ -222,7 +222,7 @@ async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>,
             return Ok(cached_response.into_response());
         }
     } else {
-        let cached_response = CachedResponse::new(response.clone());
+        let cached_response = CachedResponse::new(&globals.cache, response.clone());
         globals.cache.lock().insert(packet_hash, cached_response);
     }
     dns::set_tid(&mut response, original_tid);
@@ -537,8 +537,13 @@ fn main() -> Result<(), Error> {
     let (sh_k0, sh_k1) = rand::thread_rng().gen();
     let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
 
-    let cache = ClockProCache::new(cache_capacity)
-        .map_err(|e| format_err!("Unable to create the DNS cache: [{}]", e))?;
+    let cache = Cache::new(
+        ClockProCache::new(cache_capacity)
+            .map_err(|e| format_err!("Unable to create the DNS cache: [{}]", e))?,
+        config.cache_ttl_min,
+        config.cache_ttl_max,
+        config.cache_ttl_error,
+    );
 
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
@@ -566,7 +571,7 @@ fn main() -> Result<(), Error> {
         ))),
         key_cache_capacity,
         hasher,
-        cache: Arc::new(Mutex::new(cache)),
+        cache,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {
