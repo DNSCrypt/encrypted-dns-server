@@ -16,6 +16,7 @@ byteorder = "1.3.2"
 clap = { version="2.33.0", features=["wrap_help", "nightly"] }
 clockpro-cache = "0.1.8"
 coarsetime = "0.1.11"
+daemonize-simple = "0.1.1"
 derivative = "1.0.3"
 dnsstamps = "0.1.1"
 env_logger = "0.6.2"

@@ -325,6 +325,37 @@ async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error
     Ok(())
 }
 
+fn privdrop(config: &Config) -> Result<(), Error> {
+    let mut pd = PrivDrop::default();
+    if let Some(user) = &config.user {
+        pd = pd.user(user);
+    }
+    if let Some(group) = &config.group {
+        pd = pd.group(group);
+    }
+    if let Some(chroot) = &config.chroot {
+        if !config.daemonize {
+            pd = pd.chroot(chroot);
+        }
+    }
+    if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
+        info!("Dropping privileges");
+        pd.apply()?;
+    }
+    if config.daemonize {
+        let mut daemon = daemonize_simple::Daemonize::default();
+        daemon.pid_file = config.pid_file.clone();
+        if let Some(chroot) = &config.chroot {
+            daemon.chdir = Some(chroot.into());
+            daemon.chroot = true;
+        }
+        daemon
+            .doit()
+            .map_err(|e| format_err!("Unable to daemonize: [{}]", e))?;
+    }
+    Ok(())
+}
+
 fn main() -> Result<(), Error> {
     env_logger::Builder::from_default_env()
         .default_format_module_path(false)
@@ -359,26 +390,13 @@ fn main() -> Result<(), Error> {
     let config_path = matches.value_of("config").unwrap();
     let config = Config::from_path(config_path)?;
 
-    let provider_name = match config.dnscrypt.provider_name {
+    let provider_name = match &config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt-cert.{}", provider_name),
     };
     let external_addr = SocketAddr::new(config.external_addr, 0);
 
-    let mut pd = PrivDrop::default();
-    if let Some(user) = &config.user {
-        pd = pd.user(user);
-    }
-    if let Some(group) = &config.group {
-        pd = pd.group(group);
-    }
-    if let Some(chroot) = &config.chroot {
-        pd = pd.chroot(chroot);
-    }
-    if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
-        info!("Dropping privileges");
-        pd.apply()?;
-    }
+    privdrop(&config)?;
 
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");

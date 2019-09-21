@@ -39,6 +39,8 @@ pub struct Config {
     pub chroot: Option<String>,
     pub dnscrypt: DNSCryptConfig,
     pub tls: TLSConfig,
+    pub daemonize: bool,
+    pub pid_file: Option<PathBuf>,
 }
 
 impl Config {

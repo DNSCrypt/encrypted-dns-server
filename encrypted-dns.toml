@@ -71,6 +71,16 @@ cache_ttl_max = 86400
 cache_ttl_error = 600
 
 
+## Run as a background process
+
+daemonize = false
+
+
+## PID file
+
+# pid_file = "/tmp/encrypted-dns.pid"
+
+
 ## User name to drop privileges to, when started as root.
 
 # user = "nobody"
