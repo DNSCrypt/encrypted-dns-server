@@ -16,8 +16,13 @@ jobs:
       - name: Check Rustup default toolchain
         run: rustup default | grep nightly
       - name: Build
-        run: cargo build --release
+        run: |
+            cargo build --release
+            mkdir encrypted-dns
+            mv target/release/encrypted-dns encrypted-dns/
+            strip encrypted-dns/encrypted-dns
+            cp README.md encrypted-dns.toml encrypted-dns/
       - uses: actions/upload-artifact@master
         with:
           name: encrypted-dns
-          path: target/release/encrypted-dns
+          path: encrypted-dns
