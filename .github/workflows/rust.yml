@@ -16,6 +16,10 @@ jobs:
       - name: Check Rustup default toolchain
         run: rustup default | grep nightly
       - name: Build
-        run: cargo build
+        run: cargo build --release
       - name: Run tests
-        run: cargo test
+        run: cargo test --release
+      - uses: actions/upload-artifact@master
+        with:
+          name: encrypted-dns
+          path: target/release/encrypted-dns
