@@ -26,8 +26,18 @@ pub fn rcode(packet: &[u8]) -> u8 {
 }
 
 #[inline]
+pub fn set_rcode(packet: &mut [u8], rcode: u8) {
+    packet[3] = (packet[3] & !0x0f) | rcode;
+}
+
+#[inline]
 pub fn rcode_servfail(packet: &[u8]) -> bool {
     rcode(packet) == DNS_RCODE_SERVFAIL
+}
+
+#[inline]
+pub fn set_rcode_servfail(packet: &mut [u8]) {
+    set_rcode(packet, DNS_RCODE_SERVFAIL)
 }
 
 #[inline]
@@ -193,7 +203,7 @@ fn traverse_rrs<F: FnMut(usize) -> Result<(), Error>>(
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
         offset += 10;
         ensure!(
-            packet_len - offset <= rdlen,
+            packet_len - offset >= rdlen,
             "Record length would exceed packet length"
         );
         offset += rdlen;
@@ -215,7 +225,7 @@ fn traverse_rrs_mut<F: FnMut(&mut [u8], usize) -> Result<(), Error>>(
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
         offset += 10;
         ensure!(
-            packet_len - offset <= rdlen,
+            packet_len - offset >= rdlen,
             "Record length would exceed packet length"
         );
         offset += rdlen;

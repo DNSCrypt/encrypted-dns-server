@@ -32,8 +32,10 @@ pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<
         Some(mut cached_response) => {
             cached_response.set_tid(original_tid);
             if !cached_response.has_expired() {
+                debug!("Cached");
                 return Ok(cached_response.into_response());
             }
+            debug!("Expired");
             Some(cached_response)
         }
     };
@@ -42,20 +44,34 @@ pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<
     let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
-    ext_socket.send(&packet).await?;
     let mut response;
+    let timeout_if_cached = globals.udp_timeout / 2;
     loop {
+        ext_socket.send(&packet).await?;
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
-        let (response_len, response_addr) = ext_socket.recv_from(&mut response[..]).await?;
-        response.truncate(response_len);
-        if response_addr == globals.upstream_addr
-            && response_len >= DNS_HEADER_SIZE
-            && dns::tid(&response) == tid
-            && dns::qname(&packet)? == dns::qname(&response)?
-        {
-            break;
+        dns::set_rcode_servfail(&mut response);
+        let fut = ext_socket
+            .recv_from(&mut response[..])
+            .timeout(timeout_if_cached);
+        match fut.await {
+            Ok(Ok((response_len, response_addr))) => {
+                response.truncate(response_len);
+                if response_addr == globals.upstream_addr
+                    && response_len >= DNS_HEADER_SIZE
+                    && dns::tid(&response) == tid
+                    && dns::qname(&packet)? == dns::qname(&response)?
+                {
+                    break;
+                }
+            }
+            _ => {
+                if cached_response.is_some() {
+                    debug!("Timeout, but cached response is present");
+                    break;
+                }
+                debug!("Timeout, no cached response");
+            }
         }
-        dbg!("Response collision");
     }
     if dns::is_truncated(&response) {
         let std_socket = match globals.external_addr {
@@ -87,10 +103,13 @@ pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<
         );
     }
     if dns::rcode_servfail(&response) {
+        debug!("SERVFAIL");
         if let Some(cached_response) = cached_response {
+            debug!("Serving stale");
             return Ok(cached_response.into_response());
         }
     } else {
+        debug!("Adding to cache");
         let cached_response = CachedResponse::new(&globals.cache, response.clone());
         globals.cache.lock().insert(packet_hash, cached_response);
     }
