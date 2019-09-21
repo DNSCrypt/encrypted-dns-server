@@ -18,6 +18,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_big_array;
 
+mod cache;
 mod config;
 mod crypto;
 mod dns;
@@ -26,6 +27,7 @@ mod dnscrypt_certs;
 mod errors;
 mod globals;
 
+use cache::*;
 use config::*;
 use crypto::*;
 use dns::*;
@@ -144,19 +146,28 @@ async fn respond_to_query(
 async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
     let original_tid = dns::tid(&packet);
     dns::set_tid(&mut packet, 0);
-    let mut hasher = globals.hasher.clone();
+    let mut hasher = globals.hasher;
     hasher.write(&packet);
     let packet_hash = hasher.finish128().as_u128();
     let cached_response = {
         match globals.cache.lock().get(&packet_hash) {
             None => None,
-            Some(response) => Some((*response).clone()),
+            Some(response) => {
+                let cached_response = (*response).clone();
+                Some(cached_response)
+            }
         }
     };
-    if let Some(mut cached_response) = cached_response {
-        dns::set_tid(&mut cached_response, original_tid);
-        return Ok(cached_response);
-    }
+    let cached_response = match cached_response {
+        None => None,
+        Some(mut cached_response) => {
+            cached_response.set_tid(original_tid);
+            if !cached_response.has_expired() {
+                return Ok(cached_response.into_response());
+            }
+            Some(cached_response)
+        }
+    };
     let tid = random();
     dns::set_tid(&mut packet, tid);
     let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
@@ -206,8 +217,13 @@ async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>,
             "Unexpected query name in the response"
         );
     }
-    if !dns::rcode_servfail(&response) {
-        globals.cache.lock().insert(packet_hash, response.clone());
+    if dns::rcode_servfail(&response) {
+        if let Some(cached_response) = cached_response {
+            return Ok(cached_response.into_response());
+        }
+    } else {
+        let cached_response = CachedResponse::new(response.clone());
+        globals.cache.lock().insert(packet_hash, cached_response);
     }
     dns::set_tid(&mut response, original_tid);
     Ok(response)
@@ -553,6 +569,7 @@ fn main() -> Result<(), Error> {
         cache: Arc::new(Mutex::new(cache)),
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
+    updater.update();
     runtime.spawn(updater.run());
     runtime.spawn(start(globals, runtime.clone()).map(|_| ()));
     runtime.block_on(future::pending::<()>());

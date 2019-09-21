@@ -15,7 +15,7 @@ pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
 pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;
 
 fn now() -> u32 {
-    Clock::now_since_epoch().as_secs() as u32
+    Clock::recent_since_epoch().as_secs() as u32
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -142,7 +142,7 @@ impl DNSCryptEncryptionParamsUpdater {
         DNSCryptEncryptionParamsUpdater { globals }
     }
 
-    fn update(&self) {
+    pub fn update(&self) {
         let now = now();
         let mut new_params_set = vec![];
         {

@@ -1,3 +1,4 @@
+use crate::cache::*;
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 
@@ -36,5 +37,5 @@ pub struct Globals {
     pub key_cache_capacity: usize,
     pub hasher: SipHasher13,
     #[derivative(Debug = "ignore")]
-    pub cache: Arc<Mutex<ClockProCache<u128, Vec<u8>>>>,
+    pub cache: Arc<Mutex<ClockProCache<u128, CachedResponse>>>,
 }
