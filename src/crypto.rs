@@ -244,7 +244,7 @@ pub fn bin2hex(bin: &[u8]) -> String {
     let hex_len = bin_len * 2 + 1;
     let mut hex = vec![0u8; hex_len];
     unsafe {
-        sodium_bin2hex(hex.as_mut_ptr() as *mut i8, hex_len, bin.as_ptr(), bin_len);
+        sodium_bin2hex(hex.as_mut_ptr() as *mut _, hex_len, bin.as_ptr(), bin_len);
     }
     CStr::from_bytes_with_nul(&hex)
         .unwrap()
