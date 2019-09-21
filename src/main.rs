@@ -496,19 +496,19 @@ fn main() -> Result<(), Error> {
         warn!("Key successfully imported");
     }
 
-    let state = match State::from_file(state_file, key_cache_capacity) {
+    let (state, state_is_new) = match State::from_file(state_file, key_cache_capacity) {
         Err(_) => {
             warn!("No state file found... creating a new provider key");
             let state = State::new(key_cache_capacity);
             runtime.block_on(state.async_save(state_file))?;
-            state
+            (state, true)
         }
         Ok(state) => {
             info!(
                 "State file [{}] found; using existing provider key",
                 state_file.as_os_str().to_string_lossy()
             );
-            state
+            (state, false)
         }
     };
     let provider_kp = state.provider_kp;
@@ -569,7 +569,9 @@ fn main() -> Result<(), Error> {
         cache: Arc::new(Mutex::new(cache)),
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
-    updater.update();
+    if !state_is_new {
+        updater.update();
+    }
     runtime.spawn(updater.run());
     runtime.spawn(start(globals, runtime.clone()).map(|_| ()));
     runtime.block_on(future::pending::<()>());
