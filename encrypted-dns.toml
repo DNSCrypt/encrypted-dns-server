@@ -76,6 +76,11 @@ cache_ttl_error = 600
 daemonize = false
 
 
+## Log file
+
+# log_file = "/tmp/encrypted-dns.log"
+
+
 ## PID file
 
 # pid_file = "/tmp/encrypted-dns.pid"

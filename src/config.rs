@@ -41,6 +41,7 @@ pub struct Config {
     pub tls: TLSConfig,
     pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
+    pub log_file: Option<PathBuf>,
 }
 
 impl Config {

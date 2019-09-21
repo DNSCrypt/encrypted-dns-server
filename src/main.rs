@@ -344,6 +344,8 @@ fn privdrop(config: &Config) -> Result<(), Error> {
     }
     if config.daemonize {
         let mut daemon = daemonize_simple::Daemonize::default();
+        daemon.stdout_file = config.log_file.clone();
+        daemon.stderr_file = config.log_file.clone();
         daemon.pid_file = config.pid_file.clone();
         if let Some(chroot) = &config.chroot {
             daemon.chdir = Some(chroot.into());
@@ -358,6 +360,7 @@ fn privdrop(config: &Config) -> Result<(), Error> {
 
 fn main() -> Result<(), Error> {
     env_logger::Builder::from_default_env()
+        .write_style(env_logger::WriteStyle::Never)
         .default_format_module_path(false)
         .default_format_timestamp(false)
         .filter_level(log::LevelFilter::Info)
