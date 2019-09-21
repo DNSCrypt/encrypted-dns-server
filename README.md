@@ -27,6 +27,8 @@ cd encrypted-dns-linux-x86_64
 chmod +x encrypted-dns
 ```
 
+Nothing else has to be installed. It doesn't require any external dependencies.
+
 ### Option 2: compilation from source code
 
 The proxy uses recent features of the Rust compiler, and currently requires rust-nightly.
