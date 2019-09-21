@@ -1,6 +1,6 @@
 [package]
 name = "encrypted-dns"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt, Anonymized DNSCrypt, DoH)"
