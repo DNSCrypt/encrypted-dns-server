@@ -20,19 +20,15 @@ listen_addrs = [
     { local = "[::]:443",       external = "[2001:db8::1]:443" }
 ]
 
-## IP address to connect to upstream servers from
 
-external_addr = "0.0.0.0"
+## Upstream DNS server and port
+
+upstream_addr = "9.9.9.9:53"
 
 
 ## File name to save the state to
 
 state_file = "encrypted-dns.state"
-
-
-## Upstream DNS server and port
-
-upstream_addr = "9.9.9.9:53"
 
 
 ## UDP timeout in seconds
@@ -53,6 +49,12 @@ udp_max_active_connections = 1000
 ## Maximum active TCP connections
 
 tcp_max_active_connections = 100
+
+
+## IP address to connect to upstream servers from.
+## You probably do not want to change this. `0.0.0.0` should be fine.
+
+external_addr = "0.0.0.0"
 
 
 ## Built-in DNS cache capacity
