@@ -17,10 +17,10 @@ jobs:
         run: rustup default | grep nightly
       - name: Build
         run: |
-          cargo build --release
+          echo 'lto = "true"' >> Cargo.toml
+          env RUSTFLAGS="-C link-arg=-s" cargo build --release
           mkdir encrypted-dns
           mv target/release/encrypted-dns encrypted-dns/
-          strip encrypted-dns/encrypted-dns
           cp README.md encrypted-dns.toml encrypted-dns/
       - uses: actions/upload-artifact@master
         with:

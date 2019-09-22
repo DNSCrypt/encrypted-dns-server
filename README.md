@@ -44,6 +44,7 @@ Once rust is installed, the proxy can be compiled and installed as follows:
 
 ```sh
 cargo install encrypted-dns
+strip ~/.cargo/bin/encrypted-dns
 ```
 
 The executable file will be copied to `~/.cargo/bin/encrypted-dns` by default.
