@@ -13,6 +13,9 @@ use tokio::prelude::*;
 pub struct DNSCryptConfig {
     pub provider_name: String,
     pub key_cache_capacity: usize,
+    pub dnssec: bool,
+    pub no_filters: bool,
+    pub no_logs: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -21,8 +24,14 @@ pub struct TLSConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ListenAddrConfig {
+    pub local: SocketAddr,
+    pub external: SocketAddr,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    pub listen_addrs: Vec<SocketAddr>,
+    pub listen_addrs: Vec<ListenAddrConfig>,
     pub external_addr: IpAddr,
     pub upstream_addr: SocketAddr,
     pub state_file: PathBuf,

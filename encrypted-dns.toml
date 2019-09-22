@@ -11,10 +11,14 @@
 ##################################
 
 
-## IP addresses and ports to listen to
+## IP addresses and ports to listen to, as well as their external IP
+## If there is no NAT involved, `local` and `external` can be the same.
+## As many addresses as needed can be configured here, IPv4 and/or IPv6.
 
-listen_addrs = ["0.0.0.0:443", "[::1]:4443"]
-
+listen_addrs = [
+    { local = "0.0.0.0:443",    external = "198.51.100.1:443" },
+    { local = "[::]:443",       external = "[2001:db8::1]:443" }
+]
 
 ## IP address to connect to upstream servers from
 
@@ -112,6 +116,21 @@ daemonize = false
 ## Provider name (with or without the `2.dnscrypt-cert.` prefix)
 
 provider_name = "secure.dns.test"
+
+
+## Does the server support DNSSEC?
+
+dnssec = true
+
+
+## Does the server always returns correct answers (no filtering, including ad blocking)?
+
+no_filters = true
+
+
+## Set to `true` if the server doesn't keep any information that can be used to identify users
+
+no_logs = true
 
 
 ## Key cache capacity, per certificate

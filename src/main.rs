@@ -388,6 +388,12 @@ fn main() -> Result<(), Error> {
                 .takes_value(true)
                 .help("Path to the dnscrypt-wrapper secret key"),
         )
+        .arg(
+            Arg::with_name("dry-run")
+                .long("dry-run")
+                .takes_value(false)
+                .help("Only print the connection information and quit"),
+        )
         .get_matches();
 
     let config_path = matches.value_of("config").unwrap();
@@ -448,20 +454,28 @@ fn main() -> Result<(), Error> {
     };
     let provider_kp = state.provider_kp;
     for listen_addr_s in &config.listen_addrs {
-        info!("Server address: {}", listen_addr_s);
+        info!("Public server address: {}", listen_addr_s.external);
         info!("Provider public key: {}", provider_kp.pk.as_string());
         info!("Provider name: {}", provider_name);
-        let stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
+        let mut stamp = dnsstamps::DNSCryptBuilder::new(dnsstamps::DNSCryptProvider::new(
             provider_name.clone(),
             provider_kp.pk.as_bytes().to_vec(),
         ))
-        .with_addr(listen_addr_s.to_string())
-        .with_informal_property(InformalProperty::DNSSEC)
-        .with_informal_property(InformalProperty::NoFilters)
-        .with_informal_property(InformalProperty::NoLogs)
-        .serialize()
-        .unwrap();
+        .with_addr(listen_addr_s.external.to_string());
+        if config.dnscrypt.dnssec {
+            stamp = stamp.with_informal_property(InformalProperty::DNSSEC);
+        }
+        if config.dnscrypt.no_filters {
+            stamp = stamp.with_informal_property(InformalProperty::NoFilters);
+        }
+        if config.dnscrypt.no_logs {
+            stamp = stamp.with_informal_property(InformalProperty::NoLogs);
+        }
+        let stamp = stamp.serialize().unwrap();
         info!("DNS Stamp: {}", stamp);
+    }
+    if matches.is_present("dry-run") {
+        return Ok(());
     }
     let dnscrypt_encryption_params_set = state
         .dnscrypt_encryption_params_set
@@ -488,7 +502,7 @@ fn main() -> Result<(), Error> {
         ))),
         provider_name,
         provider_kp,
-        listen_addrs: config.listen_addrs,
+        listen_addrs: config.listen_addrs.iter().map(|x| x.local).collect(),
         upstream_addr: config.upstream_addr,
         tls_upstream_addr: config.tls.upstream_addr,
         external_addr,
