@@ -40,3 +40,4 @@ toml = "0.5.3"
 [profile.release]
 codegen-units = 1
 panic = "abort"
+lto = "fat"
