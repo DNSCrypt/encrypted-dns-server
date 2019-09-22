@@ -76,7 +76,7 @@ Done. Your server is now running the new proxy.
 
 The proxy includes a key cache, as well as a DNS cache to significantly reduce the load on upstream servers.
 
-In addition, if a server is slow or unresponsive, expired cached queries will be returned, improving reliabilitty of popular domain names.
+In addition, if a server is slow or unresponsive, expired cached queries will be returned, ensuring that popular domain names always keep being served.
 
 ## State file
 
