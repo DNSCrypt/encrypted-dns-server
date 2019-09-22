@@ -36,7 +36,7 @@ The proxy uses recent features of the Rust compiler, and currently requires rust
 Rust can installed with:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl -sSf https://sh.rustup.rs | bash -s -- -y --default-toolchain nightly
 ```
 
 Once rust is installed, the proxy can be compiled and installed as follows:
