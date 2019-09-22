@@ -37,6 +37,7 @@ Rust can installed with:
 
 ```sh
 curl -sSf https://sh.rustup.rs | bash -s -- -y --default-toolchain nightly
+source $HOME/.cargo/env
 ```
 
 Once rust is installed, the proxy can be compiled and installed as follows:
