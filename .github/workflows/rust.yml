@@ -17,7 +17,7 @@ jobs:
         run: rustup default | grep nightly
       - name: Build
         run: |
-          echo 'lto = "true"' >> Cargo.toml
+          echo 'lto = "fat"' >> Cargo.toml
           env RUSTFLAGS="-C link-arg=-s" cargo build --release
           mkdir encrypted-dns
           mv target/release/encrypted-dns encrypted-dns/
