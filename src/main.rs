@@ -315,14 +315,35 @@ async fn udp_acceptor(
     }
 }
 
-async fn start(globals: Arc<Globals>, runtime: Arc<Runtime>) -> Result<(), Error> {
-    for listen_addr in &globals.listen_addrs {
-        let tcp_listener = TcpListener::bind(&listen_addr).await?;
-        let udp_socket = std::net::UdpSocket::bind(&listen_addr)?;
-        runtime.spawn(tcp_acceptor(globals.clone(), tcp_listener).map(|_| {}));
-        runtime.spawn(udp_acceptor(globals.clone(), udp_socket).map(|_| {}));
+async fn start(
+    globals: Arc<Globals>,
+    runtime: Arc<Runtime>,
+    listeners: Vec<(TcpListener, std::net::UdpSocket)>,
+) -> Result<(), Error> {
+    for listener in listeners {
+        runtime.spawn(tcp_acceptor(globals.clone(), listener.0).map(|_| {}));
+        runtime.spawn(udp_acceptor(globals.clone(), listener.1).map(|_| {}));
     }
     Ok(())
+}
+
+fn bind_listeners(
+    listen_addrs: &[SocketAddr],
+    runtime: Arc<Runtime>,
+) -> Result<Vec<(TcpListener, std::net::UdpSocket)>, Error> {
+    let mut sockets = Vec::with_capacity(listen_addrs.len());
+    for listen_addr in listen_addrs {
+        let tcp_listener = match runtime.block_on(TcpListener::bind(&listen_addr)) {
+            Ok(tcp_listener) => tcp_listener,
+            Err(e) => bail!(format_err!("{}/TCP: {}", listen_addr, e)),
+        };
+        let udp_socket = match std::net::UdpSocket::bind(&listen_addr) {
+            Ok(udp_socket) => udp_socket,
+            Err(e) => bail!(format_err!("{}/UDP: {}", listen_addr, e)),
+        };
+        sockets.push((tcp_listener, udp_socket))
+    }
+    Ok(sockets)
 }
 
 fn privdrop(config: &Config) -> Result<(), Error> {
@@ -405,11 +426,18 @@ fn main() -> Result<(), Error> {
     };
     let external_addr = SocketAddr::new(config.external_addr, 0);
 
-    privdrop(&config)?;
-
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");
     let runtime = Arc::new(runtime_builder.build()?);
+
+    let listen_addrs: Vec<_> = config.listen_addrs.iter().map(|x| x.local).collect();
+    let listeners = bind_listeners(&listen_addrs, runtime.clone())
+        .map_err(|e| {
+            error!("Unable to listen to the requested IPs and ports: [{}]", e);
+            std::process::exit(1);
+        })
+        .unwrap();
+    privdrop(&config)?;
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let cache_capacity = config.cache_capacity;
@@ -502,7 +530,7 @@ fn main() -> Result<(), Error> {
         ))),
         provider_name,
         provider_kp,
-        listen_addrs: config.listen_addrs.iter().map(|x| x.local).collect(),
+        listen_addrs,
         upstream_addr: config.upstream_addr,
         tls_upstream_addr: config.tls.upstream_addr,
         external_addr,
@@ -527,7 +555,7 @@ fn main() -> Result<(), Error> {
         updater.update();
     }
     runtime.spawn(
-        start(globals, runtime.clone())
+        start(globals, runtime.clone(), listeners)
             .map_err(|e| {
                 error!("Unable to start the service: [{}]", e);
                 std::process::exit(1);
