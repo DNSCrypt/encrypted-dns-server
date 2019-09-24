@@ -527,15 +527,11 @@ fn main() -> Result<(), Error> {
         updater.update();
     }
     runtime.spawn(updater.run());
-    runtime.spawn(
-        start(globals, runtime.clone())
-            .map_err(|e| {
-                error!("Unable to start the service: [{}]", e);
-                std::process::exit(1);
-            })
-            .map(|_| ()),
-    );
-    runtime.block_on(future::pending::<()>());
-
-    Ok(())
+    match runtime.block_on(start(globals, runtime.clone())) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            error!("Unable to start the service: [{}]", e);
+            std::process::exit(1);
+        }
+    }
 }
