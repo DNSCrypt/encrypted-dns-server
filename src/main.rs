@@ -361,8 +361,8 @@ fn privdrop(config: &Config) -> Result<(), Error> {
 fn main() -> Result<(), Error> {
     env_logger::Builder::from_default_env()
         .write_style(env_logger::WriteStyle::Never)
-        .default_format_module_path(false)
-        .default_format_timestamp(false)
+        .format_module_path(false)
+        .format_timestamp(None)
         .filter_level(log::LevelFilter::Info)
         .target(env_logger::Target::Stdout)
         .init();
