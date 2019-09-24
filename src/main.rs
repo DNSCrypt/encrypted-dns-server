@@ -526,7 +526,6 @@ fn main() -> Result<(), Error> {
     if !state_is_new {
         updater.update();
     }
-    runtime.spawn(updater.run());
     runtime.spawn(
         start(globals, runtime.clone())
             .map_err(|e| {
@@ -535,7 +534,7 @@ fn main() -> Result<(), Error> {
             })
             .map(|_| ()),
     );
-    runtime.block_on(future::pending::<()>());
+    runtime.block_on(updater.run());
 
     Ok(())
 }
