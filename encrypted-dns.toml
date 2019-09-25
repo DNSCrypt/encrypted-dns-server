@@ -150,3 +150,13 @@ key_cache_capacity = 10000
 ## Where to prooxy TLS connections to (e.g. DoH server)
 
 # upstream_addr = "127.0.0.1:4343"
+
+
+
+#######################################
+#        Server-side filtering        #
+#######################################
+
+[filtering]
+
+# domain_blacklist = "/etc/domain_blacklist.txt"

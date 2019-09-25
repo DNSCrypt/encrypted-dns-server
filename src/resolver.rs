@@ -13,6 +13,12 @@ use tokio::prelude::*;
 use tokio_net::driver::Handle;
 
 pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<u8>, Error> {
+    let packet_qname = dns::qname(&packet)?;
+    if let Some(blacklist) = &globals.blacklist {
+        if blacklist.find(&packet_qname) {
+            return dns::serve_empty_response(packet.to_vec());
+        }
+    }
     let original_tid = dns::tid(&packet);
     dns::set_tid(&mut packet, 0);
     let mut hasher = globals.hasher;
@@ -59,7 +65,7 @@ pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<
                 if response_addr == globals.upstream_addr
                     && response_len >= DNS_HEADER_SIZE
                     && dns::tid(&response) == tid
-                    && dns::qname(&packet)? == dns::qname(&response)?
+                    && packet_qname == dns::qname(&response)?
                 {
                     break;
                 }
@@ -98,7 +104,7 @@ pub async fn resolve(globals: &Globals, mut packet: &mut Vec<u8>) -> Result<Vec<
         ext_socket.read_exact(&mut response).await?;
         ensure!(dns::tid(&response) == tid, "Unexpected transaction ID");
         ensure!(
-            dns::qname(&packet)? == dns::qname(&response)?,
+            packet_qname == dns::qname(&response)?,
             "Unexpected query name in the response"
         );
     }

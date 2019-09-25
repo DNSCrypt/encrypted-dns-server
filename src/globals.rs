@@ -1,3 +1,4 @@
+use crate::blacklist::*;
 use crate::cache::*;
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
@@ -35,4 +36,5 @@ pub struct Globals {
     pub key_cache_capacity: usize,
     pub hasher: SipHasher13,
     pub cache: Cache,
+    pub blacklist: Option<BlackList>,
 }

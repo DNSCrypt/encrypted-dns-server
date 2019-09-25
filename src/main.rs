@@ -1,5 +1,6 @@
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::type_complexity)]
+#![allow(clippy::cognitive_complexity)]
 #![allow(dead_code)]
 
 #[global_allocator]
@@ -18,6 +19,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate serde_big_array;
 
+mod blacklist;
 mod cache;
 mod config;
 mod crypto;
@@ -28,6 +30,7 @@ mod errors;
 mod globals;
 mod resolver;
 
+use blacklist::*;
 use cache::*;
 use config::*;
 use crypto::*;
@@ -521,7 +524,13 @@ fn main() -> Result<(), Error> {
         config.cache_ttl_max,
         config.cache_ttl_error,
     );
-
+    let blacklist = match config.filtering.domain_blacklist {
+        None => None,
+        Some(path) => Some(
+            BlackList::load(&path)
+                .map_err(|e| format_err!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
+        ),
+    };
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
@@ -549,6 +558,7 @@ fn main() -> Result<(), Error> {
         key_cache_capacity,
         hasher,
         cache,
+        blacklist,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {

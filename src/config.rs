@@ -30,6 +30,11 @@ pub struct ListenAddrConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct FilteringConfig {
+    pub domain_blacklist: Option<PathBuf>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub listen_addrs: Vec<ListenAddrConfig>,
     pub external_addr: IpAddr,
@@ -46,6 +51,7 @@ pub struct Config {
     pub user: Option<String>,
     pub group: Option<String>,
     pub chroot: Option<String>,
+    pub filtering: FilteringConfig,
     pub dnscrypt: DNSCryptConfig,
     pub tls: TLSConfig,
     pub daemonize: bool,
