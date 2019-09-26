@@ -50,6 +50,11 @@ pub fn ancount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[6..])
 }
 
+#[inline]
+pub fn ancount_clear(packet: &mut [u8]) {
+    BigEndian::write_u16(&mut packet[6..], 0)
+}
+
 fn ancount_inc(packet: &mut [u8]) -> Result<(), Error> {
     let mut ancount = ancount(packet);
     ensure!(ancount < 0xffff, "Too many answer records");
@@ -64,8 +69,18 @@ fn nscount(packet: &[u8]) -> u16 {
 }
 
 #[inline]
+pub fn nscount_clear(packet: &mut [u8]) {
+    BigEndian::write_u16(&mut packet[8..], 0)
+}
+
+#[inline]
 pub fn arcount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[10..])
+}
+
+#[inline]
+pub fn arcount_clear(packet: &mut [u8]) {
+    BigEndian::write_u16(&mut packet[10..], 0)
 }
 
 fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
@@ -74,6 +89,13 @@ fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
     arcount += 1;
     BigEndian::write_u16(&mut packet[10..], arcount);
     Ok(())
+}
+
+#[inline]
+pub fn an_ns_ar_count_clear(packet: &mut [u8]) {
+    ancount_clear(packet);
+    nscount_clear(packet);
+    arcount_clear(packet);
 }
 
 #[inline]
@@ -337,6 +359,7 @@ pub fn serve_certificates<'t>(
         return Ok(None);
     }
     let mut packet = (&client_packet[..offset + 4]).to_vec();
+    an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
     let dnscrypt_encryption_params = dnscrypt_encryption_params_set
         .into_iter()
@@ -368,6 +391,7 @@ pub fn serve_truncated(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     let mut packet = client_packet;
     ensure!(packet.len() - offset >= 4, "Short packet");
     packet.truncate(offset + 4);
+    an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
     truncate(&mut packet);
     Ok(packet)
@@ -384,6 +408,7 @@ pub fn serve_empty_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     let mut packet = client_packet;
     ensure!(packet.len() - offset >= 4, "Short packet");
     packet.truncate(offset + 4);
+    an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
     Ok(packet)
 }
