@@ -52,11 +52,6 @@ pub fn ancount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[6..])
 }
 
-#[inline]
-pub fn ancount_clear(packet: &mut [u8]) {
-    BigEndian::write_u16(&mut packet[6..], 0)
-}
-
 fn ancount_inc(packet: &mut [u8]) -> Result<(), Error> {
     let mut ancount = ancount(packet);
     ensure!(ancount < 0xffff, "Too many answer records");
@@ -71,18 +66,8 @@ fn nscount(packet: &[u8]) -> u16 {
 }
 
 #[inline]
-pub fn nscount_clear(packet: &mut [u8]) {
-    BigEndian::write_u16(&mut packet[8..], 0)
-}
-
-#[inline]
 pub fn arcount(packet: &[u8]) -> u16 {
     BigEndian::read_u16(&packet[10..])
-}
-
-#[inline]
-pub fn arcount_clear(packet: &mut [u8]) {
-    BigEndian::write_u16(&mut packet[10..], 0)
 }
 
 fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
@@ -95,9 +80,7 @@ fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
 
 #[inline]
 pub fn an_ns_ar_count_clear(packet: &mut [u8]) {
-    ancount_clear(packet);
-    nscount_clear(packet);
-    arcount_clear(packet);
+    packet[6..12].iter_mut().for_each(|x| *x = 0);
 }
 
 #[inline]
