@@ -33,8 +33,8 @@ serde = "1.0.101"
 serde_derive = "1.0.101"
 serde-big-array = "0.1.5"
 siphasher = "0.3.1"
-tokio = "=0.2.0-alpha.4"
-tokio-net = "=0.2.0-alpha.4"
+tokio = "=0.2.0-alpha.5"
+tokio-net = "=0.2.0-alpha.5"
 toml = "0.5.3"
 
 [profile.release]
