@@ -10,9 +10,11 @@ pub const DNS_OFFSET_FLAGS: usize = 2;
 pub const DNS_MAX_PACKET_SIZE: usize = 0x1600;
 
 const DNS_MAX_INDIRECTIONS: usize = 16;
-const DNS_FLAGS_TC: u16 = 2u16 << 8;
-const DNS_FLAGS_QR: u16 = 128u16 << 8;
-const DNS_FLAGS_RA: u16 = 128;
+const DNS_FLAGS_TC: u16 = 1u16 << 9;
+const DNS_FLAGS_QR: u16 = 1u16 << 15;
+const DNS_FLAGS_RA: u16 = 1u16 << 7;
+const DNS_FLAGS_RD: u16 = 1u16 << 8;
+const DNS_FLAGS_CD: u16 = 1u16 << 4;
 const DNS_OFFSET_QUESTION: usize = DNS_HEADER_SIZE;
 const DNS_TYPE_OPT: u16 = 41;
 const DNS_TYPE_TXT: u16 = 16;
@@ -109,12 +111,15 @@ pub fn set_tid(packet: &mut [u8], tid: u16) {
 }
 
 #[inline]
+pub fn set_flags(packet: &mut [u8], flags: u16) {
+    BigEndian::write_u16(&mut packet[DNS_OFFSET_FLAGS..], flags);
+}
+
+#[inline]
 pub fn authoritative_response(packet: &mut [u8]) {
-    let current_flags = BigEndian::read_u16(&packet[DNS_OFFSET_FLAGS..]);
-    BigEndian::write_u16(
-        &mut packet[DNS_OFFSET_FLAGS..],
-        current_flags | DNS_FLAGS_QR | DNS_FLAGS_RA,
-    );
+    let current_rd_cd_flags =
+        BigEndian::read_u16(&packet[DNS_OFFSET_FLAGS..]) & (DNS_FLAGS_CD | DNS_FLAGS_RD);
+    set_flags(packet, current_rd_cd_flags | DNS_FLAGS_QR | DNS_FLAGS_RA);
 }
 
 #[inline]
