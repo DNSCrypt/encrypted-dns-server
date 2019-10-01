@@ -39,4 +39,5 @@ toml = "0.5.3"
 
 [profile.release]
 codegen-units = 1
+incremental = false
 panic = "abort"
