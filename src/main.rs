@@ -46,6 +46,8 @@ use dnscrypt::*;
 use dnscrypt_certs::*;
 use errors::*;
 use globals::*;
+#[cfg(feature = "metrics")]
+use varz::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
@@ -566,10 +568,29 @@ fn main() -> Result<(), Error> {
         hasher,
         cache,
         blacklist,
+        #[cfg(feature = "metrics")]
+        varz: Varz::default(),
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {
         updater.update();
+    }
+    #[cfg(feature = "metrics")]
+    {
+        if let Some(metrics_config) = config.metrics {
+            runtime.spawn(
+                metrics::prometheus_service(
+                    globals.varz.clone(),
+                    metrics_config.clone(),
+                    runtime.clone(),
+                )
+                .map_err(|e| {
+                    error!("Unable to start the metrics service: [{}]", e);
+                    std::process::exit(1);
+                })
+                .map(|_| ()),
+            );
+        }
     }
     runtime.spawn(
         start(globals, runtime.clone(), listeners)
@@ -579,8 +600,6 @@ fn main() -> Result<(), Error> {
             })
             .map(|_| ()),
     );
-    #[cfg(feature = "metrics")]
-    runtime.spawn(metrics::prometheus_service(runtime.clone()).map(|_| ()));
     runtime.block_on(updater.run());
     Ok(())
 }
