@@ -111,8 +111,8 @@ pub async fn resolve(
     if dns::is_truncated(&response) {
         response = resolve_tcp(globals, packet, &packet_qname, tid).await?;
     }
-    if dns::rcode_servfail(&response) {
-        trace!("SERVFAIL");
+    if dns::rcode_servfail(&response) || dns::rcode_refused(&response) {
+        trace!("SERVFAIL/REFUSED: {}", dns::rcode(&response));
         if let Some(cached_response) = cached_response {
             trace!("Serving stale");
             return Ok(cached_response.into_response());
