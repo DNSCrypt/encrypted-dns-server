@@ -21,7 +21,7 @@ derivative = "1.0.3"
 dnsstamps = "0.1.1"
 env_logger = { version="0.7.0", default-features = false, features = ["humantime"]}
 failure = "0.1.5"
-futures-preview = { version = "=0.3.0-alpha.18", features = ["async-await", "nightly", "cfg-target-has-atomic"] }
+futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await", "unstable", "cfg-target-has-atomic"] }
 jemallocator = "0.3.2"
 libsodium-sys-stable="1.18.1"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
@@ -33,8 +33,8 @@ serde = "1.0.101"
 serde_derive = "1.0.101"
 serde-big-array = "0.1.5"
 siphasher = "0.3.1"
-tokio = "=0.2.0-alpha.5"
-tokio-net = "=0.2.0-alpha.5"
+tokio = "=0.2.0-alpha.6"
+tokio-net = "=0.2.0-alpha.6"
 toml = "0.5.3"
 
 [profile.release]
