@@ -64,7 +64,7 @@ cache_capacity = 50000
 
 ## DNS cache: minimum TTL
 
-cache_ttl_min = 600
+cache_ttl_min = 3600
 
 
 ## DNS cache: max TTL
