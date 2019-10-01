@@ -21,6 +21,7 @@ const DNS_TYPE_TXT: u16 = 16;
 const DNS_CLASS_INET: u16 = 1;
 
 const DNS_RCODE_SERVFAIL: u8 = 2;
+const DNS_RCODE_REFUSED: u8 = 5;
 
 #[inline]
 pub fn rcode(packet: &[u8]) -> u8 {
@@ -40,6 +41,16 @@ pub fn rcode_servfail(packet: &[u8]) -> bool {
 #[inline]
 pub fn set_rcode_servfail(packet: &mut [u8]) {
     set_rcode(packet, DNS_RCODE_SERVFAIL)
+}
+
+#[inline]
+pub fn rcode_refused(packet: &[u8]) -> bool {
+    rcode(packet) == DNS_RCODE_REFUSED
+}
+
+#[inline]
+pub fn set_rcode_refused(packet: &mut [u8]) {
+    set_rcode(packet, DNS_RCODE_REFUSED)
 }
 
 #[inline]
