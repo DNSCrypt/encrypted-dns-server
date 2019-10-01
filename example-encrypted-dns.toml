@@ -14,10 +14,16 @@
 ## IP addresses and ports to listen to, as well as their external IP
 ## If there is no NAT involved, `local` and `external` can be the same.
 ## As many addresses as needed can be configured here, IPv4 and/or IPv6.
+## You should at least change the `external` IP address.
+
+### Example with both IPv4 and IPv6 addresses:
+# listen_addrs = [
+#     { local = "0.0.0.0:443",    external = "198.51.100.1:443" },
+#     { local = "[::]:443",       external = "[2001:db8::1]:443" }
+# ]
 
 listen_addrs = [
-    { local = "0.0.0.0:443",    external = "198.51.100.1:443" },
-    { local = "[::]:443",       external = "[2001:db8::1]:443" }
+    { local = "0.0.0.0:443",    external = "198.51.100.1:443" }
 ]
 
 

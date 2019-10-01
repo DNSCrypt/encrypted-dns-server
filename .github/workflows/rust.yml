@@ -21,7 +21,7 @@ jobs:
           env RUSTFLAGS="-C link-arg=-s" cargo build --release
           mkdir encrypted-dns
           mv target/release/encrypted-dns encrypted-dns/
-          cp README.md encrypted-dns.toml encrypted-dns/
+          cp README.md example-encrypted-dns.toml encrypted-dns/
       - uses: actions/upload-artifact@master
         with:
           name: encrypted-dns-linux-x86_64

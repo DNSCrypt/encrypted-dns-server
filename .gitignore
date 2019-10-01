@@ -3,3 +3,4 @@
 /target/
 Cargo.lock
 encrypted-dns.state
+encrypted-dns.toml
