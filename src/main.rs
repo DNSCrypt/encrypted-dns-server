@@ -185,7 +185,7 @@ async fn handle_client_query(
         !dns::is_response(&packet),
         "Question expected, but got a response instead"
     );
-    let response = resolver::resolve(&globals, &mut packet).await?;
+    let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
     respond_to_query(
         client_ctx,
         packet,
