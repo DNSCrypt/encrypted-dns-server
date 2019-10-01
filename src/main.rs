@@ -18,6 +18,9 @@ extern crate log;
 extern crate serde_derive;
 #[macro_use]
 extern crate serde_big_array;
+#[cfg(feature = "metrics")]
+#[macro_use]
+extern crate prometheus;
 
 mod blacklist;
 mod cache;
@@ -28,7 +31,11 @@ mod dnscrypt;
 mod dnscrypt_certs;
 mod errors;
 mod globals;
+#[cfg(feature = "metrics")]
+mod metrics;
 mod resolver;
+#[cfg(feature = "metrics")]
+mod varz;
 
 use blacklist::*;
 use cache::*;
@@ -572,7 +579,8 @@ fn main() -> Result<(), Error> {
             })
             .map(|_| ()),
     );
+    #[cfg(feature = "metrics")]
+    runtime.spawn(metrics::prometheus_service(runtime.clone()).map(|_| ()));
     runtime.block_on(updater.run());
-
     Ok(())
 }
