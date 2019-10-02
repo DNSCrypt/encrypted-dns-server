@@ -2,8 +2,6 @@
 
 An easy to install, high-performance, zero maintenance proxy to run an encrypted DNS server.
 
-Written in Rust.
-
 ![Dashboard](dashboard.png)
 
 ## Protocols
