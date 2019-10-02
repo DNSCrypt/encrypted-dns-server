@@ -2,6 +2,8 @@ use crate::blacklist::*;
 use crate::cache::*;
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
+#[cfg(feature = "metrics")]
+use crate::varz::*;
 
 use parking_lot::{Mutex, RwLock};
 use siphasher::sip128::SipHasher13;
@@ -14,7 +16,8 @@ use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Derivative)]
+#[derivative(Debug)]
 pub struct Globals {
     pub runtime: Arc<Runtime>,
     pub state_file: PathBuf,
@@ -37,4 +40,7 @@ pub struct Globals {
     pub hasher: SipHasher13,
     pub cache: Cache,
     pub blacklist: Option<BlackList>,
+    #[cfg(feature = "metrics")]
+    #[derivative(Debug = "ignore")]
+    pub varz: Varz,
 }

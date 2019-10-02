@@ -37,6 +37,20 @@ tokio = "=0.2.0-alpha.6"
 tokio-net = "=0.2.0-alpha.6"
 toml = "0.5.3"
 
+[dependencies.hyper]
+optional = true
+version = "0.13.0-alpha.3"
+default_features = false
+
+[dependencies.prometheus]
+optional = true
+version = "0.7.0"
+default_features = false
+
+[features]
+default = ["metrics"]
+metrics = ["hyper", "prometheus"]
+
 [profile.release]
 codegen-units = 1
 incremental = false

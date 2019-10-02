@@ -9,7 +9,15 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use tokio::prelude::*;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[cfg(feature = "metrics")]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct MetricsConfig {
+    pub r#type: String,
+    pub listen_addr: SocketAddr,
+    pub path: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DNSCryptConfig {
     pub provider_name: String,
     pub key_cache_capacity: usize,
@@ -18,23 +26,23 @@ pub struct DNSCryptConfig {
     pub no_logs: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TLSConfig {
     pub upstream_addr: Option<SocketAddr>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ListenAddrConfig {
     pub local: SocketAddr,
     pub external: SocketAddr,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FilteringConfig {
     pub domain_blacklist: Option<PathBuf>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub listen_addrs: Vec<ListenAddrConfig>,
     pub external_addr: IpAddr,
@@ -57,6 +65,8 @@ pub struct Config {
     pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,
+    #[cfg(feature = "metrics")]
+    pub metrics: Option<MetricsConfig>,
 }
 
 impl Config {
