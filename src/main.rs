@@ -254,7 +254,15 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             }
             active_connections.push_front(tx);
         }
-        concurrent_connections.fetch_add(1, Ordering::Relaxed);
+        let _count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
+        #[cfg(feature = "metrics")]
+        let varz = globals.varz.clone();
+        #[cfg(feature = "metrics")]
+        {
+            varz.inflight_tcp_queries
+                .set(_count.saturating_add(1) as f64);
+            varz.client_queries_tcp.inc();
+        }
         client_connection.set_nodelay(true)?;
         let globals = globals.clone();
         let concurrent_connections = concurrent_connections.clone();
@@ -278,7 +286,10 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
         let fut_abort = rx;
         let fut_all = future::select(fut.boxed(), fut_abort).timeout(timeout);
         runtime.spawn(fut_all.map(move |_| {
-            concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            #[cfg(feature = "metrics")]
+            varz.inflight_tcp_queries
+                .set(_count.saturating_sub(1) as f64);
         }));
     }
     Ok(())
@@ -315,14 +326,25 @@ async fn udp_acceptor(
             }
             active_connections.push_front(tx);
         }
-        concurrent_connections.fetch_add(1, Ordering::Relaxed);
+        let _count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
+        #[cfg(feature = "metrics")]
+        let varz = globals.varz.clone();
+        #[cfg(feature = "metrics")]
+        {
+            varz.inflight_udp_queries
+                .set(_count.saturating_add(1) as f64);
+            varz.client_queries_udp.inc();
+        }
         let globals = globals.clone();
         let concurrent_connections = concurrent_connections.clone();
         let fut = handle_client_query(globals, client_ctx, packet);
         let fut_abort = rx;
         let fut_all = future::select(fut.boxed(), fut_abort).timeout(timeout);
         runtime.spawn(fut_all.map(move |_| {
-            concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            #[cfg(feature = "metrics")]
+            varz.inflight_udp_queries
+                .set(_count.saturating_sub(1) as f64);
         }));
     }
 }
