@@ -29,6 +29,13 @@ async fn handle_client_connection(
     varz.uptime.set(uptime as f64);
     let client_queries = varz.client_queries_udp.get() + varz.client_queries_tcp.get();
     varz.client_queries.set(client_queries);
+    let cached_queries = varz.client_queries_cached.get();
+    let cache_hit_ratio = if client_queries <= 0.0 {
+        0.0
+    } else {
+        cached_queries as f64 * 100.0 / client_queries as f64
+    };
+    varz.cache_hit_ratio.set(cache_hit_ratio);
     let metric_families = prometheus::gather();
     let encoder = TextEncoder::new();
     encoder.encode(&metric_families, &mut buffer)?;

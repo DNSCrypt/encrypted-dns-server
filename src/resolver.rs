@@ -120,7 +120,10 @@ pub async fn resolve(
         if let Some(cached_response) = cached_response {
             trace!("Serving stale");
             #[cfg(feature = "metrics")]
-            globals.varz.client_queries_offline.inc();
+            {
+                globals.varz.client_queries_offline.inc();
+                globals.varz.client_queries_cached.inc();
+            }
             return Ok(cached_response.into_response());
         } else {
             #[cfg(feature = "metrics")]
