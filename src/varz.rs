@@ -7,7 +7,6 @@ pub struct StartInstant(pub Instant);
 pub struct Inner {
     pub start_instant: StartInstant,
     pub uptime: Gauge,
-    pub cache_hit_ratio: Gauge,
     pub client_queries: Gauge,
     pub client_queries_udp: Counter,
     pub client_queries_tcp: Counter,
@@ -43,12 +42,6 @@ impl Inner {
             client_queries: register_gauge!(opts!(
                 "encrypted_dns_client_queries",
                 "Number of client queries received",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_hit_ratio: register_gauge!(opts!(
-                "encrypted_dns_cache_hit_ratio",
-                "Cache hit ratio",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
