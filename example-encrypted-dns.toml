@@ -165,18 +165,17 @@ key_cache_capacity = 10000
 
 [filtering]
 
+## List of domains to block, one per line
+
 # domain_blacklist = "/etc/domain_blacklist.txt"
 
 
 
-#######################################
-#        Server-side filtering        #
-#######################################
+#########################
+#        Metrics        #
+#########################
 
-[metrics]
-
-type = "prometheus"
-
-listen_addr = "0.0.0.0:9100"
-
-path = "/metrics"
+# [metrics]
+# type = "prometheus"
+# listen_addr = "0.0.0.0:9100"
+# path = "/metrics"
