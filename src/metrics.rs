@@ -2,6 +2,7 @@ use crate::config::*;
 use crate::errors::*;
 use crate::varz::*;
 
+#[allow(unused_imports)]
 use futures::prelude::*;
 use hyper::header::CONTENT_TYPE;
 use hyper::server::conn::Http;
