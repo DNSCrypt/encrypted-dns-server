@@ -98,6 +98,8 @@ pub async fn resolve(
     packet_hash: u128,
     original_tid: u16,
 ) -> Result<Vec<u8>, Error> {
+    #[cfg(feature = "metrics")]
+    globals.varz.upstream_sent.inc();
     let tid = random();
     dns::set_tid(&mut packet, tid);
     let mut response = resolve_udp(
@@ -111,6 +113,8 @@ pub async fn resolve(
     if dns::is_truncated(&response) {
         response = resolve_tcp(globals, packet, &packet_qname, tid).await?;
     }
+    #[cfg(feature = "metrics")]
+    globals.varz.upstream_received.inc();
     if dns::rcode_servfail(&response) || dns::rcode_refused(&response) {
         trace!("SERVFAIL/REFUSED: {}", dns::rcode(&response));
         if let Some(cached_response) = cached_response {
@@ -120,7 +124,7 @@ pub async fn resolve(
             return Ok(cached_response.into_response());
         } else {
             #[cfg(feature = "metrics")]
-            globals.varz.client_queries_errors.inc();
+            globals.varz.upstream_errors.inc();
         }
     } else {
         trace!("Adding to cache");
@@ -128,6 +132,11 @@ pub async fn resolve(
         globals.cache.lock().insert(packet_hash, cached_response);
     }
     dns::set_tid(&mut response, original_tid);
+    #[cfg(feature = "metrics")]
+    globals
+        .varz
+        .upstream_response_sizes
+        .observe(response.len() as f64);
     Ok(response)
 }
 

@@ -20,7 +20,6 @@ pub struct Inner {
     pub upstream_errors: Counter,
     pub upstream_sent: Counter,
     pub upstream_received: Counter,
-    pub upstream_timeout: Counter,
     pub upstream_response_sizes: Histogram,
 }
 
@@ -120,13 +119,6 @@ impl Inner {
             upstream_received: register_counter!(opts!(
                 "encrypted_dns_upstream_received",
                 "Number of upstream servers responses received",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            upstream_timeout: register_counter!(opts!(
-                "encrypted_dns_upstream_timeout",
-                "Number of upstream servers responses \
-                 having timed out",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
