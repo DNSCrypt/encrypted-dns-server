@@ -10,7 +10,10 @@ use hyper::{Body, Request, Response, StatusCode};
 use prometheus::{self, Encoder, TextEncoder};
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use tokio::prelude::*;
 use tokio::runtime::Runtime;
+
+const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
 
 async fn handle_client_connection(
     req: Request<Body>,
@@ -60,7 +63,13 @@ pub async fn prometheus_service(
         let service =
             service_fn(move |req| handle_client_connection(req, varz.clone(), path.clone()));
         let connection = Http::new().serve_connection(client, service);
-        runtime.spawn(connection.map(|_| {}));
+        runtime.spawn(
+            connection
+                .timeout(std::time::Duration::from_secs(
+                    METRICS_CONNECTION_TIMEOUT_SECS,
+                ))
+                .map(|_| {}),
+        );
     }
     Ok(())
 }

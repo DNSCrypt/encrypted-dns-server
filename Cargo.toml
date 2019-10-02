@@ -46,6 +46,7 @@ default_features = false
 optional = true
 version = "0.7.0"
 default_features = false
+features = ["process"]
 
 [features]
 default = ["metrics"]
