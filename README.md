@@ -57,9 +57,9 @@ That resolver can run locally and only respond to `127.0.0.1`. External resolver
 
 In order to support DoH in addition to DNSCrypt, a DoH proxy must be running as well. [rust-doh](https://github.com/jedisct1/rust-doh) is the recommended DoH proxy server. DoH support is optional, as it is currently way more complicated to setup than DNSCrypt due to certificate management.
 
-First, make a copy of the `example-encrypted-dns.toml` configuration file named `encrypted.toml`.
+Make a copy of the `example-encrypted-dns.toml` configuration file named `encrypted.toml`.
 
-Then, review the [`encrypted-dns.toml`](https://raw.githubusercontent.com/jedisct1/encrypted-dns-server/master/encrypted-dns.toml) file. This is where all the parameters can be configured, including the IP addresses to listen to.
+Then, review the [`encrypted-dns.toml`](https://raw.githubusercontent.com/jedisct1/encrypted-dns-server/master/example-encrypted-dns.toml) file. This is where all the parameters can be configured, including the IP addresses to listen to.
 
 You should probably at least change the `listen_addresses` and `provider_name` settings.
 
