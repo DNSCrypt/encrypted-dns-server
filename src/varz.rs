@@ -7,11 +7,6 @@ pub struct StartInstant(pub Instant);
 pub struct Inner {
     pub start_instant: StartInstant,
     pub uptime: Gauge,
-    pub cache_frequent_len: Gauge,
-    pub cache_recent_len: Gauge,
-    pub cache_test_len: Gauge,
-    pub cache_inserted: Gauge,
-    pub cache_evicted: Gauge,
     pub client_queries: Gauge,
     pub client_queries_udp: Counter,
     pub client_queries_tcp: Counter,
@@ -19,6 +14,7 @@ pub struct Inner {
     pub client_queries_expired: Counter,
     pub client_queries_offline: Counter,
     pub client_queries_errors: Counter,
+    pub client_queries_blocked: Counter,
     pub inflight_udp_queries: Gauge,
     pub inflight_tcp_queries: Gauge,
     pub upstream_errors: Counter,
@@ -41,39 +37,6 @@ impl Inner {
             uptime: register_gauge!(opts!(
                 "encrypted_dns_uptime",
                 "Uptime",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_frequent_len: register_gauge!(opts!(
-                "encrypted_dns_cache_frequent_len",
-                "Number of entries in the cached set of \
-                 frequent items",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_recent_len: register_gauge!(opts!(
-                "encrypted_dns_cache_recent_len",
-                "Number of entries in the cached set of \
-                 recent items",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_test_len: register_gauge!(opts!(
-                "encrypted_dns_cache_test_len",
-                "Number of entries in the cached set of \
-                 staged items",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_inserted: register_gauge!(opts!(
-                "encrypted_dns_cache_inserted",
-                "Number of entries added to the cache",
-                labels! {"handler" => "all",}
-            ))
-            .unwrap(),
-            cache_evicted: register_gauge!(opts!(
-                "encrypted_dns_cache_evicted",
-                "Number of entries evicted from the cache",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
@@ -121,6 +84,12 @@ impl Inner {
             client_queries_errors: register_counter!(opts!(
                 "encrypted_dns_client_queries_errors",
                 "Number of bogus client queries",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
+            client_queries_blocked: register_counter!(opts!(
+                "encrypted_dns_client_queries_blocked",
+                "Number of blocked client queries",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),

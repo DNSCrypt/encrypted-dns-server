@@ -115,7 +115,12 @@ pub async fn resolve(
         trace!("SERVFAIL/REFUSED: {}", dns::rcode(&response));
         if let Some(cached_response) = cached_response {
             trace!("Serving stale");
+            #[cfg(feature = "metrics")]
+            globals.varz.client_queries_offline.inc();
             return Ok(cached_response.into_response());
+        } else {
+            #[cfg(feature = "metrics")]
+            globals.varz.client_queries_errors.inc();
         }
     } else {
         trace!("Adding to cache");
@@ -133,6 +138,8 @@ pub async fn get_cached_response_or_resolve(
     let packet_qname = dns::qname(&packet)?;
     if let Some(blacklist) = &globals.blacklist {
         if blacklist.find(&packet_qname) {
+            #[cfg(feature = "metrics")]
+            globals.varz.client_queries_blocked.inc();
             return dns::serve_empty_response(packet.to_vec());
         }
     }
@@ -156,9 +163,13 @@ pub async fn get_cached_response_or_resolve(
             cached_response.set_tid(original_tid);
             if !cached_response.has_expired() {
                 trace!("Cached");
+                #[cfg(feature = "metrics")]
+                globals.varz.client_queries_cached.inc();
                 return Ok(cached_response.into_response());
             }
             trace!("Expired");
+            #[cfg(feature = "metrics")]
+            globals.varz.client_queries_expired.inc();
             Some(cached_response)
         }
     };
