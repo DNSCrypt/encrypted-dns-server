@@ -95,3 +95,7 @@ Putting it in a directory that is only readable by the super-user is not a bad i
 ## Filtering
 
 Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file.
+
+## Prometheus metrics
+
+Prometheus metrics can optionally be enabled in order to monitor performance, cache efficiency, and more.
