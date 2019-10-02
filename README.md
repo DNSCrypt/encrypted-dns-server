@@ -18,7 +18,7 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 
 ### Option 1: precompiled binary for Linux
 
-Download the Encrypted DNS Server [precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/246906469/artifacts/73767).
+Download the Encrypted DNS Server [precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/247836197/artifacts/76088).
 
 And make the application executable:
 
