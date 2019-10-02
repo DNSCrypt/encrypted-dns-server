@@ -38,6 +38,7 @@ async fn handle_client_connection(
     Ok(response)
 }
 
+#[allow(unreachable_code)]
 pub async fn prometheus_service(
     varz: Varz,
     metrics_config: MetricsConfig,
@@ -54,4 +55,5 @@ pub async fn prometheus_service(
         let connection = Http::new().serve_connection(client, service);
         runtime.spawn(connection.map(|_| {}));
     }
+    Ok(())
 }
