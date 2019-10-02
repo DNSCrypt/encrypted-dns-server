@@ -9,12 +9,15 @@ use hyper::server::conn::Http;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response, StatusCode};
 use prometheus::{self, Encoder, TextEncoder};
+use std::mem;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 
 const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
+const METRICS_MAX_CONCURRENT_CONNECTIONS: u32 = 2;
 
 async fn handle_client_connection(
     req: Request<Body>,
@@ -57,19 +60,29 @@ pub async fn prometheus_service(
 ) -> Result<(), Error> {
     let path = Arc::new(metrics_config.path);
     let mut stream = TcpListener::bind(metrics_config.listen_addr).await?;
+    let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
         let (client, _client_addr) = stream.accept().await?;
+        let count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
+        if count >= METRICS_MAX_CONCURRENT_CONNECTIONS {
+            concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            mem::drop(client);
+            continue;
+        }
         let path = path.clone();
         let varz = varz.clone();
         let service =
             service_fn(move |req| handle_client_connection(req, varz.clone(), path.clone()));
         let connection = Http::new().serve_connection(client, service);
+        let concurrent_connections = concurrent_connections.clone();
         runtime.spawn(
             connection
                 .timeout(std::time::Duration::from_secs(
                     METRICS_CONNECTION_TIMEOUT_SECS,
                 ))
-                .map(|_| {}),
+                .map(move |_| {
+                    concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+                }),
         );
     }
     Ok(())
