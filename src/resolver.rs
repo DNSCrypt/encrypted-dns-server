@@ -37,7 +37,7 @@ pub async fn resolve_udp(
                 if response_addr == globals.upstream_addr
                     && response_len >= DNS_HEADER_SIZE
                     && dns::tid(&response) == tid
-                    && packet_qname == dns::qname(&response)?.as_slice()
+                    && packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice())
                 {
                     break;
                 }
@@ -84,7 +84,7 @@ pub async fn resolve_tcp(
     ext_socket.read_exact(&mut response).await?;
     ensure!(dns::tid(&response) == tid, "Unexpected transaction ID");
     ensure!(
-        packet_qname == dns::qname(&response)?.as_slice(),
+        packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice()),
         "Unexpected query name in the response"
     );
     Ok(response)
@@ -135,6 +135,7 @@ pub async fn resolve(
         globals.cache.lock().insert(packet_hash, cached_response);
     }
     dns::set_tid(&mut response, original_tid);
+    dns::recase_qname(&mut response, &packet_qname)?;
     #[cfg(feature = "metrics")]
     globals
         .varz
@@ -157,6 +158,7 @@ pub async fn get_cached_response_or_resolve(
     }
     let original_tid = dns::tid(&packet);
     dns::set_tid(&mut packet, 0);
+    dns::normalize_qname(&mut packet)?;
     let mut hasher = globals.hasher;
     hasher.write(&packet);
     let packet_hash = hasher.finish128().as_u128();
@@ -172,12 +174,14 @@ pub async fn get_cached_response_or_resolve(
     let cached_response = match cached_response {
         None => None,
         Some(mut cached_response) => {
-            cached_response.set_tid(original_tid);
             if !cached_response.has_expired() {
                 trace!("Cached");
                 #[cfg(feature = "metrics")]
                 globals.varz.client_queries_cached.inc();
-                return Ok(cached_response.into_response());
+                cached_response.set_tid(original_tid);
+                let mut response = cached_response.into_response();
+                dns::recase_qname(&mut response, &packet_qname)?;
+                return Ok(response);
             }
             trace!("Expired");
             #[cfg(feature = "metrics")]

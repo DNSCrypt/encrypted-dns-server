@@ -136,27 +136,16 @@ pub fn is_truncated(packet: &[u8]) -> bool {
 }
 
 pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
-    assert!(std::usize::MAX > 0xffff);
+    debug_assert!(std::usize::MAX > 0xffff);
+    debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
     ensure!(qdcount(packet) == 1, "Unexpected query count");
     let packet_len = packet.len();
     let mut offset = DNS_HEADER_SIZE;
     let mut qname = Vec::with_capacity(DNS_MAX_HOSTNAME_SIZE);
-    let mut indirections = 0;
     loop {
         ensure!(offset < packet_len, "Short packet");
         match packet[offset] as usize {
-            label_len if label_len & 0xc0 == 0xc0 => {
-                ensure!(packet_len - offset > 1, "Short packet");
-                let new_offset = (BigEndian::read_u16(&packet[offset..]) & 0x3fff) as usize;
-                indirections += 1;
-                ensure!(
-                    new_offset >= DNS_HEADER_SIZE
-                        && new_offset != offset
-                        && indirections < DNS_MAX_INDIRECTIONS,
-                    "Too many indirections"
-                );
-                offset = new_offset;
-            }
+            label_len if label_len & 0xc0 == 0xc0 => bail!("Indirections"),
             0 => {
                 if qname.is_empty() {
                     qname.push(b'.')
@@ -180,6 +169,83 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
         }
     }
     Ok(qname)
+}
+
+pub fn normalize_qname(packet: &mut [u8]) -> Result<(), Error> {
+    debug_assert!(std::usize::MAX > 0xffff);
+    debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
+    ensure!(qdcount(packet) == 1, "Unexpected query count");
+    let packet_len = packet.len();
+    let mut offset = DNS_HEADER_SIZE;
+    loop {
+        ensure!(offset < packet_len, "Short packet");
+        match packet[offset] as usize {
+            label_len if label_len & 0xc0 == 0xc0 => bail!("Indirections"),
+            0 => {
+                break;
+            }
+            label_len => {
+                ensure!(packet_len - offset > 1, "Short packet");
+                offset += 1;
+                ensure!(packet_len - offset > label_len, "Short packet");
+                ensure!(
+                    offset - DNS_HEADER_SIZE < DNS_MAX_HOSTNAME_SIZE - label_len,
+                    "Name too long"
+                );
+                packet[offset..offset + label_len]
+                    .iter_mut()
+                    .for_each(|x| *x = x.to_ascii_lowercase());
+                offset += label_len;
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn recase_qname(packet: &mut [u8], qname: &[u8]) -> Result<(), Error> {
+    debug_assert!(std::usize::MAX > 0xffff);
+    ensure!(qdcount(packet) == 1, "Unexpected query count");
+    let packet_len = packet.len();
+    let qname_len = qname.len();
+    let mut offset = DNS_HEADER_SIZE;
+    let mut qname_offset = 0;
+    loop {
+        ensure!(offset < packet_len, "Short packet");
+        match packet[offset] as usize {
+            label_len if label_len & 0xc0 == 0xc0 => bail!("Indirections"),
+            0 => {
+                ensure!(
+                    (qname_len == 1 && qname[0] == b'.') || qname_offset == qname_len,
+                    "Unterminated reference qname"
+                );
+                break;
+            }
+            label_len => {
+                ensure!(packet_len - offset > 1, "Short packet");
+                ensure!(qname_offset < qname_len, "Short reference qname");
+                offset += 1;
+                if qname_offset != 0 {
+                    ensure!(qname[qname_offset] == b'.', "Non-matching reference qname");
+                    qname_offset += 1;
+                }
+                ensure!(packet_len - offset > label_len, "Short packet");
+                ensure!(
+                    qname_len - qname_offset >= label_len,
+                    "Short reference qname"
+                );
+                packet[offset..offset + label_len]
+                    .iter_mut()
+                    .zip(&qname[qname_offset..qname_offset + label_len])
+                    .for_each(|(a, b)| {
+                        debug_assert!(a.eq_ignore_ascii_case(b));
+                        *a = *b
+                    });
+                offset += label_len;
+                qname_offset += label_len;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn skip_name(packet: &[u8], offset: usize) -> Result<usize, Error> {
