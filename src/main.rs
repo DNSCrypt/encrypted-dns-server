@@ -75,7 +75,6 @@ use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::prelude::*;
 use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
-use tokio_net::driver::Handle;
 
 #[derive(Debug)]
 struct UdpClientCtx {
@@ -222,7 +221,7 @@ async fn tls_proxy(
     .bind(&globals.external_addr)?
     .to_tcp_stream()?;
     let mut ext_socket =
-        TcpStream::connect_std(std_socket, tls_upstream_addr, &Handle::default()).await?;
+        TcpStream::connect_std(std_socket, tls_upstream_addr, &Default::default()).await?;
     let (mut erh, mut ewh) = ext_socket.split();
     let (mut rh, mut wh) = client_connection.split();
     ewh.write_all(&binlen).await?;

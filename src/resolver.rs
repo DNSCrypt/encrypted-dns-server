@@ -10,7 +10,6 @@ use std::hash::Hasher;
 use std::net::SocketAddr;
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::prelude::*;
-use tokio_net::driver::Handle;
 
 pub async fn resolve_udp(
     globals: &Globals,
@@ -67,7 +66,7 @@ pub async fn resolve_tcp(
     .bind(&globals.external_addr)?
     .to_tcp_stream()?;
     let mut ext_socket =
-        TcpStream::connect_std(std_socket, &globals.upstream_addr, &Handle::default()).await?;
+        TcpStream::connect_std(std_socket, &globals.upstream_addr, &Default::default()).await?;
     ext_socket.set_nodelay(true)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
