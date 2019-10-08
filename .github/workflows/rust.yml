@@ -25,8 +25,13 @@ jobs:
           mv target/release/encrypted-dns encrypted-dns/
           cp README.md example-encrypted-dns.toml encrypted-dns/
       - name: Debian package
+        run: |
           cargo deb
       - uses: actions/upload-artifact@master
         with:
           name: encrypted-dns-linux-x86_64
           path: encrypted-dns
+      - uses: actions/upload-artifact@master
+        with:
+          name: debian
+          path: target/debian
