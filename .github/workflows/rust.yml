@@ -15,6 +15,8 @@ jobs:
         run: cargo --version
       - name: Check Rustup default toolchain
         run: rustup default | grep nightly
+      - name: Install cargo-deb
+        run: cargo install cargo-deb
       - name: Build
         run: |
           echo 'lto = "fat"' >> Cargo.toml
@@ -22,6 +24,8 @@ jobs:
           mkdir encrypted-dns
           mv target/release/encrypted-dns encrypted-dns/
           cp README.md example-encrypted-dns.toml encrypted-dns/
+      - name: Debian package
+          cargo deb
       - uses: actions/upload-artifact@master
         with:
           name: encrypted-dns-linux-x86_64

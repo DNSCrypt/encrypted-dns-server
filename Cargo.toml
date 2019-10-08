@@ -55,3 +55,16 @@ metrics = ["hyper", "prometheus"]
 codegen-units = 1
 incremental = false
 panic = "abort"
+
+[package.metadata.deb]
+extended-description = """\
+An easy to install, high-performance, zero maintenance proxy to run an \
+encrypted DNS server."""
+assets = [
+  ["target/release/encrypted-dns", "usr/bin/", "755"],
+  ["README.md", "usr/share/doc/encrypted-dns/README", "644"],
+  ["encrypted-dns.toml", "usr/share/doc/encrypted-dns/encrypted-dns.toml", "644"]
+]
+section = "network"
+depends = "$auto"
+priority = "optional"
