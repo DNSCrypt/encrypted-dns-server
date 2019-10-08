@@ -51,11 +51,6 @@ features = ["process"]
 default = ["metrics"]
 metrics = ["hyper", "prometheus"]
 
-[profile.release]
-codegen-units = 1
-incremental = false
-panic = "abort"
-
 [package.metadata.deb]
 extended-description = """\
 An easy to install, high-performance, zero maintenance proxy to run an \
@@ -68,3 +63,8 @@ assets = [
 section = "network"
 depends = "$auto"
 priority = "optional"
+
+[profile.release]
+codegen-units = 1
+incremental = false
+panic = "abort"
