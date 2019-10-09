@@ -80,7 +80,7 @@ There is nothing else to do. Certificates are automatically generated and rotate
 If you are currently running an encrypted DNS server using `dnscrypt-wrapper`, moving to the new proxy is simple:
 
 - Double check that the provider name in `encrypted-dns.toml` matches the one you previously configured. If you forgot it, it can be recovered [from its DNS stamp](https://dnscrypt.info/stamps/).
-- Run `dnscrypt-dns --import-from-dnscrypt-wrapper secret.key`, with `secret.key` being the file with the `dnscrypt-wrapper` provider secret key.
+- Run `enscrypted-dns --import-from-dnscrypt-wrapper secret.key`, with `secret.key` being the file with the `dnscrypt-wrapper` provider secret key.
 
 Done. Your server is now running the new proxy.
 
