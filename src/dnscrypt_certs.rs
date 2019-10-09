@@ -1,3 +1,4 @@
+use crate::anomymized_dns::*;
 use crate::config::*;
 use crate::crypto::*;
 use crate::dnscrypt::*;
@@ -105,7 +106,12 @@ pub struct DNSCryptEncryptionParams {
 
 impl DNSCryptEncryptionParams {
     pub fn new(provider_kp: &SignKeyPair, cache_capacity: usize) -> Self {
-        let resolver_kp = CryptKeyPair::new();
+        let mut resolver_kp;
+        while {
+            resolver_kp = CryptKeyPair::new();
+            resolver_kp.pk.as_bytes()
+                == &ANONYMIZED_DNSCRYPT_QUERY_MAGIC[..DNSCRYPT_QUERY_MAGIC_SIZE]
+        } {}
         let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
         let cache = ClockProCache::new(cache_capacity).unwrap();
         DNSCryptEncryptionParams {

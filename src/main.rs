@@ -22,6 +22,7 @@ extern crate serde_big_array;
 #[macro_use]
 extern crate prometheus;
 
+mod anomymized_dns;
 mod blacklist;
 mod cache;
 mod config;
