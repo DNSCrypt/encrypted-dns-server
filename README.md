@@ -49,6 +49,12 @@ strip ~/.cargo/bin/encrypted-dns
 
 The executable file will be copied to `~/.cargo/bin/encrypted-dns` by default.
 
+### Options 3: Docker
+
+[dnscrypt-server-docker](https://github.com/dnscrypt/dnscrypt-server-docker) is the most popular way to deploy an encrypted DNS server.
+
+This Docker image that includes a caching DNS resolver, the encrypted DNS proxy, and scripts to automatically configure everything.
+
 ## Setup
 
 The proxy requires a recursive DNS resolver, such as Knot, PowerDNS or Unbound.
