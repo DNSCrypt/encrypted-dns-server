@@ -74,7 +74,7 @@ You should probably at least change the `listen_addresses` and `provider_name` s
 
 Start the proxy. It will automatically create a new provider key pair if there isn't any.
 
-The DNS stamps are printed. They can be used directly with `dnscrypt-proxy`.
+The DNS stamps are printed. They can be used directly with [`dnscrypt-proxy`](https://github.com/dnscrypt/dnscrypt-proxy/).
 
 There is nothing else to do. Certificates are automatically generated and rotated.
 
