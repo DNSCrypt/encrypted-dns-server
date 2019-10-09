@@ -30,7 +30,7 @@ chmod +x encrypted-dns
 Nothing else has to be installed. It doesn't require any external dependencies.
 
 A [Debian package](https://github.com/jedisct1/encrypted-dns-server/suites/258225741/artifacts/106121) for Linux/x86_64 is also available.
-In this package, the example configuration file can be found in [/usr/share/doc/encrypted-dns/].
+In this package, the example configuration file can be found in `/usr/share/doc/encrypted-dns/`.
 
 ### Option 2: compilation from source code
 
