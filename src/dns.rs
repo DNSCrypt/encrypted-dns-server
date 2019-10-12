@@ -18,6 +18,7 @@ const DNS_FLAGS_CD: u16 = 1u16 << 4;
 const DNS_OFFSET_QUESTION: usize = DNS_HEADER_SIZE;
 const DNS_TYPE_OPT: u16 = 41;
 const DNS_TYPE_TXT: u16 = 16;
+const DNS_TYPE_HINFO: u16 = 13;
 const DNS_CLASS_INET: u16 = 1;
 
 const DNS_RCODE_SERVFAIL: u8 = 2;
@@ -462,7 +463,7 @@ pub fn serve_truncated(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     Ok(packet)
 }
 
-pub fn serve_empty_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn serve_blocked_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&client_packet) == 1, "No question");
     ensure!(
@@ -475,5 +476,18 @@ pub fn serve_empty_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     packet.truncate(offset + 4);
     an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
+    let hinfo_cpu = b"Query blocked";
+    let hinfo_rdata = b"by the DNS server";
+    let rdata_len = 1 + hinfo_cpu.len() + 1 + hinfo_rdata.len();
+    ancount_inc(&mut packet)?;
+    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
+    packet.write_u16::<BigEndian>(DNS_TYPE_HINFO)?;
+    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+    packet.write_u32::<BigEndian>(60)?;
+    packet.write_u16::<BigEndian>(rdata_len as _)?;
+    packet.push(hinfo_cpu.len() as u8);
+    packet.extend_from_slice(hinfo_cpu);
+    packet.push(hinfo_rdata.len() as u8);
+    packet.extend_from_slice(hinfo_rdata);
     Ok(packet)
 }

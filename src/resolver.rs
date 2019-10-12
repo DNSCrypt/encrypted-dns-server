@@ -152,7 +152,7 @@ pub async fn get_cached_response_or_resolve(
         if blacklist.find(&packet_qname) {
             #[cfg(feature = "metrics")]
             globals.varz.client_queries_blocked.inc();
-            return dns::serve_empty_response(packet.to_vec());
+            return dns::serve_blocked_response(packet.to_vec());
         }
     }
     let original_tid = dns::tid(&packet);

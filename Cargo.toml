@@ -20,7 +20,7 @@ daemonize-simple = "0.1.2"
 derivative = "1.0.3"
 dnsstamps = "0.1.1"
 env_logger = { version="0.7.0", default-features = false, features = ["humantime"]}
-failure = "0.1.5"
+failure = "0.1.6"
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await", "unstable", "cfg-target-has-atomic"] }
 jemallocator = "0.3.2"
 libsodium-sys-stable="1.18.1"
