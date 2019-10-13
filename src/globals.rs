@@ -43,4 +43,5 @@ pub struct Globals {
     #[cfg(feature = "metrics")]
     #[derivative(Debug = "ignore")]
     pub varz: Varz,
+    pub anonymized_dns_enabled: bool,
 }

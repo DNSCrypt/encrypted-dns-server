@@ -180,3 +180,13 @@ key_cache_capacity = 10000
 # type = "prometheus"
 # listen_addr = "0.0.0.0:9100"
 # path = "/metrics"
+
+
+
+################################
+#        Anonymized DNS        #
+################################
+
+[anonymized_dns]
+
+enabled = false

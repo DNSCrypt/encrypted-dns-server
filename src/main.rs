@@ -172,7 +172,9 @@ async fn handle_client_query(
         "Short packet"
     );
     debug_assert!(DNSCRYPT_QUERY_MIN_OVERHEAD > ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len());
-    if encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()] == ANONYMIZED_DNSCRYPT_QUERY_MAGIC
+    if globals.anonymized_dns_enabled
+        && encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()]
+            == ANONYMIZED_DNSCRYPT_QUERY_MAGIC
     {
         return handle_anonymized_dns(
             globals,
@@ -582,6 +584,10 @@ fn main() -> Result<(), Error> {
                 .map_err(|e| format_err!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
         ),
     };
+    let anonymized_dns_enabled = match config.anonymized_dns {
+        None => false,
+        Some(anonymized_dns) => anonymized_dns.enabled,
+    };
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
@@ -612,6 +618,7 @@ fn main() -> Result<(), Error> {
         blacklist,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
+        anonymized_dns_enabled,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {

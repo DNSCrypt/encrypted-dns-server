@@ -9,6 +9,11 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use tokio::prelude::*;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AnonymizedDNSConfig {
+    pub enabled: bool,
+}
+
 #[cfg(feature = "metrics")]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MetricsConfig {
@@ -67,6 +72,7 @@ pub struct Config {
     pub log_file: Option<PathBuf>,
     #[cfg(feature = "metrics")]
     pub metrics: Option<MetricsConfig>,
+    pub anonymized_dns: Option<AnonymizedDNSConfig>,
 }
 
 impl Config {
