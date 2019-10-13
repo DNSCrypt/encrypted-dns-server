@@ -2,6 +2,7 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::cognitive_complexity)]
 #![allow(dead_code)]
+#![feature(ip)]
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
@@ -22,7 +23,7 @@ extern crate serde_big_array;
 #[macro_use]
 extern crate prometheus;
 
-mod anomymized_dns;
+mod anonymized_dns;
 mod blacklist;
 mod cache;
 mod config;
@@ -38,6 +39,7 @@ mod resolver;
 #[cfg(feature = "metrics")]
 mod varz;
 
+use anonymized_dns::*;
 use blacklist::*;
 use cache::*;
 use config::*;
@@ -78,18 +80,18 @@ use tokio::runtime::Runtime;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
-struct UdpClientCtx {
+pub struct UdpClientCtx {
     net_udp_socket: std::net::UdpSocket,
     client_addr: SocketAddr,
 }
 
 #[derive(Debug)]
-struct TcpClientCtx {
+pub struct TcpClientCtx {
     client_connection: TcpStream,
 }
 
 #[derive(Debug)]
-enum ClientCtx {
+pub enum ClientCtx {
     Udp(UdpClientCtx),
     Tcp(TcpClientCtx),
 }
@@ -111,28 +113,7 @@ fn maybe_truncate_response(
     Ok(response)
 }
 
-async fn respond_to_query(
-    client_ctx: ClientCtx,
-    packet: Vec<u8>,
-    response: Vec<u8>,
-    original_packet_size: usize,
-    shared_key: Option<SharedKey>,
-    nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
-) -> Result<(), Error> {
-    ensure!(dns::is_response(&response), "Packet is not a response");
-    let max_response_size = match client_ctx {
-        ClientCtx::Udp(_) => original_packet_size,
-        ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
-    };
-    let response = match &shared_key {
-        None => response,
-        Some(shared_key) => dnscrypt::encrypt(
-            maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
-            shared_key,
-            nonce.as_ref().unwrap(),
-            max_response_size,
-        )?,
-    };
+pub async fn respond_to_query(client_ctx: ClientCtx, response: Vec<u8>) -> Result<(), Error> {
     match client_ctx {
         ClientCtx::Udp(client_ctx) => {
             let net_udp_socket = client_ctx.net_udp_socket;
@@ -155,12 +136,51 @@ async fn respond_to_query(
     Ok(())
 }
 
+async fn encrypt_and_respond_to_query(
+    client_ctx: ClientCtx,
+    packet: Vec<u8>,
+    response: Vec<u8>,
+    original_packet_size: usize,
+    shared_key: Option<SharedKey>,
+    nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
+) -> Result<(), Error> {
+    ensure!(dns::is_response(&response), "Packet is not a response");
+    let max_response_size = match client_ctx {
+        ClientCtx::Udp(_) => original_packet_size,
+        ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
+    };
+    let response = match &shared_key {
+        None => response,
+        Some(shared_key) => dnscrypt::encrypt(
+            maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
+            shared_key,
+            nonce.as_ref().unwrap(),
+            max_response_size,
+        )?,
+    };
+    respond_to_query(client_ctx, response).await
+}
+
 async fn handle_client_query(
     globals: Arc<Globals>,
     client_ctx: ClientCtx,
     encrypted_packet: Vec<u8>,
 ) -> Result<(), Error> {
     let original_packet_size = encrypted_packet.len();
+    ensure!(
+        original_packet_size >= DNSCRYPT_QUERY_MIN_OVERHEAD + DNS_HEADER_SIZE,
+        "Short packet"
+    );
+    debug_assert!(DNSCRYPT_QUERY_MIN_OVERHEAD > ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len());
+    if encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()] == ANONYMIZED_DNSCRYPT_QUERY_MAGIC
+    {
+        return handle_anonymized_dns(
+            globals,
+            client_ctx,
+            &encrypted_packet[ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()..],
+        )
+        .await;
+    }
     let mut dnscrypt_encryption_params_set = vec![];
     for params in &**globals.dnscrypt_encryption_params_set.read() {
         dnscrypt_encryption_params_set.push((*params).clone())
@@ -175,7 +195,7 @@ async fn handle_client_query(
                     &globals.provider_name,
                     &dnscrypt_encryption_params_set,
                 )? {
-                    return respond_to_query(
+                    return encrypt_and_respond_to_query(
                         client_ctx,
                         packet,
                         synth_packet,
@@ -195,7 +215,7 @@ async fn handle_client_query(
         "Question expected, but got a response instead"
     );
     let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
-    respond_to_query(
+    encrypt_and_respond_to_query(
         client_ctx,
         packet,
         response,
@@ -601,16 +621,12 @@ fn main() -> Result<(), Error> {
     {
         if let Some(metrics_config) = config.metrics {
             runtime.spawn(
-                metrics::prometheus_service(
-                    globals.varz.clone(),
-                    metrics_config.clone(),
-                    runtime.clone(),
-                )
-                .map_err(|e| {
-                    error!("Unable to start the metrics service: [{}]", e);
-                    std::process::exit(1);
-                })
-                .map(|_| ()),
+                metrics::prometheus_service(globals.varz.clone(), metrics_config, runtime.clone())
+                    .map_err(|e| {
+                        error!("Unable to start the metrics service: [{}]", e);
+                        std::process::exit(1);
+                    })
+                    .map(|_| ()),
             );
         }
     }

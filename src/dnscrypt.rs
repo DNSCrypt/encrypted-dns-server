@@ -21,6 +21,8 @@ pub const DNSCRYPT_QUERY_MIN_OVERHEAD: usize =
     DNSCRYPT_QUERY_HEADER_SIZE + DNSCRYPT_MAC_SIZE + DNSCRYPT_QUERY_MIN_PADDING_SIZE;
 
 pub const DNSCRYPT_RESPONSE_MAGIC_SIZE: usize = 8;
+pub const DNSCRYPT_RESPONSE_MAGIC: [u8; DNSCRYPT_RESPONSE_MAGIC_SIZE] =
+    [0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38];
 pub const DNSCRYPT_RESPONSE_NONCE_SIZE: usize = DNSCRYPT_FULL_NONCE_SIZE;
 pub const DNSCRYPT_RESPONSE_HEADER_SIZE: usize =
     DNSCRYPT_RESPONSE_MAGIC_SIZE + DNSCRYPT_RESPONSE_NONCE_SIZE;
@@ -103,7 +105,7 @@ pub fn encrypt(
     max_packet_size: usize,
 ) -> Result<Vec<u8>, Error> {
     let mut wrapped_packet = Vec::with_capacity(DNS_MAX_PACKET_SIZE);
-    wrapped_packet.extend_from_slice(&[0x72, 0x36, 0x66, 0x6e, 0x76, 0x57, 0x6a, 0x38]);
+    wrapped_packet.extend_from_slice(&DNSCRYPT_RESPONSE_MAGIC);
     wrapped_packet.extend_from_slice(nonce);
     ensure!(
         max_packet_size >= wrapped_packet.len(),

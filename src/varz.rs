@@ -7,6 +7,8 @@ pub struct StartInstant(pub Instant);
 pub struct Inner {
     pub start_instant: StartInstant,
     pub uptime: Gauge,
+    pub anonymized_queries: Counter,
+    pub anonymized_responses: Counter,
     pub client_queries: Gauge,
     pub client_queries_udp: Counter,
     pub client_queries_tcp: Counter,
@@ -36,6 +38,18 @@ impl Inner {
             uptime: register_gauge!(opts!(
                 "encrypted_dns_uptime",
                 "Uptime",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
+            anonymized_queries: register_counter!(opts!(
+                "encrypted_dns_anonymized_queries",
+                "Number of anomymized queries received",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
+            anonymized_responses: register_counter!(opts!(
+                "encrypted_dns_anonymized_responses",
+                "Number of anomymized responses received",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),

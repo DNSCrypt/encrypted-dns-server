@@ -1,4 +1,4 @@
-use crate::anomymized_dns::*;
+use crate::anonymized_dns::*;
 use crate::config::*;
 use crate::crypto::*;
 use crate::dnscrypt::*;
