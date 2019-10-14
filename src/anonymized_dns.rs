@@ -65,6 +65,12 @@ pub async fn handle_anonymized_dns(
         encrypted_packet_len > 8 && [0u8, 0, 0, 0, 0, 0, 0, 1] != encrypted_packet[..8],
         "Protocol confusion with QUIC"
     );
+    debug_assert!(DNSCRYPT_UDP_QUERY_MIN_SIZE > ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len());
+    ensure!(
+        encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()]
+            != ANONYMIZED_DNSCRYPT_QUERY_MAGIC,
+        "Loop detected"
+    );
     let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
     ext_socket.connect(&upstream_address).await?;
     ext_socket.send(&encrypted_packet).await?;

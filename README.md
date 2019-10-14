@@ -6,11 +6,11 @@ An easy to install, high-performance, zero maintenance proxy to run an encrypted
 
 ## Protocols
 
-The proxy aims at supporting the following protocols:
+The proxy supports the following protocols:
 
 - [DNSCrypt v2](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
-- DNS-over-HTTP (DoH)
+- DNS-over-HTTP (DoH) forwarding
 
 All of these can be served simultaneously, on the same port (usually port 443). The proxy automatically detects what protocol is being used by each client.
 
