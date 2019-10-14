@@ -12,6 +12,8 @@ use tokio::prelude::*;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymizedDNSConfig {
     pub enabled: bool,
+    pub allowed_ports: Vec<u16>,
+    pub blacklisted_ips: Vec<IpAddr>,
 }
 
 #[cfg(feature = "metrics")]

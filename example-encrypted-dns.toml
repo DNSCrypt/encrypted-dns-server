@@ -189,4 +189,17 @@ key_cache_capacity = 10000
 
 [anonymized_dns]
 
+
+# Enable relaying support for Anonymized DNS
+
 enabled = false
+
+
+# Allowed upstream ports
+
+allowed_ports = [ 443 ]
+
+
+# Blacklisted upstream IP addresses
+
+blacklisted_ips = [ "93.184.216.34" ]

@@ -39,8 +39,15 @@ pub async fn handle_anonymized_dns(
     globals.varz.anonymized_queries.inc();
 
     ensure!(ip.is_global(), "Forbidden upstream address");
+    ensure!(
+        !globals.anonymized_dns_blacklisted_ips.contains(&ip),
+        "Blacklisted upstream IP"
+    );
     let port = BigEndian::read_u16(&encrypted_packet[16..18]);
-    ensure!([443].contains(&port), "Forbidden upstream port");
+    ensure!(
+        globals.anonymized_dns_allowed_ports.contains(&port),
+        "Forbidden upstream port"
+    );
     let upstream_address = SocketAddr::new(ip, port);
     ensure!(
         !globals.listen_addrs.contains(&upstream_address)

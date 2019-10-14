@@ -557,6 +557,16 @@ fn main() -> Result<(), Error> {
         }
         let stamp = stamp.serialize().unwrap();
         info!("DNS Stamp: {}", stamp);
+
+        if let Some(anonymized_dns) = &config.anonymized_dns {
+            if anonymized_dns.enabled {
+                let relay_stamp = dnsstamps::DNSCryptRelayBuilder::new()
+                    .with_addr(listen_addr_s.external.to_string())
+                    .serialize()
+                    .unwrap();
+                info!("DNS Stamp for Anonymized DNS relaying: {}", relay_stamp);
+            }
+        }
     }
     if matches.is_present("dry-run") {
         return Ok(());
@@ -584,10 +594,16 @@ fn main() -> Result<(), Error> {
                 .map_err(|e| format_err!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
         ),
     };
-    let anonymized_dns_enabled = match config.anonymized_dns {
-        None => false,
-        Some(anonymized_dns) => anonymized_dns.enabled,
-    };
+    let (anonymized_dns_enabled, anonymized_dns_allowed_ports, anonymized_dns_blacklisted_ips) =
+        match config.anonymized_dns {
+            None => (false, vec![], vec![]),
+            Some(anonymized_dns) => (
+                anonymized_dns.enabled,
+                anonymized_dns.allowed_ports,
+                anonymized_dns.blacklisted_ips,
+            ),
+        };
+
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
@@ -616,9 +632,11 @@ fn main() -> Result<(), Error> {
         hasher,
         cache,
         blacklist,
+        anonymized_dns_enabled,
+        anonymized_dns_allowed_ports,
+        anonymized_dns_blacklisted_ips,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
-        anonymized_dns_enabled,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {

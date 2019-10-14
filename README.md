@@ -9,7 +9,7 @@ An easy to install, high-performance, zero maintenance proxy to run an encrypted
 The proxy aims at supporting the following protocols:
 
 - [DNSCrypt v2](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
-- [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt) (WIP)
+- [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
 - DNS-over-HTTP (DoH)
 
 All of these can be served simultaneously, on the same port (usually port 443). The proxy automatically detects what protocol is being used by each client.
@@ -108,3 +108,7 @@ Domains can be filtered directly by the proxy, see the `[filtering]` section of 
 ## Prometheus metrics
 
 Prometheus metrics can optionally be enabled in order to monitor performance, cache efficiency, and more.
+
+## Anonymized DNSCrypt
+
+Enabling Anonymized DNSCrypt allows the server to be used as an encrypted DNS relay.

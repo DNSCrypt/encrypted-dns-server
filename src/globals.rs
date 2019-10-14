@@ -8,7 +8,7 @@ use crate::varz::*;
 use parking_lot::{Mutex, RwLock};
 use siphasher::sip128::SipHasher13;
 use std::collections::vec_deque::VecDeque;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
@@ -40,8 +40,10 @@ pub struct Globals {
     pub hasher: SipHasher13,
     pub cache: Cache,
     pub blacklist: Option<BlackList>,
+    pub anonymized_dns_enabled: bool,
+    pub anonymized_dns_allowed_ports: Vec<u16>,
+    pub anonymized_dns_blacklisted_ips: Vec<IpAddr>,
     #[cfg(feature = "metrics")]
     #[derivative(Debug = "ignore")]
     pub varz: Varz,
-    pub anonymized_dns_enabled: bool,
 }
