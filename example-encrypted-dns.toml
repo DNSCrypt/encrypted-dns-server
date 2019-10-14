@@ -189,7 +189,6 @@ key_cache_capacity = 10000
 
 [anonymized_dns]
 
-
 # Enable relaying support for Anonymized DNS
 
 enabled = false
