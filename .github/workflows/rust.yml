@@ -16,7 +16,7 @@ jobs:
       - name: Check Rustup default toolchain
         run: rustup default | grep nightly
       - name: Install cargo-deb
-        run: cargo install cargo-deb
+        run: cargo install --debug cargo-deb
       - name: Build
         run: |
           echo 'lto = "fat"' >> Cargo.toml
