@@ -55,12 +55,14 @@ pub async fn prometheus_service(
     let path = Arc::new(metrics_config.path);
     let std_socket = match metrics_config.listen_addr {
         SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+            .reuse_address(true)?
             .bind(&metrics_config.listen_addr)?
-            .to_tcp_listener()?,
+            .listen(1024)?,
         SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+            .reuse_address(true)?
             .only_v6(true)?
             .bind(&metrics_config.listen_addr)?
-            .to_tcp_listener()?,
+            .listen(1024)?,
     };
     let mut stream = TcpListener::from_std(std_socket, &Default::default())?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));

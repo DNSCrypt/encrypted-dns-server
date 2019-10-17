@@ -392,20 +392,25 @@ fn bind_listeners(
     for listen_addr in listen_addrs {
         let std_socket = match listen_addr {
             SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+                .reuse_address(true)?
                 .bind(&listen_addr)?
-                .to_tcp_listener()?,
+                .listen(1024)?,
             SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+                .reuse_address(true)?
                 .only_v6(true)?
                 .bind(&listen_addr)?
-                .to_tcp_listener()?,
+                .listen(1024)?,
         };
         let tcp_listener = match TcpListener::from_std(std_socket, &Default::default()) {
             Ok(tcp_listener) => tcp_listener,
             Err(e) => bail!(format_err!("{}/TCP: {}", listen_addr, e)),
         };
         let std_socket = match listen_addr {
-            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?.bind(&listen_addr),
+            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
+                .reuse_address(true)?
+                .bind(&listen_addr),
             SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?
+                .reuse_address(true)?
                 .only_v6(true)?
                 .bind(&listen_addr),
         };
