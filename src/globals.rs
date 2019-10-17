@@ -42,6 +42,7 @@ pub struct Globals {
     pub blacklist: Option<BlackList>,
     pub anonymized_dns_enabled: bool,
     pub anonymized_dns_allowed_ports: Vec<u16>,
+    pub anonymized_dns_allow_non_reserved_ports: bool,
     pub anonymized_dns_blacklisted_ips: Vec<IpAddr>,
     #[cfg(feature = "metrics")]
     #[derivative(Debug = "ignore")]

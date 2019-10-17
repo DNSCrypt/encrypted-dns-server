@@ -615,15 +615,20 @@ fn main() -> Result<(), Error> {
                 .map_err(|e| format_err!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
         ),
     };
-    let (anonymized_dns_enabled, anonymized_dns_allowed_ports, anonymized_dns_blacklisted_ips) =
-        match config.anonymized_dns {
-            None => (false, vec![], vec![]),
-            Some(anonymized_dns) => (
-                anonymized_dns.enabled,
-                anonymized_dns.allowed_ports,
-                anonymized_dns.blacklisted_ips,
-            ),
-        };
+    let (
+        anonymized_dns_enabled,
+        anonymized_dns_allowed_ports,
+        anonymized_dns_allow_non_reserved_ports,
+        anonymized_dns_blacklisted_ips,
+    ) = match config.anonymized_dns {
+        None => (false, vec![], false, vec![]),
+        Some(anonymized_dns) => (
+            anonymized_dns.enabled,
+            anonymized_dns.allowed_ports,
+            anonymized_dns.allow_non_reserved_ports.unwrap_or(false),
+            anonymized_dns.blacklisted_ips,
+        ),
+    };
 
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
@@ -655,6 +660,7 @@ fn main() -> Result<(), Error> {
         blacklist,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
+        anonymized_dns_allow_non_reserved_ports,
         anonymized_dns_blacklisted_ips,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),

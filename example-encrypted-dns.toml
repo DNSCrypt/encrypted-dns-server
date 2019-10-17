@@ -195,8 +195,14 @@ enabled = false
 
 
 # Allowed upstream ports
+# This is a list of commonly used ports for encrypted DNS services
 
-allowed_ports = [ 443 ]
+allowed_ports = [ 443, 553, 853, 1443, 2053, 4343, 4434, 4443, 5353, 5443, 8443, 15353 ]
+
+
+# Allow all ports >= 1024 in addition to the list above
+
+allow_non_reserved_ports = false
 
 
 # Blacklisted upstream IP addresses

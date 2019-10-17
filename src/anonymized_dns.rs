@@ -45,7 +45,8 @@ pub async fn handle_anonymized_dns(
     );
     let port = BigEndian::read_u16(&encrypted_packet[16..18]);
     ensure!(
-        globals.anonymized_dns_allowed_ports.contains(&port),
+        (globals.anonymized_dns_allow_non_reserved_ports && port >= 1024)
+            || globals.anonymized_dns_allowed_ports.contains(&port),
         "Forbidden upstream port"
     );
     let upstream_address = SocketAddr::new(ip, port);

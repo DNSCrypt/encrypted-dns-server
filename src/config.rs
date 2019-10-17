@@ -13,6 +13,7 @@ use tokio::prelude::*;
 pub struct AnonymizedDNSConfig {
     pub enabled: bool,
     pub allowed_ports: Vec<u16>,
+    pub allow_non_reserved_ports: Option<bool>,
     pub blacklisted_ips: Vec<IpAddr>,
 }
 
