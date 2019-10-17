@@ -1,10 +1,10 @@
 [package]
 name = "encrypted-dns"
-version = "0.3.2"
+version = "0.3.3"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt v2, Anonymized DNSCrypt, DoH)"
-keywords = ["dnscrypt", "encryption", "dns", "doh", "proxy"]
+keywords = ["dnscrypt", "encryption", "dns", "doh", "proxy", "privacy"]
 license = "MIT"
 homepage = "https://github.com/jedisct1/encrypted-dns-server"
 repository = "https://github.com/jedisct1/encrypted-dns-server"
@@ -19,7 +19,7 @@ coarsetime = "0.1.11"
 daemonize-simple = "0.1.2"
 derivative = "1.0.3"
 dnsstamps = "0.1.2"
-env_logger = { version="0.7.1", default-features = false, features = ["humantime"]}
+env_logger = { version="0.7.1", default-features = false, features = ["humantime"] }
 failure = "0.1.6"
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
 jemallocator = "0.3.2"
