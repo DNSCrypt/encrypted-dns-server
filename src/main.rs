@@ -237,11 +237,14 @@ async fn tls_proxy(
         Some(tls_upstream_addr) => tls_upstream_addr,
     };
     let std_socket = match globals.external_addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4(),
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6(),
-    }?
-    .bind(&globals.external_addr)?
-    .to_tcp_stream()?;
+        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+            .bind(&globals.external_addr)?
+            .to_tcp_stream()?,
+        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+            .only_v6(true)?
+            .bind(&globals.external_addr)?
+            .to_tcp_stream()?,
+    };
     let mut ext_socket =
         TcpStream::connect_std(std_socket, tls_upstream_addr, &Default::default()).await?;
     let (mut erh, mut ewh) = ext_socket.split();
@@ -384,15 +387,29 @@ async fn start(
 
 fn bind_listeners(
     listen_addrs: &[SocketAddr],
-    runtime: Arc<Runtime>,
 ) -> Result<Vec<(TcpListener, std::net::UdpSocket)>, Error> {
     let mut sockets = Vec::with_capacity(listen_addrs.len());
     for listen_addr in listen_addrs {
-        let tcp_listener = match runtime.block_on(TcpListener::bind(&listen_addr)) {
+        let std_socket = match listen_addr {
+            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+                .bind(&listen_addr)?
+                .to_tcp_listener()?,
+            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+                .only_v6(true)?
+                .bind(&listen_addr)?
+                .to_tcp_listener()?,
+        };
+        let tcp_listener = match TcpListener::from_std(std_socket, &Default::default()) {
             Ok(tcp_listener) => tcp_listener,
             Err(e) => bail!(format_err!("{}/TCP: {}", listen_addr, e)),
         };
-        let udp_socket = match std::net::UdpSocket::bind(&listen_addr) {
+        let std_socket = match listen_addr {
+            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?.bind(&listen_addr),
+            SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?
+                .only_v6(true)?
+                .bind(&listen_addr),
+        };
+        let udp_socket = match std_socket {
             Ok(udp_socket) => udp_socket,
             Err(e) => bail!(format_err!("{}/UDP: {}", listen_addr, e)),
         };
@@ -486,7 +503,7 @@ fn main() -> Result<(), Error> {
     let runtime = Arc::new(runtime_builder.build()?);
 
     let listen_addrs: Vec<_> = config.listen_addrs.iter().map(|x| x.local).collect();
-    let listeners = bind_listeners(&listen_addrs, runtime.clone())
+    let listeners = bind_listeners(&listen_addrs)
         .map_err(|e| {
             error!("Unable to listen to the requested IPs and ports: [{}]", e);
             std::process::exit(1);

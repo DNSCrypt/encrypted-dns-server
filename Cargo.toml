@@ -19,7 +19,7 @@ coarsetime = "0.1.11"
 daemonize-simple = "0.1.2"
 derivative = "1.0.3"
 dnsstamps = "0.1.2"
-env_logger = { version="0.7.0", default-features = false, features = ["humantime"]}
+env_logger = { version="0.7.1", default-features = false, features = ["humantime"]}
 failure = "0.1.6"
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
 jemallocator = "0.3.2"

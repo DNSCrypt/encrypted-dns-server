@@ -18,7 +18,13 @@ pub async fn resolve_udp(
     tid: u16,
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
-    let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
+    let std_socket = match globals.external_addr {
+        SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?.bind(&globals.external_addr)?,
+        SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?
+            .only_v6(true)?
+            .bind(&globals.external_addr)?,
+    };
+    let mut ext_socket = UdpSocket::from_std(std_socket, &Default::default())?;
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
@@ -60,11 +66,14 @@ pub async fn resolve_tcp(
     tid: u16,
 ) -> Result<Vec<u8>, Error> {
     let std_socket = match globals.external_addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4(),
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6(),
-    }?
-    .bind(&globals.external_addr)?
-    .to_tcp_stream()?;
+        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+            .bind(&globals.external_addr)?
+            .to_tcp_stream()?,
+        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+            .only_v6(true)?
+            .bind(&globals.external_addr)?
+            .to_tcp_stream()?,
+    };
     let mut ext_socket =
         TcpStream::connect_std(std_socket, &globals.upstream_addr, &Default::default()).await?;
     ext_socket.set_nodelay(true)?;

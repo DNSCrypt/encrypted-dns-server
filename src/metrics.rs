@@ -10,6 +10,7 @@ use hyper::service::service_fn;
 use hyper::{Body, Request, Response, StatusCode};
 use prometheus::{self, Encoder, TextEncoder};
 use std::mem;
+use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -52,7 +53,16 @@ pub async fn prometheus_service(
     runtime: Arc<Runtime>,
 ) -> Result<(), Error> {
     let path = Arc::new(metrics_config.path);
-    let mut stream = TcpListener::bind(metrics_config.listen_addr).await?;
+    let std_socket = match metrics_config.listen_addr {
+        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
+            .bind(&metrics_config.listen_addr)?
+            .to_tcp_listener()?,
+        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
+            .only_v6(true)?
+            .bind(&metrics_config.listen_addr)?
+            .to_tcp_listener()?,
+    };
+    let mut stream = TcpListener::from_std(std_socket, &Default::default())?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
         let (client, _client_addr) = stream.accept().await?;
