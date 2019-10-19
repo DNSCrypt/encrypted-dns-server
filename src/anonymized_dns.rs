@@ -96,9 +96,8 @@ pub async fn handle_anonymized_dns(
         let fut = ext_socket.recv_from(&mut response[..]);
         let (response_len, response_addr) = fut.await?;
         if response_addr == upstream_address
-            && (DNSCRYPT_UDP_RESPONSE_MIN_SIZE..=DNSCRYPT_UDP_RESPONSE_MAX_SIZE)
-                .contains(&response_len)
-            && response[..DNSCRYPT_RESPONSE_MAGIC_SIZE] == DNSCRYPT_RESPONSE_MAGIC
+            && (is_encrypted_response(&response, response_len)
+                || is_certificate_response(&response, response_len))
         {
             response.truncate(response_len);
             break;
@@ -109,4 +108,20 @@ pub async fn handle_anonymized_dns(
     globals.varz.anonymized_responses.inc();
 
     respond_to_query(client_ctx, response).await
+}
+
+#[inline]
+fn is_encrypted_response(response: &[u8], response_len: usize) -> bool {
+    (DNSCRYPT_UDP_RESPONSE_MIN_SIZE..=DNSCRYPT_UDP_RESPONSE_MAX_SIZE).contains(&response_len)
+        && response[..DNSCRYPT_RESPONSE_MAGIC_SIZE] == DNSCRYPT_RESPONSE_MAGIC
+}
+
+#[inline]
+fn is_certificate_response(response: &[u8], response_len: usize) -> bool {
+    (DNSCRYPT_RESPONSE_CERT_PREFIX_OFFSET + DNSCRYPT_RESPONSE_CERT_PREFIX.len()
+        ..=DNS_MAX_PACKET_SIZE)
+        .contains(&response_len)
+        && response[DNSCRYPT_RESPONSE_CERT_PREFIX_OFFSET
+            ..DNSCRYPT_RESPONSE_CERT_PREFIX_OFFSET + DNSCRYPT_RESPONSE_CERT_PREFIX.len()]
+            == DNSCRYPT_RESPONSE_CERT_PREFIX
 }
