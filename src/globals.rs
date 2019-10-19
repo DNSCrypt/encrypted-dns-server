@@ -25,7 +25,7 @@ pub struct Globals {
     pub provider_name: String,
     pub provider_kp: SignKeyPair,
     pub listen_addrs: Vec<SocketAddr>,
-    pub external_addr: SocketAddr,
+    pub external_addr: Option<SocketAddr>,
     pub upstream_addr: SocketAddr,
     pub tls_upstream_addr: Option<SocketAddr>,
     pub udp_timeout: Duration,

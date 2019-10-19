@@ -2,7 +2,7 @@ use crate::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use failure::ensure;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::Arc;
 use tokio::net::UdpSocket;
 
@@ -52,7 +52,7 @@ pub async fn handle_anonymized_dns(
     let upstream_address = SocketAddr::new(ip, port);
     ensure!(
         !globals.listen_addrs.contains(&upstream_address)
-            && globals.external_addr != upstream_address,
+            && globals.external_addr != Some(upstream_address),
         "Would be relaying to self"
     );
     let encrypted_packet = &encrypted_packet[ANONYMIZED_DNSCRYPT_OVERHEAD..];
@@ -72,7 +72,23 @@ pub async fn handle_anonymized_dns(
             != ANONYMIZED_DNSCRYPT_QUERY_MAGIC,
         "Loop detected"
     );
-    let mut ext_socket = UdpSocket::bind(&globals.external_addr).await?;
+    let mut ext_socket = match globals.external_addr {
+        Some(x) => UdpSocket::bind(x).await?,
+        None => match upstream_address {
+            SocketAddr::V4(_) => {
+                UdpSocket::bind(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0))).await?
+            }
+            SocketAddr::V6(s) => {
+                UdpSocket::bind(SocketAddr::V6(SocketAddrV6::new(
+                    Ipv6Addr::UNSPECIFIED,
+                    0,
+                    s.flowinfo(),
+                    s.scope_id(),
+                )))
+                .await?
+            }
+        },
+    };
     ext_socket.connect(&upstream_address).await?;
     ext_socket.send(&encrypted_packet).await?;
     let mut response = vec![0u8; DNSCRYPT_UDP_RESPONSE_MAX_SIZE];

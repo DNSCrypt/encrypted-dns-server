@@ -53,7 +53,7 @@ pub struct FilteringConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub listen_addrs: Vec<ListenAddrConfig>,
-    pub external_addr: IpAddr,
+    pub external_addr: Option<IpAddr>,
     pub upstream_addr: SocketAddr,
     pub state_file: PathBuf,
     pub udp_timeout: u32,

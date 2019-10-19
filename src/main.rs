@@ -237,13 +237,12 @@ async fn tls_proxy(
         Some(tls_upstream_addr) => tls_upstream_addr,
     };
     let std_socket = match globals.external_addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
-            .bind(&globals.external_addr)?
-            .to_tcp_stream()?,
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
-            .only_v6(true)?
-            .bind(&globals.external_addr)?
-            .to_tcp_stream()?,
+        Some(x @ SocketAddr::V4(_)) => net2::TcpBuilder::new_v4()?.bind(&x)?.to_tcp_stream()?,
+        Some(x @ SocketAddr::V6(_)) => net2::TcpBuilder::new_v6()?.bind(&x)?.to_tcp_stream()?,
+        None => match tls_upstream_addr {
+            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?.to_tcp_stream()?,
+            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
+        },
     };
     let mut ext_socket =
         TcpStream::connect_std(std_socket, tls_upstream_addr, &Default::default()).await?;
@@ -501,7 +500,7 @@ fn main() -> Result<(), Error> {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt-cert.{}", provider_name),
     };
-    let external_addr = SocketAddr::new(config.external_addr, 0);
+    let external_addr = config.external_addr.map(|addr| SocketAddr::new(addr, 0));
 
     let mut runtime_builder = tokio::runtime::Builder::new();
     runtime_builder.name_prefix("encrypted-dns-");

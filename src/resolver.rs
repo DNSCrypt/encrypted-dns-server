@@ -7,7 +7,7 @@ use byteorder::{BigEndian, ByteOrder};
 use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::hash::Hasher;
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::prelude::*;
 
@@ -19,10 +19,15 @@ pub async fn resolve_udp(
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
     let std_socket = match globals.external_addr {
-        SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?.bind(&globals.external_addr)?,
-        SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?
-            .only_v6(true)?
-            .bind(&globals.external_addr)?,
+        Some(x @ SocketAddr::V4(_)) => net2::UdpBuilder::new_v4()?.bind(&x)?,
+        Some(x @ SocketAddr::V6(_)) => net2::UdpBuilder::new_v6()?.bind(&x)?,
+        None => match globals.upstream_addr {
+            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
+                .bind(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0)))?,
+            SocketAddr::V6(s) => net2::UdpBuilder::new_v6()?.bind(SocketAddr::V6(
+                SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, 0, s.flowinfo(), s.scope_id()),
+            ))?,
+        },
     };
     let mut ext_socket = UdpSocket::from_std(std_socket, &Default::default())?;
     ext_socket.connect(&globals.upstream_addr).await?;
@@ -66,13 +71,12 @@ pub async fn resolve_tcp(
     tid: u16,
 ) -> Result<Vec<u8>, Error> {
     let std_socket = match globals.external_addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
-            .bind(&globals.external_addr)?
-            .to_tcp_stream()?,
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
-            .only_v6(true)?
-            .bind(&globals.external_addr)?
-            .to_tcp_stream()?,
+        Some(x @ SocketAddr::V4(_)) => net2::TcpBuilder::new_v4()?.bind(&x)?.to_tcp_stream()?,
+        Some(x @ SocketAddr::V6(_)) => net2::TcpBuilder::new_v6()?.bind(&x)?.to_tcp_stream()?,
+        None => match globals.upstream_addr {
+            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?.to_tcp_stream()?,
+            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
+        },
     };
     let mut ext_socket =
         TcpStream::connect_std(std_socket, &globals.upstream_addr, &Default::default()).await?;
