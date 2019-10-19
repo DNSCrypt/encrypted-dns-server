@@ -96,6 +96,7 @@ pub async fn handle_anonymized_dns(
         let fut = ext_socket.recv_from(&mut response[..]);
         let (response_len, response_addr) = fut.await?;
         if response_addr == upstream_address
+            && response_len <= encrypted_packet_len
             && (is_encrypted_response(&response, response_len)
                 || is_certificate_response(&response, response_len))
         {
