@@ -2,6 +2,8 @@ use crate::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use failure::ensure;
+use siphasher::sip128::Hasher128;
+use std::hash::Hasher;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::Arc;
 use tokio::net::UdpSocket;
@@ -11,16 +13,19 @@ pub const ANONYMIZED_DNSCRYPT_QUERY_MAGIC: [u8; 10] =
 
 pub const ANONYMIZED_DNSCRYPT_OVERHEAD: usize = 16 + 2;
 
+pub const RELAYED_CERT_CACHE_SIZE: usize = 1000;
+pub const RELAYED_CERT_CACHE_TTL: u32 = 600;
+
 pub async fn handle_anonymized_dns(
     globals: Arc<Globals>,
     client_ctx: ClientCtx,
-    encrypted_packet: &[u8],
+    relayed_packet: &[u8],
 ) -> Result<(), Error> {
     ensure!(
-        encrypted_packet.len() > ANONYMIZED_DNSCRYPT_OVERHEAD,
+        relayed_packet.len() > ANONYMIZED_DNSCRYPT_OVERHEAD,
         "Short packet"
     );
-    let ip_bin = &encrypted_packet[..16];
+    let ip_bin = &relayed_packet[..16];
     let ip_v6 = Ipv6Addr::new(
         BigEndian::read_u16(&ip_bin[0..2]),
         BigEndian::read_u16(&ip_bin[2..4]),
@@ -43,7 +48,7 @@ pub async fn handle_anonymized_dns(
         !globals.anonymized_dns_blacklisted_ips.contains(&ip),
         "Blacklisted upstream IP"
     );
-    let port = BigEndian::read_u16(&encrypted_packet[16..18]);
+    let port = BigEndian::read_u16(&relayed_packet[16..18]);
     ensure!(
         (globals.anonymized_dns_allow_non_reserved_ports && port >= 1024)
             || globals.anonymized_dns_allowed_ports.contains(&port),
@@ -55,7 +60,7 @@ pub async fn handle_anonymized_dns(
             && globals.external_addr != Some(upstream_address),
         "Would be relaying to self"
     );
-    let encrypted_packet = &encrypted_packet[ANONYMIZED_DNSCRYPT_OVERHEAD..];
+    let encrypted_packet = &relayed_packet[ANONYMIZED_DNSCRYPT_OVERHEAD..];
     let encrypted_packet_len = encrypted_packet.len();
     ensure!(
         encrypted_packet_len >= DNSCRYPT_UDP_QUERY_MIN_SIZE
@@ -92,15 +97,48 @@ pub async fn handle_anonymized_dns(
     ext_socket.connect(&upstream_address).await?;
     ext_socket.send(&encrypted_packet).await?;
     let mut response = vec![0u8; DNSCRYPT_UDP_RESPONSE_MAX_SIZE];
-    loop {
+    let (response_len, is_certificate_response) = loop {
         let fut = ext_socket.recv_from(&mut response[..]);
         let (response_len, response_addr) = fut.await?;
-        if response_addr == upstream_address
-            && (is_encrypted_response(&response, response_len)
-                || is_certificate_response(&response, response_len, &encrypted_packet))
-        {
-            response.truncate(response_len);
-            break;
+        if response_addr != upstream_address {
+            continue;
+        }
+        if is_encrypted_response(&response, response_len) {
+            break (response_len, false);
+        }
+        if is_certificate_response(&response, response_len, &encrypted_packet) {
+            break (response_len, true);
+        }
+    };
+    response.truncate(response_len);
+    if is_certificate_response {
+        let mut hasher = globals.hasher;
+        hasher.write(&relayed_packet[..ANONYMIZED_DNSCRYPT_OVERHEAD]);
+        hasher.write(&dns::qname(&encrypted_packet)?);
+        let packet_hash = hasher.finish128().as_u128();
+        let cached_response = {
+            match globals.cert_cache.lock().get(&packet_hash) {
+                None => None,
+                Some(response) if !(*response).has_expired() => {
+                    trace!("Relayed certificate cached");
+                    let mut cached_response = (*response).clone();
+                    cached_response.set_tid(dns::tid(encrypted_packet));
+                    Some(cached_response.into_response())
+                }
+                Some(_) => {
+                    trace!("Relayed certificate expired");
+                    None
+                }
+            }
+        };
+        match cached_response {
+            None => {
+                globals.cert_cache.lock().insert(
+                    packet_hash,
+                    CachedResponse::new(&globals.cert_cache, response.clone()),
+                );
+            }
+            Some(cached_response) => response = cached_response,
         }
     }
 

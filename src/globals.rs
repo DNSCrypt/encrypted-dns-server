@@ -39,6 +39,7 @@ pub struct Globals {
     pub key_cache_capacity: usize,
     pub hasher: SipHasher13,
     pub cache: Cache,
+    pub cert_cache: Cache,
     pub blacklist: Option<BlackList>,
     pub anonymized_dns_enabled: bool,
     pub anonymized_dns_allowed_ports: Vec<u16>,

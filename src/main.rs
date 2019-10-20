@@ -607,6 +607,13 @@ fn main() -> Result<(), Error> {
         config.cache_ttl_max,
         config.cache_ttl_error,
     );
+    let cert_cache = Cache::new(
+        ClockProCache::new(RELAYED_CERT_CACHE_SIZE)
+            .map_err(|e| format_err!("Unable to create the relay cert cache: [{}]", e))?,
+        RELAYED_CERT_CACHE_TTL,
+        RELAYED_CERT_CACHE_TTL,
+        RELAYED_CERT_CACHE_TTL,
+    );
     let blacklist = match config.filtering.domain_blacklist {
         None => None,
         Some(path) => Some(
@@ -656,6 +663,7 @@ fn main() -> Result<(), Error> {
         key_cache_capacity,
         hasher,
         cache,
+        cert_cache,
         blacklist,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
