@@ -154,7 +154,6 @@ fn is_encrypted_response(response: &[u8], response_len: usize) -> bool {
         && response[..DNSCRYPT_RESPONSE_MAGIC_SIZE] == DNSCRYPT_RESPONSE_MAGIC
 }
 
-#[inline]
 fn is_certificate_response(response: &[u8], response_len: usize, query: &[u8]) -> bool {
     if !(response_len <= query.len()
         && (DNS_HEADER_SIZE..=DNS_MAX_PACKET_SIZE).contains(&response_len)
