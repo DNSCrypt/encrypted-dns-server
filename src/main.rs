@@ -170,8 +170,7 @@ async fn handle_client_query(
     ensure!(original_packet_size >= DNS_HEADER_SIZE, "Short packet");
     debug_assert!(DNSCRYPT_QUERY_MIN_OVERHEAD > ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len());
     if globals.anonymized_dns_enabled
-        && original_packet_size
-            >= ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len() + DNSCRYPT_QUERY_MIN_OVERHEAD + DNS_HEADER_SIZE
+        && original_packet_size >= ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len() + DNS_HEADER_SIZE
         && encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()]
             == ANONYMIZED_DNSCRYPT_QUERY_MAGIC
     {

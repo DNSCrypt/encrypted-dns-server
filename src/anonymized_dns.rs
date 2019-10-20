@@ -63,7 +63,7 @@ pub async fn handle_anonymized_dns(
     let encrypted_packet = &relayed_packet[ANONYMIZED_DNSCRYPT_OVERHEAD..];
     let encrypted_packet_len = encrypted_packet.len();
     ensure!(
-        encrypted_packet_len >= DNSCRYPT_UDP_QUERY_MIN_SIZE
+        encrypted_packet_len >= ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len() + DNS_HEADER_SIZE
             && encrypted_packet_len <= DNSCRYPT_UDP_QUERY_MAX_SIZE,
         "Unexpected encapsulated query length"
     );
@@ -106,7 +106,7 @@ pub async fn handle_anonymized_dns(
         if is_encrypted_response(&response, response_len) {
             break (response_len, false);
         }
-        if is_certificate_response(&response, response_len, &encrypted_packet) {
+        if is_certificate_response(&response, &encrypted_packet) {
             break (response_len, true);
         }
     };
@@ -154,9 +154,10 @@ fn is_encrypted_response(response: &[u8], response_len: usize) -> bool {
         && response[..DNSCRYPT_RESPONSE_MAGIC_SIZE] == DNSCRYPT_RESPONSE_MAGIC
 }
 
-fn is_certificate_response(response: &[u8], response_len: usize, query: &[u8]) -> bool {
-    if !(response_len <= query.len()
-        && (DNS_HEADER_SIZE..=DNS_MAX_PACKET_SIZE).contains(&response_len)
+fn is_certificate_response(response: &[u8], query: &[u8]) -> bool {
+    let prefix = b"2.dnscrypt-cert.";
+    if !((DNS_HEADER_SIZE + prefix.len() + 4..=DNS_MAX_PACKET_SIZE).contains(&query.len())
+        && (DNS_HEADER_SIZE + prefix.len() + 4..=DNS_MAX_PACKET_SIZE).contains(&response.len())
         && dns::tid(response) == dns::tid(query)
         && dns::is_response(response)
         && !dns::is_response(query))
@@ -171,7 +172,6 @@ fn is_certificate_response(response: &[u8], response_len: usize, query: &[u8]) -
             return false;
         }
     };
-    let prefix = b"2.dnscrypt-cert.";
     if qname.len() <= prefix.len() || &qname[..prefix.len()] != prefix {
         debug!("Relayed cert qname response didn't start with the standard prefix");
         return false;
