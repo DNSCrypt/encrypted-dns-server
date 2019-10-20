@@ -58,7 +58,7 @@ impl Cache {
     }
 
     #[inline]
-    pub fn lock(&self) -> MutexGuard<ClockProCache<u128, CachedResponse>> {
+    pub fn lock(&self) -> MutexGuard<'_, ClockProCache<u128, CachedResponse>> {
         self.cache.lock()
     }
 }
