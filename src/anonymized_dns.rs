@@ -156,10 +156,26 @@ fn is_encrypted_response(response: &[u8], response_len: usize) -> bool {
 
 #[inline]
 fn is_certificate_response(response: &[u8], response_len: usize, query: &[u8]) -> bool {
-    response_len <= query.len()
+    if !(response_len <= query.len()
         && (DNS_HEADER_SIZE..=DNS_MAX_PACKET_SIZE).contains(&response_len)
         && dns::tid(response) == dns::tid(query)
         && dns::is_response(response)
-        && !dns::is_response(query)
-        && dns::qname(response).ok() == dns::qname(query).ok()
+        && !dns::is_response(query))
+    {
+        debug!("Unexpected relayed cert response");
+        return false;
+    }
+    let qname = match (dns::qname(query), dns::qname(response)) {
+        (Ok(response_qname), Ok(query_qname)) if response_qname == query_qname => query_qname,
+        _ => {
+            debug!("Relayed cert qname response didn't match the query qname");
+            return false;
+        }
+    };
+    let prefix = b"2.dnscrypt-cert.";
+    if qname.len() <= prefix.len() || &qname[..prefix.len()] != prefix {
+        debug!("Relayed cert qname response didn't start with the standard prefix");
+        return false;
+    }
+    true
 }
