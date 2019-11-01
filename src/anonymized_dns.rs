@@ -1,7 +1,7 @@
 use crate::*;
+use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder};
-use failure::ensure;
 use siphasher::sip128::Hasher128;
 use std::hash::Hasher;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};

@@ -64,7 +64,7 @@ pub fn decrypt(
     let dnscrypt_encryption_params = dnscrypt_encryption_params_set
         .iter()
         .find(|p| p.client_magic() == client_magic)
-        .ok_or_else(|| format_err!("Client magic not found"))?;
+        .ok_or_else(|| anyhow!("Client magic not found"))?;
 
     let mut nonce = [0u8; DNSCRYPT_FULL_NONCE_SIZE as usize];
     nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);

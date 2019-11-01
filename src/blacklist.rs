@@ -45,7 +45,7 @@ impl BlackList {
             }
             let qname = line.as_bytes().to_vec().to_ascii_lowercase();
             if qname.is_empty() {
-                bail!(format_err!("Unexpected blacklist rule at line {}", line_nb))
+                bail!("Unexpected blacklist rule at line {}", line_nb)
             }
             map.insert(qname, ());
         }

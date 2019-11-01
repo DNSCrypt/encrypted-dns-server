@@ -430,7 +430,7 @@ pub fn serve_certificates<'t>(
     let dnscrypt_encryption_params = dnscrypt_encryption_params_set
         .into_iter()
         .max_by_key(|x| x.dnscrypt_cert().ts_end())
-        .ok_or_else(|| format_err!("No certificates"))?;
+        .ok_or_else(|| anyhow!("No certificates"))?;
     let cert_bin = dnscrypt_encryption_params.dnscrypt_cert().as_bytes();
     ensure!(cert_bin.len() <= 0xff, "Certificate too long");
     ancount_inc(&mut packet)?;

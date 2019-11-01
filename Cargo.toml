@@ -12,6 +12,7 @@ categories = ["asynchronous", "network-programming","command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
+anyhow = "1.0"
 byteorder = "1.3.2"
 clap = { version="2.33.0", default-features = false, features=["wrap_help", "nightly"] }
 clockpro-cache = "0.1.8"
@@ -20,7 +21,6 @@ daemonize-simple = "0.1.2"
 derivative = "1.0.3"
 dnsstamps = "0.1.2"
 env_logger = { version="0.7.1", default-features = false, features = ["humantime"] }
-failure = "0.1.6"
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
 jemallocator = "0.3.2"
 libsodium-sys-stable="1.18.2"
@@ -29,12 +29,12 @@ net2 = "0.2.33"
 parking_lot = "0.9.0"
 privdrop = "0.3.3"
 rand = "0.7.2"
-serde = "1.0.101"
-serde_derive = "1.0.101"
+serde = "1.0.102"
+serde_derive = "1.0.102"
 serde-big-array = "0.2.0"
 siphasher = "0.3.1"
 tokio = "=0.2.0-alpha.6"
-toml = "0.5.3"
+toml = "0.5.5"
 
 [dependencies.hyper]
 optional = true

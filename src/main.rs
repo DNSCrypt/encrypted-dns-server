@@ -12,8 +12,6 @@ extern crate clap;
 #[macro_use]
 extern crate derivative;
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
@@ -56,7 +54,6 @@ use byteorder::{BigEndian, ByteOrder};
 use clap::Arg;
 use clockpro_cache::ClockProCache;
 use dnsstamps::{InformalProperty, WithInformalProperty};
-use failure::{bail, ensure};
 use futures::join;
 use futures::prelude::*;
 use parking_lot::Mutex;
@@ -252,7 +249,7 @@ async fn tls_proxy(
     let fut_proxy_2 = erh.copy(&mut wh);
     match join!(fut_proxy_1, fut_proxy_2) {
         (Ok(_), Ok(_)) => Ok(()),
-        _ => Err(format_err!("TLS proxy error")),
+        _ => bail!("TLS proxy error"),
     }
 }
 
@@ -401,7 +398,7 @@ fn bind_listeners(
         };
         let tcp_listener = match TcpListener::from_std(std_socket, &Default::default()) {
             Ok(tcp_listener) => tcp_listener,
-            Err(e) => bail!(format_err!("{}/TCP: {}", listen_addr, e)),
+            Err(e) => bail!("{}/TCP: {}", listen_addr, e),
         };
         let std_socket = match listen_addr {
             SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
@@ -414,7 +411,7 @@ fn bind_listeners(
         };
         let udp_socket = match std_socket {
             Ok(udp_socket) => udp_socket,
-            Err(e) => bail!(format_err!("{}/UDP: {}", listen_addr, e)),
+            Err(e) => bail!("{}/UDP: {}", listen_addr, e),
         };
         sockets.push((tcp_listener, udp_socket))
     }
@@ -449,7 +446,7 @@ fn privdrop(config: &Config) -> Result<(), Error> {
         }
         daemon
             .doit()
-            .map_err(|e| format_err!("Unable to daemonize: [{}]", e))?;
+            .map_err(|e| anyhow!("Unable to daemonize: [{}]", e))?;
     }
     Ok(())
 }
@@ -601,14 +598,14 @@ fn main() -> Result<(), Error> {
 
     let cache = Cache::new(
         ClockProCache::new(cache_capacity)
-            .map_err(|e| format_err!("Unable to create the DNS cache: [{}]", e))?,
+            .map_err(|e| anyhow!("Unable to create the DNS cache: [{}]", e))?,
         config.cache_ttl_min,
         config.cache_ttl_max,
         config.cache_ttl_error,
     );
     let cert_cache = Cache::new(
         ClockProCache::new(RELAYED_CERT_CACHE_SIZE)
-            .map_err(|e| format_err!("Unable to create the relay cert cache: [{}]", e))?,
+            .map_err(|e| anyhow!("Unable to create the relay cert cache: [{}]", e))?,
         RELAYED_CERT_CACHE_TTL,
         RELAYED_CERT_CACHE_TTL,
         RELAYED_CERT_CACHE_TTL,
@@ -617,7 +614,7 @@ fn main() -> Result<(), Error> {
         None => None,
         Some(path) => Some(
             BlackList::load(&path)
-                .map_err(|e| format_err!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
+                .map_err(|e| anyhow!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
         ),
     };
     let (

@@ -82,7 +82,7 @@ impl Config {
     pub fn from_string(toml: &str) -> Result<Config, Error> {
         let config: Config = match toml::from_str(toml) {
             Ok(config) => config,
-            Err(e) => bail!(format_err!("Parse error in the configuration file: {}", e)),
+            Err(e) => bail!("Parse error in the configuration file: {}", e),
         };
         Ok(config)
     }

@@ -178,7 +178,7 @@ impl SharedKey {
         let idx = decrypted
             .iter()
             .rposition(|x| *x != 0x00)
-            .ok_or_else(|| format_err!("Padding error"))?;
+            .ok_or_else(|| anyhow!("Padding error"))?;
         ensure!(decrypted[idx] == 0x80, "Padding error");
         decrypted.truncate(idx);
         Ok(decrypted)
