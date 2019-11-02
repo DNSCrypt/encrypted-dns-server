@@ -8,6 +8,8 @@ use crate::varz::*;
 use parking_lot::{Mutex, RwLock};
 use siphasher::sip128::SipHasher13;
 use std::collections::vec_deque::VecDeque;
+use std::fs::File;
+use std::io::BufWriter;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
@@ -48,4 +50,5 @@ pub struct Globals {
     #[cfg(feature = "metrics")]
     #[derivative(Debug = "ignore")]
     pub varz: Varz,
+    pub log: Arc<Mutex<BufWriter<File>>>,
 }

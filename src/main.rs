@@ -65,6 +65,7 @@ use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::BufWriter;
 use std::mem;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -212,6 +213,17 @@ async fn handle_client_query(
         "Question expected, but got a response instead"
     );
     let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
+    let qname = dns::qname(&response);
+    let ttl = dns::min_ttl(&response, 0, 864000, 864000).unwrap_or(864000);
+    let qname = qname
+        .as_ref()
+        .map(|x| std::str::from_utf8(x).unwrap_or("?"))
+        .unwrap_or("?");
+    let qtype = dns::qtype(&response).unwrap_or(0xffff);
+    if qtype != 0xffff && ttl <= 86400 {
+        let ts = coarsetime::Clock::recent_since_epoch().as_secs();
+        writeln!(globals.log.lock(), "{}\t{}\t{}\t{}", ttl, qname, qtype, ts).unwrap();
+    }
     encrypt_and_respond_to_query(
         client_ctx,
         packet,
@@ -631,7 +643,8 @@ fn main() -> Result<(), Error> {
             anonymized_dns.blacklisted_ips,
         ),
     };
-
+    let log = File::create("/tmp/ttls.log").unwrap();
+    let log = Arc::new(Mutex::new(BufWriter::new(log)));
     let globals = Arc::new(Globals {
         runtime: runtime.clone(),
         state_file: state_file.to_path_buf(),
@@ -667,6 +680,7 @@ fn main() -> Result<(), Error> {
         anonymized_dns_blacklisted_ips,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
+        log,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {

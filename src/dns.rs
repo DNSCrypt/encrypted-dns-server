@@ -401,6 +401,16 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
     Ok(())
 }
 
+pub fn qtype(packet: &[u8]) -> Result<u16, Error> {
+    ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    let offset = skip_name(packet, DNS_HEADER_SIZE)?;
+    ensure!(packet.len() - offset >= 4, "Short packet");
+    let qtype = BigEndian::read_u16(&packet[offset..]);
+    let qclass = BigEndian::read_u16(&packet[offset + 2..]);
+    ensure!(qclass == DNS_CLASS_INET, "Unexpected qclass");
+    Ok(qtype)
+}
+
 pub fn serve_certificates<'t>(
     client_packet: &[u8],
     expected_qname: &str,
