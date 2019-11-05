@@ -1,5 +1,5 @@
-use crate::*;
 use crate::errors::*;
+use crate::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use siphasher::sip128::Hasher128;

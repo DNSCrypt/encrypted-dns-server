@@ -6,17 +6,20 @@ use crate::globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
 use clockpro_cache::ClockProCache;
-use coarsetime::Clock;
 use parking_lot::Mutex;
 use std::mem;
 use std::slice;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
 pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;
 
 fn now() -> u32 {
-    Clock::recent_since_epoch().as_secs() as u32
+    SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("The clock is completely off")
+        .as_secs() as _
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]

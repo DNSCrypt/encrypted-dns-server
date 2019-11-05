@@ -65,7 +65,6 @@ use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::prelude::*;
-use std::mem;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -461,9 +460,7 @@ fn main() -> Result<(), Error> {
         .init();
 
     crypto::init()?;
-    let updater = coarsetime::Updater::new(1000).start()?;
-    mem::forget(updater);
-
+    let time_updater = coarsetime::Updater::new(1000).start()?;
     let matches = app_from_crate!()
         .arg(
             Arg::with_name("config")
@@ -694,5 +691,6 @@ fn main() -> Result<(), Error> {
             .map(|_| ()),
     );
     runtime.block_on(updater.run());
+    time_updater.stop()?;
     Ok(())
 }
