@@ -13,7 +13,7 @@ use std::slice;
 use std::sync::Arc;
 
 pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
-pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;
+pub const DNSCRYPT_CERTS_RENEWAL: u32 = 14400;
 
 fn now() -> u32 {
     Clock::recent_since_epoch().as_secs() as u32
