@@ -2,7 +2,6 @@
 #![allow(clippy::type_complexity)]
 #![allow(clippy::cognitive_complexity)]
 #![allow(dead_code)]
-#![feature(ip)]
 
 #[global_allocator]
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;

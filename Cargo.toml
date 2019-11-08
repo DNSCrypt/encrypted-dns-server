@@ -22,6 +22,7 @@ derivative = "1.0.3"
 dnsstamps = "0.1.2"
 env_logger = { version="0.7.1", default-features = false, features = ["humantime"] }
 futures-preview = { version = "=0.3.0-alpha.19", features = ["async-await"] }
+ipext = "0.1.0"
 jemallocator = "0.3.2"
 libsodium-sys-stable="1.18.2"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }

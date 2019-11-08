@@ -2,6 +2,7 @@ use crate::errors::*;
 use crate::*;
 
 use byteorder::{BigEndian, ByteOrder};
+use ipext::IpExt;
 use siphasher::sip128::Hasher128;
 use std::hash::Hasher;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
@@ -43,7 +44,7 @@ pub async fn handle_anonymized_dns(
     #[cfg(feature = "metrics")]
     globals.varz.anonymized_queries.inc();
 
-    ensure!(ip.is_global(), "Forbidden upstream address");
+    ensure!(IpExt::is_global(&ip), "Forbidden upstream address");
     ensure!(
         !globals.anonymized_dns_blacklisted_ips.contains(&ip),
         "Blacklisted upstream IP"

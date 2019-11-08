@@ -36,7 +36,7 @@ In this package, the example configuration file can be found in `/usr/share/doc/
 
 ### Option 2: compilation from source code
 
-The proxy uses recent features of the Rust compiler, and currently requires rust-nightly.
+The proxy uses recent features of the Rust compiler, and requires rust >= 1.0.39 or rust-nightly.
 
 Rust can installed with:
 
