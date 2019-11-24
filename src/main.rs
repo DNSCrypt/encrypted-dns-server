@@ -509,6 +509,7 @@ fn main() -> Result<(), Error> {
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let cache_capacity = config.cache_capacity;
+    let serve_stale = config.serve_stale.unwrap_or(true);
     let state_file = &config.state_file;
 
     if let Some(secret_key_path) = matches.value_of("import-from-dnscrypt-wrapper") {
@@ -656,6 +657,7 @@ fn main() -> Result<(), Error> {
         hasher,
         cache,
         cert_cache,
+        serve_stale,
         blacklist,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,

@@ -64,6 +64,7 @@ pub struct Config {
     pub cache_ttl_min: u32,
     pub cache_ttl_max: u32,
     pub cache_ttl_error: u32,
+    pub serve_stale: Option<bool>,
     pub user: Option<String>,
     pub group: Option<String>,
     pub chroot: Option<String>,
