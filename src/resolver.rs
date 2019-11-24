@@ -129,7 +129,7 @@ pub async fn resolve(
     globals.varz.upstream_received.inc();
     if dns::rcode_servfail(&response) || dns::rcode_refused(&response) {
         trace!("SERVFAIL/REFUSED: {}", dns::rcode(&response));
-        if let (true, Some(cached_response)) = (globals.serve_stale, cached_response) {
+        if let Some(cached_response) = cached_response {
             trace!("Serving stale");
             #[cfg(feature = "metrics")]
             {

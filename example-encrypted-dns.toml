@@ -78,12 +78,6 @@ cache_ttl_min = 3600
 cache_ttl_max = 86400
 
 
-## Temporarily serve cached entries after their TTL expired
-## when servers are not responsive.
-
-serve_stale = true
-
-
 ## DNS cache: error TTL
 
 cache_ttl_error = 600
