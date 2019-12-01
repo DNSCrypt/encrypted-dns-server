@@ -1,6 +1,6 @@
 use crate::errors::*;
 
-use std::collections::HashMap;
+use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -10,7 +10,7 @@ const MAX_ITERATIONS: usize = 5;
 
 #[derive(Debug)]
 struct BlackListInner {
-    map: HashMap<Vec<u8>, ()>,
+    map: FxHashMap<Vec<u8>, ()>,
 }
 
 #[derive(Clone, Debug)]
@@ -20,7 +20,7 @@ pub struct BlackList {
 }
 
 impl BlackList {
-    pub fn new(map: HashMap<Vec<u8>, ()>, max_iterations: usize) -> Self {
+    pub fn new(map: FxHashMap<Vec<u8>, ()>, max_iterations: usize) -> Self {
         let inner = Arc::new(BlackListInner { map });
         BlackList {
             inner,
@@ -29,7 +29,7 @@ impl BlackList {
     }
 
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
-        let mut map = HashMap::new();
+        let mut map = FxHashMap::default();
         let fp = BufReader::new(File::open(path)?);
         for (line_nb, line) in fp.lines().enumerate() {
             let line = line?;
