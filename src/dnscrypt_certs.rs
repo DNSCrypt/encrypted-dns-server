@@ -172,7 +172,7 @@ impl DNSCryptEncryptionParamsUpdater {
             dnscrypt_encryption_params_set: new_params_set.iter().map(|x| (**x).clone()).collect(),
         };
         let state_file = self.globals.state_file.to_path_buf();
-        self.globals.runtime.spawn(async move {
+        self.globals.runtime_handle.spawn(async move {
             let _ = state.async_save(state_file).await;
         });
         *self.globals.dnscrypt_encryption_params_set.write() = Arc::new(new_params_set);
@@ -180,11 +180,12 @@ impl DNSCryptEncryptionParamsUpdater {
     }
 
     pub async fn run(self) {
-        let mut fut_interval = tokio::timer::Interval::new_interval(
-            std::time::Duration::from_secs(u64::from(DNSCRYPT_CERTS_RENEWAL)),
-        );
+        let mut fut_interval = tokio::time::interval(std::time::Duration::from_secs(u64::from(
+            DNSCRYPT_CERTS_RENEWAL,
+        )));
         let fut = async move {
-            while fut_interval.next().await.is_some() {
+            loop {
+                fut_interval.tick().await;
                 self.update();
                 debug!("New cert issued");
             }

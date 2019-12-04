@@ -71,7 +71,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream, UdpSocket};
 use tokio::prelude::*;
-use tokio::runtime::Runtime;
+use tokio::runtime::Handle;
 use tokio::sync::oneshot;
 
 #[derive(Debug)]
@@ -238,21 +238,20 @@ async fn tls_proxy(
             SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
         },
     };
-    let mut ext_socket =
-        TcpStream::connect_std(std_socket, tls_upstream_addr, &Default::default()).await?;
+    let mut ext_socket = TcpStream::connect_std(std_socket, tls_upstream_addr).await?;
     let (mut erh, mut ewh) = ext_socket.split();
     let (mut rh, mut wh) = client_connection.split();
     ewh.write_all(&binlen).await?;
-    let fut_proxy_1 = rh.copy(&mut ewh);
-    let fut_proxy_2 = erh.copy(&mut wh);
+    let fut_proxy_1 = tokio::io::copy(&mut rh, &mut ewh);
+    let fut_proxy_2 = tokio::io::copy(&mut erh, &mut wh);
     match join!(fut_proxy_1, fut_proxy_2) {
         (Ok(_), Ok(_)) => Ok(()),
         _ => bail!("TLS proxy error"),
     }
 }
 
-async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
-    let runtime = globals.runtime.clone();
+async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> Result<(), Error> {
+    let runtime_handle = globals.runtime_handle.clone();
     let mut tcp_listener = tcp_listener.incoming();
     let timeout = globals.tcp_timeout;
     let concurrent_connections = globals.tcp_concurrent_connections.clone();
@@ -301,8 +300,8 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             Ok(())
         };
         let fut_abort = rx;
-        let fut_all = future::select(fut.boxed(), fut_abort).timeout(timeout);
-        runtime.spawn(fut_all.map(move |_| {
+        let fut_all = tokio::time::timeout(timeout, future::select(fut.boxed(), fut_abort));
+        runtime_handle.spawn(fut_all.map(move |_| {
             let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
             #[cfg(feature = "metrics")]
             varz.inflight_tcp_queries
@@ -317,7 +316,7 @@ async fn udp_acceptor(
     globals: Arc<Globals>,
     net_udp_socket: std::net::UdpSocket,
 ) -> Result<(), Error> {
-    let runtime = globals.runtime.clone();
+    let runtime_handle = globals.runtime_handle.clone();
     let mut tokio_udp_socket = UdpSocket::try_from(net_udp_socket.try_clone()?)?;
     let timeout = globals.udp_timeout;
     let concurrent_connections = globals.udp_concurrent_connections.clone();
@@ -356,8 +355,8 @@ async fn udp_acceptor(
         let concurrent_connections = concurrent_connections.clone();
         let fut = handle_client_query(globals, client_ctx, packet);
         let fut_abort = rx;
-        let fut_all = future::select(fut.boxed(), fut_abort).timeout(timeout);
-        runtime.spawn(fut_all.map(move |_| {
+        let fut_all = tokio::time::timeout(timeout, future::select(fut.boxed(), fut_abort));
+        runtime_handle.spawn(fut_all.map(move |_| {
             let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
             #[cfg(feature = "metrics")]
             varz.inflight_udp_queries
@@ -368,22 +367,27 @@ async fn udp_acceptor(
 
 async fn start(
     globals: Arc<Globals>,
-    runtime: Arc<Runtime>,
-    listeners: Vec<(TcpListener, std::net::UdpSocket)>,
+    runtime_handle: Handle,
+    listeners: Vec<(std::net::TcpListener, std::net::UdpSocket)>,
 ) -> Result<(), Error> {
     for listener in listeners {
-        runtime.spawn(tcp_acceptor(globals.clone(), listener.0).map(|_| {}));
-        runtime.spawn(udp_acceptor(globals.clone(), listener.1).map(|_| {}));
+        let tcp_listener_str = format!("{:?}", listener.0);
+        let tokio_tcp_listener = match TcpListener::from_std(listener.0) {
+            Ok(tcp_listener) => tcp_listener,
+            Err(e) => bail!("{}/TCP: {}", tcp_listener_str, e),
+        };
+        runtime_handle.spawn(tcp_acceptor(globals.clone(), tokio_tcp_listener).map(|_| {}));
+        runtime_handle.spawn(udp_acceptor(globals.clone(), listener.1).map(|_| {}));
     }
     Ok(())
 }
 
 fn bind_listeners(
     listen_addrs: &[SocketAddr],
-) -> Result<Vec<(TcpListener, std::net::UdpSocket)>, Error> {
+) -> Result<Vec<(std::net::TcpListener, std::net::UdpSocket)>, Error> {
     let mut sockets = Vec::with_capacity(listen_addrs.len());
     for listen_addr in listen_addrs {
-        let std_socket = match listen_addr {
+        let tcp_listener = match listen_addr {
             SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
                 .reuse_address(true)?
                 .bind(&listen_addr)?
@@ -393,10 +397,6 @@ fn bind_listeners(
                 .only_v6(true)?
                 .bind(&listen_addr)?
                 .listen(1024)?,
-        };
-        let tcp_listener = match TcpListener::from_std(std_socket, &Default::default()) {
-            Ok(tcp_listener) => tcp_listener,
-            Err(e) => bail!("{}/TCP: {}", listen_addr, e),
         };
         let std_socket = match listen_addr {
             SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
@@ -495,8 +495,10 @@ fn main() -> Result<(), Error> {
     let external_addr = config.external_addr.map(|addr| SocketAddr::new(addr, 0));
 
     let mut runtime_builder = tokio::runtime::Builder::new();
-    runtime_builder.name_prefix("encrypted-dns-");
-    let runtime = Arc::new(runtime_builder.build()?);
+    runtime_builder.enable_all();
+    runtime_builder.threaded_scheduler();
+    runtime_builder.thread_name("encrypted-dns-");
+    let mut runtime = runtime_builder.build()?;
 
     let listen_addrs: Vec<_> = config.listen_addrs.iter().map(|x| x.local).collect();
     let listeners = bind_listeners(&listen_addrs)
@@ -627,9 +629,9 @@ fn main() -> Result<(), Error> {
             anonymized_dns.blacklisted_ips,
         ),
     };
-
+    let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
-        runtime: runtime.clone(),
+        runtime_handle: runtime_handle.clone(),
         state_file: state_file.to_path_buf(),
         dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(
             dnscrypt_encryption_params_set,
@@ -671,18 +673,22 @@ fn main() -> Result<(), Error> {
     #[cfg(feature = "metrics")]
     {
         if let Some(metrics_config) = config.metrics {
-            runtime.spawn(
-                metrics::prometheus_service(globals.varz.clone(), metrics_config, runtime.clone())
-                    .map_err(|e| {
-                        error!("Unable to start the metrics service: [{}]", e);
-                        std::process::exit(1);
-                    })
-                    .map(|_| ()),
+            runtime_handle.spawn(
+                metrics::prometheus_service(
+                    globals.varz.clone(),
+                    metrics_config,
+                    runtime_handle.clone(),
+                )
+                .map_err(|e| {
+                    error!("Unable to start the metrics service: [{}]", e);
+                    std::process::exit(1);
+                })
+                .map(|_| ()),
             );
         }
     }
-    runtime.spawn(
-        start(globals, runtime.clone(), listeners)
+    runtime_handle.spawn(
+        start(globals, runtime_handle.clone(), listeners)
             .map_err(|e| {
                 error!("Unable to start the service: [{}]", e);
                 std::process::exit(1);

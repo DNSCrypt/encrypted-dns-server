@@ -29,7 +29,7 @@ pub async fn resolve_udp(
             ))?,
         },
     };
-    let mut ext_socket = UdpSocket::from_std(std_socket, &Default::default())?;
+    let mut ext_socket = UdpSocket::from_std(std_socket)?;
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
@@ -38,9 +38,7 @@ pub async fn resolve_udp(
         ext_socket.send(&packet).await?;
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
         dns::set_rcode_servfail(&mut response);
-        let fut = ext_socket
-            .recv_from(&mut response[..])
-            .timeout(timeout_if_cached);
+        let fut = tokio::time::timeout(timeout_if_cached, ext_socket.recv_from(&mut response[..]));
         match fut.await {
             Ok(Ok((response_len, response_addr))) => {
                 response.truncate(response_len);
@@ -78,8 +76,7 @@ pub async fn resolve_tcp(
             SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
         },
     };
-    let mut ext_socket =
-        TcpStream::connect_std(std_socket, &globals.upstream_addr, &Default::default()).await?;
+    let mut ext_socket = TcpStream::connect_std(std_socket, &globals.upstream_addr).await?;
     ext_socket.set_nodelay(true)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);

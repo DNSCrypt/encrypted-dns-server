@@ -14,8 +14,7 @@ use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::prelude::*;
-use tokio::runtime::Runtime;
+use tokio::runtime::Handle;
 
 const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
 const METRICS_MAX_CONCURRENT_CONNECTIONS: u32 = 2;
@@ -50,7 +49,7 @@ async fn handle_client_connection(
 pub async fn prometheus_service(
     varz: Varz,
     metrics_config: MetricsConfig,
-    runtime: Arc<Runtime>,
+    runtime_handle: Handle,
 ) -> Result<(), Error> {
     let path = Arc::new(metrics_config.path);
     let std_socket = match metrics_config.listen_addr {
@@ -64,7 +63,7 @@ pub async fn prometheus_service(
             .bind(&metrics_config.listen_addr)?
             .listen(1024)?,
     };
-    let mut stream = TcpListener::from_std(std_socket, &Default::default())?;
+    let mut stream = TcpListener::from_std(std_socket)?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
         let (client, _client_addr) = stream.accept().await?;
@@ -80,14 +79,14 @@ pub async fn prometheus_service(
             service_fn(move |req| handle_client_connection(req, varz.clone(), path.clone()));
         let connection = Http::new().serve_connection(client, service);
         let concurrent_connections = concurrent_connections.clone();
-        runtime.spawn(
-            connection
-                .timeout(std::time::Duration::from_secs(
-                    METRICS_CONNECTION_TIMEOUT_SECS,
-                ))
-                .map(move |_| {
-                    concurrent_connections.fetch_sub(1, Ordering::Relaxed);
-                }),
+        runtime_handle.spawn(
+            tokio::time::timeout(
+                std::time::Duration::from_secs(METRICS_CONNECTION_TIMEOUT_SECS),
+                connection,
+            )
+            .map(move |_| {
+                concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            }),
         );
     }
     Ok(())

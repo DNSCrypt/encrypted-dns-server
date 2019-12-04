@@ -13,13 +13,13 @@ use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::runtime::Runtime;
+use tokio::runtime::Handle;
 use tokio::sync::oneshot;
 
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]
 pub struct Globals {
-    pub runtime: Arc<Runtime>,
+    pub runtime_handle: Handle,
     pub state_file: PathBuf,
     pub dnscrypt_encryption_params_set: Arc<RwLock<Arc<Vec<Arc<DNSCryptEncryptionParams>>>>>,
     pub provider_name: String,
