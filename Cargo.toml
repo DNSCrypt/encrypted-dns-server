@@ -35,7 +35,7 @@ serde = "1.0.103"
 serde_derive = "1.0.103"
 serde-big-array = "0.2.0"
 siphasher = "0.3.1"
-tokio = { version = "0.2", features = ["full"] }
+tokio = { version = "0.2", features = ["fs", "rt-threaded", "time", "tcp", "udp", "stream"] }
 toml = "0.5.5"
 
 [dependencies.hyper]
