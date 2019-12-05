@@ -41,7 +41,7 @@ toml = "0.5.5"
 [dependencies.hyper]
 optional = true
 git = "https://github.com/hyperium/hyper"
-rev = "5db5c5cf8334675ca7bc601b4be12e100ce6b9cb"
+rev = "0b03b730531654b1b5f632099386ab27c94eb9f4"
 default_features = false
 
 [dependencies.prometheus]
