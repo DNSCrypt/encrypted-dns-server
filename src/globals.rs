@@ -42,6 +42,7 @@ pub struct Globals {
     pub cert_cache: Cache,
     pub blacklist: Option<BlackList>,
     pub undelegated_list: Option<BlackList>,
+    pub ignore_unqualified_hostnames: bool,
     pub anonymized_dns_enabled: bool,
     pub anonymized_dns_allowed_ports: Vec<u16>,
     pub anonymized_dns_allow_non_reserved_ports: bool,

@@ -178,6 +178,10 @@ key_cache_capacity = 10000
 # undelegated_list = "/etc/undelegated.txt"
 
 
+## Ignore A and AAAA queries for unqualified host names.
+
+# ignore_unqualified_hostnames = true
+
 
 #########################
 #        Metrics        #

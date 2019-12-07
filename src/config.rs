@@ -49,6 +49,7 @@ pub struct ListenAddrConfig {
 pub struct FilteringConfig {
     pub domain_blacklist: Option<PathBuf>,
     pub undelegated_list: Option<PathBuf>,
+    pub ignore_unqualified_hostnames: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -172,16 +172,10 @@ pub async fn get_cached_response_or_resolve(
     }
     let tld = dns::qname_tld(&packet_qname);
     let synthesize_nxdomain = {
-        if tld.len() == packet_qname.len() {
+        if globals.ignore_unqualified_hostnames && tld.len() == packet_qname.len() {
             let (qtype, qclass) = dns::qtype_qclass(&packet)?;
-            if qtype == dns::DNS_CLASS_INET
+            qtype == dns::DNS_CLASS_INET
                 && (qclass == dns::DNS_TYPE_A || qclass == dns::DNS_TYPE_AAAA)
-            {
-                dbg!(String::from_utf8_lossy(&packet_qname));
-                true
-            } else {
-                false
-            }
         } else if let Some(undelegated_list) = &globals.undelegated_list {
             undelegated_list.find(tld)
         } else {

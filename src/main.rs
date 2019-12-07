@@ -628,6 +628,10 @@ fn main() -> Result<(), Error> {
             )
         })?),
     };
+    let ignore_unqualified_hostnames = config
+        .filtering
+        .ignore_unqualified_hostnames
+        .unwrap_or(true);
     let (
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
@@ -673,6 +677,7 @@ fn main() -> Result<(), Error> {
         cert_cache,
         blacklist,
         undelegated_list,
+        ignore_unqualified_hostnames,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
         anonymized_dns_allow_non_reserved_ports,
