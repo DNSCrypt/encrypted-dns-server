@@ -17,12 +17,15 @@ pub struct Inner {
     pub client_queries_offline: IntCounter,
     pub client_queries_errors: IntCounter,
     pub client_queries_blocked: IntCounter,
+    pub client_queries_resolved: IntCounter,
+    pub client_queries_rcode_nxdomain: IntCounter,
     pub inflight_udp_queries: IntGauge,
     pub inflight_tcp_queries: IntGauge,
     pub upstream_errors: IntCounter,
     pub upstream_sent: IntCounter,
     pub upstream_received: IntCounter,
     pub upstream_response_sizes: Histogram,
+    pub upstream_rcode_nxdomain: IntCounter,
 }
 
 pub type Varz = Arc<Inner>;
@@ -106,6 +109,18 @@ impl Inner {
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
+            client_queries_resolved: register_int_counter!(opts!(
+                "encrypted_dns_client_queries_resolved",
+                "Number of blocked client resolved",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
+            client_queries_rcode_nxdomain: register_int_counter!(opts!(
+                "encrypted_dns_client_queries_rcode_nxdomain",
+                "Number of responses with an NXDOMAIN error code",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
             inflight_udp_queries: register_int_gauge!(opts!(
                 "encrypted_dns_inflight_udp_queries",
                 "Number of UDP queries currently waiting for a response",
@@ -140,6 +155,12 @@ impl Inner {
                 "encrypted_dns_upstream_response_sizes",
                 "Response size in bytes",
                 vec![64.0, 128.0, 192.0, 256.0, 512.0, 1024.0, 2048.0]
+            ))
+            .unwrap(),
+            upstream_rcode_nxdomain: register_int_counter!(opts!(
+                "encrypted_dns_upstream_rcode_nxdomain",
+                "Number of upstream responses with an NXDOMAIN error code",
+                labels! {"handler" => "all",}
             ))
             .unwrap(),
         }

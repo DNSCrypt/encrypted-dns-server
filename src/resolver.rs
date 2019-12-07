@@ -123,7 +123,12 @@ pub async fn resolve(
         response = resolve_tcp(globals, packet, &packet_qname, tid).await?;
     }
     #[cfg(feature = "metrics")]
-    globals.varz.upstream_received.inc();
+    {
+        globals.varz.upstream_received.inc();
+        if dns::rcode_nxdomain(&response) {
+            globals.varz.upstream_rcode_nxdomain.inc();
+        }
+    }
     if dns::rcode_servfail(&response) || dns::rcode_refused(&response) {
         trace!("SERVFAIL/REFUSED: {}", dns::rcode(&response));
         if let Some(cached_response) = cached_response {

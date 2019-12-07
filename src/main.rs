@@ -132,6 +132,7 @@ pub async fn respond_to_query(client_ctx: ClientCtx, response: Vec<u8>) -> Resul
 }
 
 async fn encrypt_and_respond_to_query(
+    globals: Arc<Globals>,
     client_ctx: ClientCtx,
     packet: Vec<u8>,
     response: Vec<u8>,
@@ -153,6 +154,10 @@ async fn encrypt_and_respond_to_query(
             max_response_size,
         )?,
     };
+    globals.varz.client_queries_resolved.inc();
+    if dns::rcode_nxdomain(&response) {
+        globals.varz.client_queries_rcode_nxdomain.inc();
+    }
     respond_to_query(client_ctx, response).await
 }
 
@@ -191,6 +196,7 @@ async fn handle_client_query(
                     &dnscrypt_encryption_params_set,
                 )? {
                     return encrypt_and_respond_to_query(
+                        globals,
                         client_ctx,
                         packet,
                         synth_packet,
@@ -211,6 +217,7 @@ async fn handle_client_query(
     );
     let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
     encrypt_and_respond_to_query(
+        globals,
         client_ctx,
         packet,
         response,
