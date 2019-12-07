@@ -170,12 +170,28 @@ pub async fn get_cached_response_or_resolve(
             return dns::serve_blocked_response(packet.to_vec());
         }
     }
-    if let Some(undelegated_list) = &globals.undelegated_list {
-        if undelegated_list.find(dns::qname_tld(&packet_qname)) {
-            #[cfg(feature = "metrics")]
-            globals.varz.client_queries_rcode_nxdomain.inc();
-            return dns::serve_nxdomain_response(packet.to_vec());
+    let tld = dns::qname_tld(&packet_qname);
+    let synthesize_nxdomain = {
+        if tld.len() == packet_qname.len() {
+            let (qtype, qclass) = dns::qtype_qclass(&packet)?;
+            if qtype == dns::DNS_CLASS_INET
+                && (qclass == dns::DNS_TYPE_A || qclass == dns::DNS_TYPE_AAAA)
+            {
+                dbg!(String::from_utf8_lossy(&packet_qname));
+                true
+            } else {
+                false
+            }
+        } else if let Some(undelegated_list) = &globals.undelegated_list {
+            undelegated_list.find(tld)
+        } else {
+            false
         }
+    };
+    if synthesize_nxdomain {
+        #[cfg(feature = "metrics")]
+        globals.varz.client_queries_rcode_nxdomain.inc();
+        return dns::serve_nxdomain_response(packet.to_vec());
     }
     let original_tid = dns::tid(&packet);
     dns::set_tid(&mut packet, 0);

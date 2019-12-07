@@ -16,14 +16,17 @@ const DNS_FLAGS_RA: u16 = 1u16 << 7;
 const DNS_FLAGS_RD: u16 = 1u16 << 8;
 const DNS_FLAGS_CD: u16 = 1u16 << 4;
 const DNS_OFFSET_QUESTION: usize = DNS_HEADER_SIZE;
-const DNS_TYPE_OPT: u16 = 41;
-const DNS_TYPE_TXT: u16 = 16;
-const DNS_TYPE_HINFO: u16 = 13;
-const DNS_CLASS_INET: u16 = 1;
 
-const DNS_RCODE_SERVFAIL: u8 = 2;
-const DNS_RCODE_NXDOMAIN: u8 = 3;
-const DNS_RCODE_REFUSED: u8 = 5;
+pub const DNS_TYPE_A: u16 = 1;
+pub const DNS_TYPE_AAAA: u16 = 28;
+pub const DNS_TYPE_OPT: u16 = 41;
+pub const DNS_TYPE_TXT: u16 = 16;
+pub const DNS_TYPE_HINFO: u16 = 13;
+pub const DNS_CLASS_INET: u16 = 1;
+
+pub const DNS_RCODE_SERVFAIL: u8 = 2;
+pub const DNS_RCODE_NXDOMAIN: u8 = 3;
+pub const DNS_RCODE_REFUSED: u8 = 5;
 
 #[inline]
 pub fn rcode(packet: &[u8]) -> u8 {
@@ -476,6 +479,16 @@ pub fn serve_truncated_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error
     authoritative_response(&mut packet);
     truncate(&mut packet);
     Ok(packet)
+}
+
+pub fn qtype_qclass(packet: &[u8]) -> Result<(u16, u16), Error> {
+    ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    ensure!(qdcount(&packet) == 1, "No question");
+    let offset = skip_name(packet, DNS_HEADER_SIZE)?;
+    ensure!(packet.len() - offset >= 4, "Short packet");
+    let qtype = BigEndian::read_u16(&packet[offset..]);
+    let qclass = BigEndian::read_u16(&packet[offset + 2..]);
+    Ok((qtype, qclass))
 }
 
 pub fn serve_nxdomain_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
