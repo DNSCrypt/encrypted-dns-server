@@ -170,6 +170,13 @@ pub async fn get_cached_response_or_resolve(
             return dns::serve_blocked_response(packet.to_vec());
         }
     }
+    if let Some(undelegated_list) = &globals.undelegated_list {
+        if undelegated_list.find(dns::qname_tld(&packet_qname)) {
+            #[cfg(feature = "metrics")]
+            globals.varz.client_queries_rcode_nxdomain.inc();
+            return dns::serve_nxdomain_response(packet.to_vec());
+        }
+    }
     let original_tid = dns::tid(&packet);
     dns::set_tid(&mut packet, 0);
     dns::normalize_qname(&mut packet)?;

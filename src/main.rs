@@ -102,7 +102,7 @@ fn maybe_truncate_response(
         if encrypted_response_min_len > original_packet_size
             || encrypted_response_min_len > DNSCRYPT_UDP_RESPONSE_MAX_SIZE
         {
-            return Ok(dns::serve_truncated(packet)?);
+            return Ok(dns::serve_truncated_response(packet)?);
         }
     }
     Ok(response)
@@ -618,6 +618,16 @@ fn main() -> Result<(), Error> {
                 .map_err(|e| anyhow!("Unable to load the blacklist [{:?}]: [{}]", path, e))?,
         ),
     };
+    let undelegated_list = match config.filtering.undelegated_list {
+        None => None,
+        Some(path) => Some(BlackList::load(&path).map_err(|e| {
+            anyhow!(
+                "Unable to load the list of undelegated TLDs [{:?}]: [{}]",
+                path,
+                e
+            )
+        })?),
+    };
     let (
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
@@ -662,6 +672,7 @@ fn main() -> Result<(), Error> {
         cache,
         cert_cache,
         blacklist,
+        undelegated_list,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
         anonymized_dns_allow_non_reserved_ports,

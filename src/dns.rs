@@ -214,6 +214,10 @@ pub fn normalize_qname(packet: &mut [u8]) -> Result<(), Error> {
     Ok(())
 }
 
+pub fn qname_tld(qname: &[u8]) -> &[u8] {
+    qname.rsplit(|c| *c == b'.').next().unwrap_or_default()
+}
+
 pub fn recase_qname(packet: &mut [u8], qname: &[u8]) -> Result<(), Error> {
     debug_assert!(std::usize::MAX > 0xffff);
     ensure!(qdcount(packet) == 1, "Unexpected query count");
@@ -457,7 +461,7 @@ pub fn serve_certificates<'t>(
     Ok(Some(packet))
 }
 
-pub fn serve_truncated(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn serve_truncated_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&client_packet) == 1, "No question");
     ensure!(
@@ -471,6 +475,23 @@ pub fn serve_truncated(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
     truncate(&mut packet);
+    Ok(packet)
+}
+
+pub fn serve_nxdomain_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
+    ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    ensure!(qdcount(&client_packet) == 1, "No question");
+    ensure!(
+        !is_response(&client_packet),
+        "Question expected, but got a response instead"
+    );
+    let offset = skip_name(&client_packet, DNS_HEADER_SIZE)?;
+    let mut packet = client_packet;
+    ensure!(packet.len() - offset >= 4, "Short packet");
+    packet.truncate(offset + 4);
+    an_ns_ar_count_clear(&mut packet);
+    authoritative_response(&mut packet);
+    set_rcode_nxdomain(&mut packet);
     Ok(packet)
 }
 

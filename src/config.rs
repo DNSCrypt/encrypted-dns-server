@@ -48,6 +48,7 @@ pub struct ListenAddrConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct FilteringConfig {
     pub domain_blacklist: Option<PathBuf>,
+    pub undelegated_list: Option<PathBuf>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

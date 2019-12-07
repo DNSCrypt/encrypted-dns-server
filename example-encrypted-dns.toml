@@ -170,6 +170,14 @@ key_cache_capacity = 10000
 # domain_blacklist = "/etc/domain_blacklist.txt"
 
 
+## List of undelegated TLDs
+## This is the list of nonexistent TLDs that queries are frequently observed for,
+## but will never resolve to anything. The server will immediately return a
+## synthesized NXDOMAIN response instead of hitting root servers.
+
+# undelegated_list = "/etc/undelegated.txt"
+
+
 
 #########################
 #        Metrics        #
