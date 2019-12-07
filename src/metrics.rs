@@ -33,7 +33,7 @@ async fn handle_client_connection(
     }
     let StartInstant(start_instant) = varz.start_instant;
     let uptime = start_instant.elapsed().as_secs();
-    varz.uptime.set(uptime as f64);
+    varz.uptime.set(uptime as _);
     let client_queries = varz.client_queries_udp.get() + varz.client_queries_tcp.get();
     varz.client_queries.set(client_queries);
     let metric_families = prometheus::gather();

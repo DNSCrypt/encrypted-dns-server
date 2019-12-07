@@ -24,7 +24,7 @@ env_logger = { version = "0.7.1", default-features = false, features = ["humanti
 futures = { version = "0.3", features = ["async-await"] }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
-libsodium-sys-stable="1.18.2"
+libsodium-sys-stable="1.19"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
 net2 = "0.2.33"
 parking_lot = "0.10"
@@ -41,7 +41,7 @@ toml = "0.5.5"
 [dependencies.hyper]
 optional = true
 git = "https://github.com/hyperium/hyper"
-rev = "0b03b730531654b1b5f632099386ab27c94eb9f4"
+rev = "5a59875742500672f253719c1e1a16b4eddfacc7"
 default_features = false
 
 [dependencies.prometheus]

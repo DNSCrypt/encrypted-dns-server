@@ -275,8 +275,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> R
         let varz = globals.varz.clone();
         #[cfg(feature = "metrics")]
         {
-            varz.inflight_tcp_queries
-                .set(_count.saturating_add(1) as f64);
+            varz.inflight_tcp_queries.set(_count.saturating_add(1) as _);
             varz.client_queries_tcp.inc();
         }
         client_connection.set_nodelay(true)?;
@@ -304,8 +303,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> R
         runtime_handle.spawn(fut_all.map(move |_| {
             let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
             #[cfg(feature = "metrics")]
-            varz.inflight_tcp_queries
-                .set(_count.saturating_sub(1) as f64);
+            varz.inflight_tcp_queries.set(_count.saturating_sub(1) as _);
         }));
     }
     Ok(())
@@ -347,8 +345,7 @@ async fn udp_acceptor(
         let varz = globals.varz.clone();
         #[cfg(feature = "metrics")]
         {
-            varz.inflight_udp_queries
-                .set(_count.saturating_add(1) as f64);
+            varz.inflight_udp_queries.set(_count.saturating_add(1) as _);
             varz.client_queries_udp.inc();
         }
         let globals = globals.clone();
@@ -359,8 +356,7 @@ async fn udp_acceptor(
         runtime_handle.spawn(fut_all.map(move |_| {
             let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
             #[cfg(feature = "metrics")]
-            varz.inflight_udp_queries
-                .set(_count.saturating_sub(1) as f64);
+            varz.inflight_udp_queries.set(_count.saturating_sub(1) as _);
         }));
     }
 }
