@@ -3,6 +3,8 @@
 127.in-addr.arpa
 16.172.in-addr.arpa
 168.192.in-addr.arpa
+f.f.ip6.arpa
+8.e.f.ip6.arpa
 airdream
 api
 bbrouter
