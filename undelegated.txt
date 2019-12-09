@@ -11,6 +11,7 @@ dhcp
 dlink
 domain
 envoy
+example
 grp
 gw==
 home
@@ -19,6 +20,7 @@ internal
 intra
 invalid
 ksyun
+lan
 loc
 local
 localdomain
@@ -32,6 +34,7 @@ priv
 prv
 router
 telus
+test
 totolink
 wlan_ap
 workgroup
