@@ -1,4 +1,8 @@
 1
+10.in-addr.arpa
+127.in-addr.arpa
+16.172.in-addr.arpa
+168.192.in-addr.arpa
 airdream
 api
 bbrouter
