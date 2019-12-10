@@ -22,6 +22,7 @@ derivative = "1.0.3"
 dnsstamps = "0.1.3"
 env_logger = { version = "0.7.1", default-features = false, features = ["humantime"] }
 futures = { version = "0.3", features = ["async-await"] }
+hyper = { version = "0.13", default_features = false, optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
 libsodium-sys-stable="1.19"
@@ -37,12 +38,6 @@ serde-big-array = "0.2.0"
 siphasher = "0.3.1"
 tokio = { version = "0.2", features = ["fs", "rt-threaded", "time", "tcp", "udp", "stream"] }
 toml = "0.5.5"
-
-[dependencies.hyper]
-optional = true
-git = "https://github.com/hyperium/hyper"
-rev = "78e8da17cf8737720b452f3077a2de90184f9b95"
-default_features = false
 
 [dependencies.prometheus]
 optional = true
