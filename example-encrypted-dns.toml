@@ -153,7 +153,7 @@ key_cache_capacity = 10000
 
 [tls]
 
-## Where to prooxy TLS connections to (e.g. DoH server)
+## Where to proxy TLS connections to (e.g. DoH server)
 
 # upstream_addr = "127.0.0.1:4343"
 
