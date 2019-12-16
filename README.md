@@ -1,5 +1,5 @@
 # ![Encrypted DNS Server](logo.png)
-[![Gitter chat](https://badges.gitter.im/gitter.png)](https://gitter.im/dnscrypt-operators/Lobby)
+[![Gitter chat](https://badges.gitter.im/gitter.svg)](https://gitter.im/dnscrypt-operators/Lobby)
 
 An easy to install, high-performance, zero maintenance proxy to run an encrypted DNS server.
 
