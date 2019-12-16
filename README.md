@@ -1,4 +1,5 @@
 # ![Encrypted DNS Server](logo.png)
+![Github CI status](https://img.shields.io/github/workflow/status/jedisct1/encrypted-dns-server/Rust)
 [![Gitter chat](https://badges.gitter.im/gitter.svg)](https://gitter.im/dnscrypt-operators/Lobby)
 
 An easy to install, high-performance, zero maintenance proxy to run an encrypted DNS server.
