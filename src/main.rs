@@ -181,6 +181,9 @@ async fn handle_client_query(
         )
         .await;
     }
+    if !globals.dnscrypt_enabled {
+        return Ok(());
+    }
     let mut dnscrypt_encryption_params_set = vec![];
     for params in &**globals.dnscrypt_encryption_params_set.read() {
         dnscrypt_encryption_params_set.push((*params).clone())
@@ -490,7 +493,7 @@ fn main() -> Result<(), Error> {
 
     let config_path = matches.value_of("config").unwrap();
     let config = Config::from_path(config_path)?;
-
+    let dnscrypt_enabled = config.dnscrypt.enabled.unwrap_or(true);
     let provider_name = match &config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt-cert.{}", provider_name),
@@ -678,6 +681,7 @@ fn main() -> Result<(), Error> {
         blacklist,
         undelegated_list,
         ignore_unqualified_hostnames,
+        dnscrypt_enabled,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
         anonymized_dns_allow_non_reserved_ports,

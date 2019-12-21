@@ -27,6 +27,7 @@ pub struct MetricsConfig {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DNSCryptConfig {
+    pub enabled: Option<bool>,
     pub provider_name: String,
     pub key_cache_capacity: usize,
     pub dnssec: bool,
