@@ -105,7 +105,7 @@ daemonize = false
 
 ## Group name to drop privileges to, when started as root.
 
-# group = "nobody"
+# group = "nogroup"
 
 
 ## Path to chroot() to, when started as root.
