@@ -168,6 +168,7 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
                 break;
             }
             label_len => {
+                ensure!(label_len < 0x40, "Long label");
                 ensure!(packet_len - offset > 1, "Short packet");
                 offset += 1;
                 ensure!(packet_len - offset > label_len, "Short packet");
@@ -200,6 +201,7 @@ pub fn normalize_qname(packet: &mut [u8]) -> Result<(), Error> {
                 break;
             }
             label_len => {
+                ensure!(label_len < 0x40, "Long label");
                 ensure!(packet_len - offset > 1, "Short packet");
                 offset += 1;
                 ensure!(packet_len - offset > label_len, "Short packet");
@@ -240,6 +242,7 @@ pub fn recase_qname(packet: &mut [u8], qname: &[u8]) -> Result<(), Error> {
                 break;
             }
             label_len => {
+                ensure!(label_len < 0x40, "Long label");
                 ensure!(packet_len - offset > 1, "Short packet");
                 ensure!(qname_offset < qname_len, "Short reference qname");
                 offset += 1;
@@ -281,6 +284,7 @@ fn skip_name(packet: &[u8], offset: usize) -> Result<usize, Error> {
             }
             label_len => label_len,
         } as usize;
+        ensure!(label_len < 0x40, "Long label");
         ensure!(
             packet_len - offset - 1 > label_len,
             "Malformed packet with an out-of-bounds name"
