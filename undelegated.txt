@@ -116,6 +116,7 @@ home
 hub
 internal
 intra
+internet
 invalid
 ksyun
 lan
@@ -127,8 +128,10 @@ modem
 mynet
 myrouter
 novalocal
+onion
 openstacklocal
 priv
+private
 prv
 router
 telus
