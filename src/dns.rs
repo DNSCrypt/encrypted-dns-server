@@ -153,8 +153,9 @@ pub fn is_truncated(packet: &[u8]) -> bool {
 pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
     debug_assert!(std::usize::MAX > 0xffff);
     debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
-    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let mut offset = DNS_HEADER_SIZE;
     let mut qname = Vec::with_capacity(DNS_MAX_HOSTNAME_SIZE);
     loop {
@@ -190,8 +191,9 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
 pub fn normalize_qname(packet: &mut [u8]) -> Result<(), Error> {
     debug_assert!(std::usize::MAX > 0xffff);
     debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
-    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let mut offset = DNS_HEADER_SIZE;
     loop {
         ensure!(offset < packet_len, "Short packet");
@@ -225,8 +227,9 @@ pub fn qname_tld(qname: &[u8]) -> &[u8] {
 
 pub fn recase_qname(packet: &mut [u8], qname: &[u8]) -> Result<(), Error> {
     debug_assert!(std::usize::MAX > 0xffff);
-    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(qdcount(packet) == 1, "Unexpected query count");
     let qname_len = qname.len();
     let mut offset = DNS_HEADER_SIZE;
     let mut qname_offset = 0;
@@ -302,7 +305,7 @@ fn skip_name(packet: &[u8], offset: usize) -> Result<usize, Error> {
 fn traverse_rrs<F: FnMut(usize) -> Result<(), Error>>(
     packet: &[u8],
     mut offset: usize,
-    rrcount: u16,
+    rrcount: usize,
     mut cb: F,
 ) -> Result<usize, Error> {
     let packet_len = packet.len();
@@ -324,7 +327,7 @@ fn traverse_rrs<F: FnMut(usize) -> Result<(), Error>>(
 fn traverse_rrs_mut<F: FnMut(&mut [u8], usize) -> Result<(), Error>>(
     packet: &mut [u8],
     mut offset: usize,
-    rrcount: u16,
+    rrcount: usize,
     mut cb: F,
 ) -> Result<usize, Error> {
     let packet_len = packet.len();
@@ -344,16 +347,16 @@ fn traverse_rrs_mut<F: FnMut(&mut [u8], usize) -> Result<(), Error>>(
 }
 
 pub fn min_ttl(packet: &[u8], min_ttl: u32, max_ttl: u32, failure_ttl: u32) -> Result<u32, Error> {
-    ensure!(qdcount(packet) == 1, "Unsupported number of questions");
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
     ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
+    ensure!(qdcount(packet) == 1, "No question");
     let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
     assert!(offset > DNS_OFFSET_QUESTION);
     ensure!(packet_len - offset > 4, "Short packet");
     offset += 4;
     let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
-    let rrcount = ancount + nscount + arcount;
+    let rrcount = ancount as usize + nscount as usize + arcount as usize;
     let mut found_min_ttl = if rrcount > 0 { max_ttl } else { failure_ttl };
 
     offset = traverse_rrs(packet, offset, rrcount, |offset| {
@@ -395,19 +398,23 @@ fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), E
 }
 
 pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), Error> {
-    ensure!(qdcount(packet) == 1, "Unsupported number of questions");
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
     ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
-
+    ensure!(qdcount(packet) == 1, "No question");
     let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
     assert!(offset > DNS_OFFSET_QUESTION);
     ensure!(packet_len - offset >= 4, "Short packet");
     offset += 4;
     let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
-    offset = traverse_rrs(packet, offset, ancount + nscount, |_offset| Ok(()))?;
+    offset = traverse_rrs(
+        packet,
+        offset,
+        ancount as usize + nscount as usize,
+        |_offset| Ok(()),
+    )?;
     let mut edns_payload_set = false;
-    traverse_rrs_mut(packet, offset, arcount, |packet, offset| {
+    traverse_rrs_mut(packet, offset, arcount as _, |packet, offset| {
         let qtype = BigEndian::read_u16(&packet[offset..]);
         if qtype == DNS_TYPE_OPT {
             ensure!(!edns_payload_set, "Duplicate OPT RR found");
@@ -429,7 +436,7 @@ pub fn serve_certificates<'t>(
     dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t Arc<DNSCryptEncryptionParams>>,
 ) -> Result<Option<Vec<u8>>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
-    ensure!(qdcount(&client_packet) == 1, "No question");
+    ensure!(qdcount(client_packet) == 1, "No question");
     ensure!(
         !is_response(&client_packet),
         "Question expected, but got a response instead"
