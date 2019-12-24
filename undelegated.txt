@@ -116,7 +116,7 @@ home
 hub
 internal
 intra
-internet
+intranet
 invalid
 ksyun
 lan
