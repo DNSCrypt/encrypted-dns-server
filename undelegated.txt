@@ -123,6 +123,7 @@ lan
 loc
 local
 localdomain
+localhost
 localnet
 modem
 mynet
