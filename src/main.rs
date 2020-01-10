@@ -64,6 +64,7 @@ use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::prelude::*;
+use std::io::BufWriter;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -219,6 +220,21 @@ async fn handle_client_query(
         "Question expected, but got a response instead"
     );
     let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
+
+    let qname = dns::qname(&response);
+    let qname = qname
+        .as_ref()
+        .map(|x| std::str::from_utf8(x).unwrap_or("?"))
+        .unwrap_or("?");
+    writeln!(
+        globals.log.lock(),
+        "{}\t{}\t{}",
+        qname,
+        packet.len(),
+        response.len()
+    )
+    .unwrap();
+
     encrypt_and_respond_to_query(
         globals,
         client_ctx,
@@ -650,6 +666,10 @@ fn main() -> Result<(), Error> {
         ),
     };
     let runtime_handle = runtime.handle();
+
+    let log = File::create("/tmp/packet-sizes.log").unwrap();
+    let log = Arc::new(Mutex::new(BufWriter::new(log)));
+
     let globals = Arc::new(Globals {
         runtime_handle: runtime_handle.clone(),
         state_file: state_file.to_path_buf(),
@@ -688,6 +708,7 @@ fn main() -> Result<(), Error> {
         anonymized_dns_blacklisted_ips,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
+        log,
     });
     let updater = DNSCryptEncryptionParamsUpdater::new(globals.clone());
     if !state_is_new {
