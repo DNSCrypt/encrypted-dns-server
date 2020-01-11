@@ -30,7 +30,7 @@ log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
 net2 = "0.2.33"
 parking_lot = "0.10"
 privdrop = "0.3.3"
-rand = "0.7.2"
+rand = "0.7.3"
 rustc-hash = "1"
 serde = "1.0"
 serde_derive = "1.0"
