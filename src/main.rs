@@ -303,7 +303,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> R
             }
             ensure!(
                 (DNS_HEADER_SIZE..=DNSCRYPT_TCP_QUERY_MAX_SIZE).contains(&packet_len),
-                "Unexpected query size"
+                "Unexpected TCP query size"
             );
             let mut packet = vec![0u8; packet_len];
             client_connection.read_exact(&mut packet).await?;
