@@ -269,7 +269,10 @@ async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> R
     while let Some(client) = tcp_listener.next().await {
         let mut client_connection: TcpStream = match client {
             Ok(client_connection) => client_connection,
-            Err(e) => bail!(e),
+            Err(e) => {
+                debug!("{}", e);
+                continue;
+            }
         };
         let (tx, rx) = oneshot::channel::<()>();
         {
