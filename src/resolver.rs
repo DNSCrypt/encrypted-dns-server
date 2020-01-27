@@ -33,12 +33,16 @@ pub async fn resolve_udp(
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
-    let timeout_if_cached = globals.udp_timeout / 2;
+    let timeout = if has_cached_response {
+        globals.udp_timeout / 2
+    } else {
+        globals.udp_timeout
+    };
     loop {
         ext_socket.send(&packet).await?;
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
         dns::set_rcode_servfail(&mut response);
-        let fut = tokio::time::timeout(timeout_if_cached, ext_socket.recv_from(&mut response[..]));
+        let fut = tokio::time::timeout(timeout, ext_socket.recv_from(&mut response[..]));
         match fut.await {
             Ok(Ok((response_len, response_addr))) => {
                 response.truncate(response_len);
