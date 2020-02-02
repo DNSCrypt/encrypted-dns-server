@@ -1,6 +1,6 @@
 [package]
 name = "encrypted-dns"
-version = "0.3.11"
+version = "0.3.12"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt v2, Anonymized DNSCrypt, DoH)"
@@ -17,7 +17,7 @@ byteorder = "1.3"
 clap = { version="2.33", default-features = false, features=["wrap_help", "nightly"] }
 clockpro-cache = "0.1.8"
 coarsetime = "0.1.12"
-daemonize-simple = "0.1.2"
+daemonize-simple = "0.1.4"
 derivative = "1.0.3"
 dnsstamps = "0.1.3"
 env_logger = { version = "0.7.1", default-features = false, features = ["humantime"] }
@@ -29,7 +29,7 @@ libsodium-sys-stable="1.19"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
 net2 = "0.2.33"
 parking_lot = "0.10"
-privdrop = "0.3.3"
+privdrop = "0.3.4"
 rand = "0.7"
 rustc-hash = "1"
 serde = "1.0"
