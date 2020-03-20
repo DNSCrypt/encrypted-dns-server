@@ -659,11 +659,8 @@ fn main() -> Result<(), Error> {
         ),
     };
     let access_control_tokens = match config.access_control {
-        None => None,
-        Some(access_control) => match access_control.enabled {
-            false => None,
-            true => Some(access_control.tokens),
-        },
+        Some(access_control) if access_control.enabled => Some(access_control.tokens),
+        _ => None,
     };
     let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
