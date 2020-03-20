@@ -231,7 +231,7 @@ blacklisted_ips = [ "93.184.216.34" ]
 
 [access_control]
 
-# Enabled access control
+# Enable access control
 
 enabled = false
 
