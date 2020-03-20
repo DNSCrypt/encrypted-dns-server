@@ -10,6 +10,12 @@ use std::path::{Path, PathBuf};
 use tokio::prelude::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AccessControlConfig {
+    pub enabled: bool,
+    pub tokens: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymizedDNSConfig {
     pub enabled: bool,
     pub allowed_ports: Vec<u16>,
@@ -79,6 +85,7 @@ pub struct Config {
     #[cfg(feature = "metrics")]
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,
+    pub access_control: Option<AccessControlConfig>,
 }
 
 impl Config {

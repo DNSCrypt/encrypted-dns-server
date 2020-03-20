@@ -105,6 +105,12 @@ fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
 }
 
 #[inline]
+fn arcount_clear(packet: &mut [u8]) -> Result<(), Error> {
+    BigEndian::write_u16(&mut packet[10..], 0);
+    Ok(())
+}
+
+#[inline]
 pub fn an_ns_ar_count_clear(packet: &mut [u8]) {
     packet[6..12].iter_mut().for_each(|x| *x = 0);
 }
@@ -312,13 +318,13 @@ fn traverse_rrs<F: FnMut(usize) -> Result<(), Error>>(
     for _ in 0..rrcount {
         offset = skip_name(packet, offset)?;
         ensure!(packet_len - offset >= 10, "Short packet");
-        cb(offset)?;
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
-        offset += 10;
         ensure!(
-            packet_len - offset >= rdlen,
+            packet_len - offset >= 10 + rdlen,
             "Record length would exceed packet length"
         );
+        cb(offset)?;
+        offset += 10;
         offset += rdlen;
     }
     Ok(offset)
@@ -334,13 +340,13 @@ fn traverse_rrs_mut<F: FnMut(&mut [u8], usize) -> Result<(), Error>>(
     for _ in 0..rrcount {
         offset = skip_name(packet, offset)?;
         ensure!(packet_len - offset >= 10, "Short packet");
-        cb(packet, offset)?;
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
-        offset += 10;
         ensure!(
-            packet_len - offset >= rdlen,
+            packet_len - offset >= 10 + rdlen,
             "Record length would exceed packet length"
         );
+        cb(packet, offset)?;
+        offset += 10;
         offset += rdlen;
     }
     Ok(offset)
@@ -500,6 +506,73 @@ pub fn qtype_qclass(packet: &[u8]) -> Result<(u16, u16), Error> {
     let qtype = BigEndian::read_u16(&packet[offset..]);
     let qclass = BigEndian::read_u16(&packet[offset + 2..]);
     Ok((qtype, qclass))
+}
+
+fn parse_txt_rrdata<F: FnMut(&str) -> Result<(), Error>>(
+    rrdata: &[u8],
+    mut cb: F,
+) -> Result<(), Error> {
+    let rrdata_len = rrdata.len();
+    let mut offset = 0;
+    while offset < rrdata_len {
+        let part_len = rrdata[offset] as usize;
+        if part_len == 0 {
+            break;
+        }
+        ensure!(rrdata_len - offset > part_len, "Short TXT RR data");
+        offset += 1;
+        let part_bin = &rrdata[offset..offset + part_len];
+        let part = std::str::from_utf8(part_bin)?;
+        cb(part)?;
+        offset += part_len;
+    }
+    Ok(())
+}
+
+pub fn query_meta(packet: &mut Vec<u8>) -> Result<Option<String>, Error> {
+    let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
+    ensure!(qdcount(packet) == 1, "No question");
+    let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
+    assert!(offset > DNS_OFFSET_QUESTION);
+    ensure!(packet_len - offset >= 4, "Short packet");
+    offset += 4;
+    let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
+    offset = traverse_rrs(
+        packet,
+        offset,
+        ancount as usize + nscount as usize,
+        |_offset| Ok(()),
+    )?;
+    let mut token = None;
+    traverse_rrs(packet, offset, arcount as _, |mut offset| {
+        let qtype = BigEndian::read_u16(&packet[offset..]);
+        let qclass = BigEndian::read_u16(&packet[offset + 2..]);
+        if qtype != DNS_TYPE_TXT || qclass != DNS_CLASS_INET {
+            return Ok(());
+        }
+        let len = BigEndian::read_u16(&packet[offset + 8..]) as usize;
+        offset += 10;
+        ensure!(packet_len - offset >= len, "Short packet");
+        let rrdata = &packet[offset..offset + len];
+        parse_txt_rrdata(rrdata, |txt| {
+            if txt.len() < 7 || !txt.starts_with("token:") {
+                return Ok(());
+            }
+            ensure!(token.is_none(), "Duplicate token");
+            let found_token = &txt[6..];
+            let found_token = found_token.to_owned();
+            token = Some(found_token);
+            Ok(())
+        })?;
+        Ok(())
+    })?;
+    if token.is_some() {
+        arcount_clear(packet)?;
+        packet.truncate(offset);
+    }
+    Ok(token)
 }
 
 pub fn serve_nxdomain_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {

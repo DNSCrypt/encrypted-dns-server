@@ -109,6 +109,10 @@ Putting it in a directory that is only readable by the super-user is not a bad i
 
 Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file.
 
+## Access control
+
+Access control can be enabled in the `[access_control]` section and configured with the `query_meta` configuration value of `dnscrypt-proxy`.
+
 ## Prometheus metrics
 
 Prometheus metrics can optionally be enabled in order to monitor performance, cache efficiency, and more.
