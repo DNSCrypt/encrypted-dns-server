@@ -660,6 +660,7 @@ fn main() -> Result<(), Error> {
     };
     let access_control_tokens = match config.access_control {
         Some(access_control) if access_control.enabled && !access_control.tokens.is_empty() => {
+            info!("Access control enabled");
             Some(access_control.tokens)
         }
         _ => None,
