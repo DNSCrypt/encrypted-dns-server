@@ -1,6 +1,6 @@
 [package]
 name = "encrypted-dns"
-version = "0.3.15"
+version = "0.3.16"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt v2, Anonymized DNSCrypt, DoH)"
@@ -32,11 +32,11 @@ parking_lot = "0.10.0"
 privdrop = "0.3.4"
 rand = "0.7.3"
 rustc-hash = "1.1.0"
-serde = "1.0.105"
-serde_derive = "1.0.105"
+serde = "1.0.106"
+serde_derive = "1.0.106"
 serde-big-array = "0.2.0"
 siphasher = "0.3.2"
-tokio = { version = "0.2.15", features = ["fs", "rt-threaded", "time", "tcp", "udp", "stream", "parking_lot"] }
+tokio = { version = "0.2.17", features = ["fs", "rt-threaded", "time", "tcp", "udp", "stream", "parking_lot"] }
 toml = "0.5.6"
 
 [dependencies.prometheus]
