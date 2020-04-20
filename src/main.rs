@@ -224,7 +224,8 @@ async fn handle_client_query(
             Some(token) => ensure!(tokens.contains(&token), "Access token not found"),
         }
     }
-    let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
+    let response =
+        resolver::get_cached_response_or_resolve(&globals, &client_ctx, &mut packet).await?;
     encrypt_and_respond_to_query(
         globals,
         client_ctx,

@@ -2,12 +2,13 @@ use crate::cache::*;
 use crate::dns::{self, *};
 use crate::errors::*;
 use crate::globals::*;
+use crate::ClientCtx;
 
 use byteorder::{BigEndian, ByteOrder};
 use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::hash::Hasher;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::prelude::*;
 
@@ -164,9 +165,21 @@ pub async fn resolve(
 
 pub async fn get_cached_response_or_resolve(
     globals: &Globals,
+    client_ctx: &ClientCtx,
     mut packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let packet_qname = dns::qname(&packet)?;
+    if &packet_qname == b"my.ip" {
+        let client_ip = match client_ctx {
+            ClientCtx::Udp(u) => u.client_addr,
+            ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
+        }
+        .ip();
+        return match client_ip {
+            IpAddr::V4(ip) => serve_a_response(packet.to_vec(), ip),
+            IpAddr::V6(ip) => serve_aaaa_response(packet.to_vec(), ip),
+        };
+    }
     if let Some(blacklist) = &globals.blacklist {
         if blacklist.find(&packet_qname) {
             #[cfg(feature = "metrics")]
