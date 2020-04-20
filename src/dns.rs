@@ -2,7 +2,7 @@ use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::IpAddr;
 use std::sync::Arc;
 
 pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
@@ -622,7 +622,7 @@ pub fn serve_blocked_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> 
     Ok(packet)
 }
 
-pub fn serve_a_response(client_packet: Vec<u8>, ip: Ipv4Addr) -> Result<Vec<u8>, Error> {
+pub fn serve_ip_response(client_packet: Vec<u8>, ip: IpAddr, ttl: u32) -> Result<Vec<u8>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&client_packet) == 1, "No question");
     ensure!(
@@ -637,31 +637,21 @@ pub fn serve_a_response(client_packet: Vec<u8>, ip: Ipv4Addr) -> Result<Vec<u8>,
     authoritative_response(&mut packet);
     ancount_inc(&mut packet)?;
     packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
-    packet.write_u16::<BigEndian>(DNS_TYPE_A)?;
-    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
-    packet.write_u32::<BigEndian>(60)?;
-    packet.extend_from_slice(&ip.octets());
-    Ok(packet)
-}
-
-pub fn serve_aaaa_response(client_packet: Vec<u8>, ip: Ipv6Addr) -> Result<Vec<u8>, Error> {
-    ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
-    ensure!(qdcount(&client_packet) == 1, "No question");
-    ensure!(
-        !is_response(&client_packet),
-        "Question expected, but got a response instead"
-    );
-    let offset = skip_name(&client_packet, DNS_HEADER_SIZE)?;
-    let mut packet = client_packet;
-    ensure!(packet.len() - offset >= 4, "Short packet");
-    packet.truncate(offset + 4);
-    an_ns_ar_count_clear(&mut packet);
-    authoritative_response(&mut packet);
-    ancount_inc(&mut packet)?;
-    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
-    packet.write_u16::<BigEndian>(DNS_TYPE_AAAA)?;
-    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
-    packet.write_u32::<BigEndian>(60)?;
-    packet.extend_from_slice(&ip.octets());
+    match ip {
+        IpAddr::V4(ip) => {
+            packet.write_u16::<BigEndian>(DNS_TYPE_A)?;
+            packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+            packet.write_u32::<BigEndian>(ttl)?;
+            packet.write_u16::<BigEndian>(4)?;
+            packet.extend_from_slice(&ip.octets());
+        }
+        IpAddr::V6(ip) => {
+            packet.write_u16::<BigEndian>(DNS_TYPE_AAAA)?;
+            packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+            packet.write_u32::<BigEndian>(ttl)?;
+            packet.write_u16::<BigEndian>(16)?;
+            packet.extend_from_slice(&ip.octets());
+        }
+    };
     Ok(packet)
 }

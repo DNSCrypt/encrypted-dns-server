@@ -704,6 +704,7 @@ fn main() -> Result<(), Error> {
         anonymized_dns_allow_non_reserved_ports,
         anonymized_dns_blacklisted_ips,
         access_control_tokens,
+        my_ip: config.my_ip.map(|ip| ip.as_bytes().to_ascii_lowercase()),
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
     });

@@ -49,6 +49,7 @@ pub struct Globals {
     pub anonymized_dns_allow_non_reserved_ports: bool,
     pub anonymized_dns_blacklisted_ips: Vec<IpAddr>,
     pub access_control_tokens: Option<Vec<String>>,
+    pub my_ip: Option<Vec<u8>>,
     #[cfg(feature = "metrics")]
     #[derivative(Debug = "ignore")]
     pub varz: Varz,

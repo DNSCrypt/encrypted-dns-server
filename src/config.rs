@@ -81,6 +81,7 @@ pub struct Config {
     pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,
+    pub my_ip: Option<String>,
     #[cfg(feature = "metrics")]
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,
