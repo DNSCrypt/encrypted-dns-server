@@ -21,7 +21,7 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 ### Option 1: precompiled binary for Linux
 
 Download the Encrypted DNS Server
-[precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/565691183/artifacts/3739886)
+[precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/612418335/artifacts/4698672)
 
 And make the application executable:
 
@@ -32,7 +32,7 @@ chmod +x encrypted-dns
 
 Nothing else has to be installed. It doesn't require any external dependencies.
 
-A [Debian package](https://github.com/jedisct1/encrypted-dns-server/suites/565691183/artifacts/3739885)
+A [Debian package](https://github.com/jedisct1/encrypted-dns-server/suites/612418335/artifacts/4698671)
 for Linux/x86_64 is also available.
 In this package, the example configuration file can be found in `/usr/share/doc/encrypted-dns/`.
 
