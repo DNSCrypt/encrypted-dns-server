@@ -226,7 +226,13 @@ pub async fn get_cached_response_or_resolve(
                 #[cfg(feature = "metrics")]
                 globals.varz.client_queries_cached.inc();
                 cached_response.set_tid(original_tid);
+                let mut ttl = cached_response.ttl();
+                if ttl < globals.client_ttl_jitter {
+                    let jitter = rand::thread_rng().gen::<u32>() % globals.client_ttl_jitter;
+                    ttl = globals.client_ttl_jitter.saturating_add(jitter);
+                }
                 let mut response = cached_response.into_response();
+                dns::set_ttl(&mut response, ttl)?;
                 dns::recase_qname(&mut response, &packet_qname)?;
                 return Ok(response);
             }

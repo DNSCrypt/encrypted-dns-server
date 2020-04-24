@@ -30,6 +30,10 @@ impl CachedResponse {
     pub fn has_expired(&self) -> bool {
         Instant::recent() > self.expiry
     }
+
+    pub fn ttl(&self) -> u32 {
+        (self.expiry - Instant::recent()).as_secs() as _
+    }
 }
 
 #[derive(Clone, Derivative)]
@@ -37,9 +41,9 @@ impl CachedResponse {
 pub struct Cache {
     #[derivative(Debug = "ignore")]
     cache: Arc<Mutex<ClockProCache<u128, CachedResponse>>>,
-    ttl_min: u32,
-    ttl_max: u32,
-    ttl_error: u32,
+    pub ttl_min: u32,
+    pub ttl_max: u32,
+    pub ttl_error: u32,
 }
 
 impl Cache {

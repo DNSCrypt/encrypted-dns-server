@@ -82,6 +82,7 @@ pub struct Config {
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,
     pub my_ip: Option<String>,
+    pub client_ttl_jitter: Option<u32>,
     #[cfg(feature = "metrics")]
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,

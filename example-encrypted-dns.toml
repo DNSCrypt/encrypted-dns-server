@@ -83,6 +83,13 @@ cache_ttl_max = 86400
 cache_ttl_error = 600
 
 
+## DNS cache: to avoid bursts of traffic when an RRSET expires,
+## introduce jitter to the decreasing TTL sent to clients when the
+## actual TTL goes below that value.
+
+client_ttl_jitter = 60
+
+
 ## Run as a background process
 
 daemonize = false

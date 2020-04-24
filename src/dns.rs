@@ -381,6 +381,28 @@ pub fn min_ttl(packet: &[u8], min_ttl: u32, max_ttl: u32, failure_ttl: u32) -> R
     Ok(found_min_ttl)
 }
 
+pub fn set_ttl(packet: &mut [u8], ttl: u32) -> Result<(), Error> {
+    let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
+    ensure!(qdcount(packet) == 1, "No question");
+    let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
+    assert!(offset > DNS_OFFSET_QUESTION);
+    ensure!(packet_len - offset > 4, "Short packet");
+    offset += 4;
+    let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
+    let rrcount = ancount as usize + nscount as usize + arcount as usize;
+    offset = traverse_rrs_mut(packet, offset, rrcount, |packet, offset| {
+        let qtype = BigEndian::read_u16(&packet[offset..]);
+        if qtype != DNS_TYPE_OPT {
+            BigEndian::write_u32(&mut packet[offset + 4..], ttl)
+        }
+        Ok(())
+    })?;
+    ensure!(packet_len == offset, "Garbage after packet");
+    Ok(())
+}
+
 fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), Error> {
     let opt_rr: [u8; 11] = [
         0,
