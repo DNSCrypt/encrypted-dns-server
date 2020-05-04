@@ -23,7 +23,7 @@ impl Signature {
     }
 }
 
-big_array! { BigArray; }
+big_array! { BigArray; crypto_sign_SECRETKEYBYTES as usize }
 
 #[derive(Serialize, Deserialize, Derivative, Clone)]
 #[derivative(Default)]

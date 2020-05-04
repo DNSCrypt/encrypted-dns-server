@@ -38,7 +38,7 @@ impl DNSCryptCertInner {
     }
 }
 
-big_array! { BigArray; }
+big_array! { BigArray; 64 }
 
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Debug, Default, Clone)]
