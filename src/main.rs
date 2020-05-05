@@ -705,7 +705,7 @@ fn main() -> Result<(), Error> {
         anonymized_dns_blacklisted_ips,
         access_control_tokens,
         my_ip: config.my_ip.map(|ip| ip.as_bytes().to_ascii_lowercase()),
-        client_ttl_jitter: config.client_ttl_jitter.unwrap_or(60),
+        client_ttl_holdon: config.client_ttl_holdon.unwrap_or(60),
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
     });

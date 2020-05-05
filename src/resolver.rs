@@ -7,6 +7,7 @@ use crate::ClientCtx;
 use byteorder::{BigEndian, ByteOrder};
 use rand::prelude::*;
 use siphasher::sip128::Hasher128;
+use std::cmp;
 use std::hash::Hasher;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::net::{TcpStream, UdpSocket};
@@ -226,11 +227,12 @@ pub async fn get_cached_response_or_resolve(
                 #[cfg(feature = "metrics")]
                 globals.varz.client_queries_cached.inc();
                 cached_response.set_tid(original_tid);
+                let original_ttl = cached_response.original_ttl();
                 let mut ttl = cached_response.ttl();
-                if ttl < globals.client_ttl_jitter {
-                    let jitter = rand::thread_rng().gen::<u32>() % globals.client_ttl_jitter;
-                    ttl = globals.client_ttl_jitter.saturating_add(jitter);
+                if ttl.saturating_add(globals.client_ttl_holdon) > original_ttl {
+                    ttl = original_ttl;
                 }
+                ttl = cmp::max(1, ttl);
                 let mut response = cached_response.into_response();
                 dns::set_ttl(&mut response, ttl)?;
                 dns::recase_qname(&mut response, &packet_qname)?;
