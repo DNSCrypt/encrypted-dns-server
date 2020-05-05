@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.28"
 byteorder = "1.3.4"
-clap = { version = "2.33.0", default-features = false, features = ["wrap_help", "nightly"] }
+clap = { version = "2.33.0", default-features = false, features = ["wrap_help"] }
 clockpro-cache = "0.1.8"
 coarsetime = "0.1.13"
 daemonize-simple = "0.1.4"
