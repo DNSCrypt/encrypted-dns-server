@@ -241,11 +241,37 @@ async fn tls_proxy(
         Some(tls_upstream_addr) => tls_upstream_addr,
     };
     let std_socket = match globals.external_addr {
-        Some(x @ SocketAddr::V4(_)) => net2::TcpBuilder::new_v4()?.bind(&x)?.to_tcp_stream()?,
-        Some(x @ SocketAddr::V6(_)) => net2::TcpBuilder::new_v6()?.bind(&x)?.to_tcp_stream()?,
+        Some(x @ SocketAddr::V4(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_tcp_stream()
+        }
+        Some(x @ SocketAddr::V6(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_tcp_stream()
+        }
         None => match tls_upstream_addr {
-            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?.to_tcp_stream()?,
-            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
+            SocketAddr::V4(_) => socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?
+            .into_tcp_stream(),
+            SocketAddr::V6(_) => socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?
+            .into_tcp_stream(),
         },
     };
     let mut ext_socket = TcpStream::connect_std(std_socket, tls_upstream_addr).await?;
@@ -397,28 +423,52 @@ fn bind_listeners(
     let mut sockets = Vec::with_capacity(listen_addrs.len());
     for listen_addr in listen_addrs {
         let tcp_listener = match listen_addr {
-            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
-                .reuse_address(true)?
-                .bind(&listen_addr)?
-                .listen(1024)?,
-            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
-                .reuse_address(true)?
-                .only_v6(true)?
-                .bind(&listen_addr)?
-                .listen(1024)?,
+            SocketAddr::V4(_) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv4(),
+                    socket2::Type::stream(),
+                    Some(socket2::Protocol::tcp()),
+                )?;
+                kindy.set_reuse_address(true)?;
+                kindy.bind(&(*listen_addr).into())?;
+                kindy.listen(1024)?;
+                kindy.into_tcp_listener()
+            }
+            SocketAddr::V6(_) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv6(),
+                    socket2::Type::stream(),
+                    Some(socket2::Protocol::tcp()),
+                )?;
+                kindy.set_reuse_address(true)?;
+                kindy.set_only_v6(true)?;
+                kindy.bind(&(*listen_addr).into())?;
+                kindy.listen(1024)?;
+                kindy.into_tcp_listener()
+            }
         };
-        let std_socket = match listen_addr {
-            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
-                .reuse_address(true)?
-                .bind(&listen_addr),
-            SocketAddr::V6(_) => net2::UdpBuilder::new_v6()?
-                .reuse_address(true)?
-                .only_v6(true)?
-                .bind(&listen_addr),
-        };
-        let udp_socket = match std_socket {
-            Ok(udp_socket) => udp_socket,
-            Err(e) => bail!("{}/UDP: {}", listen_addr, e),
+        let udp_socket = match listen_addr {
+            SocketAddr::V4(_) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv4(),
+                    socket2::Type::dgram(),
+                    Some(socket2::Protocol::udp()),
+                )?;
+                kindy.set_reuse_address(true)?;
+                kindy.bind(&(*listen_addr).into())?;
+                kindy.into_udp_socket()
+            }
+            SocketAddr::V6(_) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv6(),
+                    socket2::Type::dgram(),
+                    Some(socket2::Protocol::udp()),
+                )?;
+                kindy.set_reuse_address(true)?;
+                kindy.set_only_v6(true)?;
+                kindy.bind(&(*listen_addr).into())?;
+                kindy.into_udp_socket()
+            }
         };
         sockets.push((tcp_listener, udp_socket))
     }

@@ -16,10 +16,10 @@ anyhow = "1.0"
 byteorder = "1.3"
 clap = { version="2.33", default-features = false, features=["wrap_help", "nightly"] }
 clockpro-cache = "0.1.8"
-coarsetime = "0.1.12"
+coarsetime = "0.1.13"
 daemonize-simple = "0.1.4"
-derivative = "1.0.3"
-dnsstamps = "0.1.3"
+derivative = "2.1.1"
+dnsstamps = "0.1.4"
 env_logger = { version = "0.7.1", default-features = false, features = ["humantime"] }
 futures = { version = "0.3", features = ["async-await"] }
 hyper = { version = "0.13", default_features = false, optional = true }
@@ -27,21 +27,21 @@ ipext = "0.1"
 jemallocator = "0.3"
 libsodium-sys-stable="1.19"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
-net2 = "0.2.33"
+socket2 = "0.3"
 parking_lot = "0.10"
 privdrop = "0.3.4"
 rand = "0.7"
 rustc-hash = "1"
 serde = "1.0"
 serde_derive = "1.0"
-serde-big-array = "0.2"
+serde-big-array = "0.3.0"
 siphasher = "0.3"
 tokio = { version = "0.2.11", features = ["fs", "rt-threaded", "time", "tcp", "udp", "stream", "parking_lot"] }
 toml = "0.5"
 
 [dependencies.prometheus]
 optional = true
-version = "0.7"
+version = "0.9.0"
 default_features = false
 features = ["process"]
 

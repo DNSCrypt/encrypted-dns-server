@@ -53,15 +53,29 @@ pub async fn prometheus_service(
 ) -> Result<(), Error> {
     let path = Arc::new(metrics_config.path);
     let std_socket = match metrics_config.listen_addr {
-        SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?
-            .reuse_address(true)?
-            .bind(&metrics_config.listen_addr)?
-            .listen(1024)?,
-        SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?
-            .reuse_address(true)?
-            .only_v6(true)?
-            .bind(&metrics_config.listen_addr)?
-            .listen(1024)?,
+        SocketAddr::V4(_) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.set_reuse_address(true)?;
+            kindy.bind(&metrics_config.listen_addr.into())?;
+            kindy.listen(1024)?;
+            kindy.into_tcp_listener()
+        }
+        SocketAddr::V6(_) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.set_reuse_address(true)?;
+            kindy.set_only_v6(true)?;
+            kindy.bind(&metrics_config.listen_addr.into())?;
+            kindy.listen(1024)?;
+            kindy.into_tcp_listener()
+        }
     };
     let mut stream = TcpListener::from_std(std_socket)?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));

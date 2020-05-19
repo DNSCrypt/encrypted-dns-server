@@ -7,7 +7,7 @@ use byteorder::{BigEndian, ByteOrder};
 use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::hash::Hasher;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use tokio::net::{TcpStream, UdpSocket};
 use tokio::prelude::*;
 
@@ -19,14 +19,50 @@ pub async fn resolve_udp(
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
     let std_socket = match globals.external_addr {
-        Some(x @ SocketAddr::V4(_)) => net2::UdpBuilder::new_v4()?.bind(&x)?,
-        Some(x @ SocketAddr::V6(_)) => net2::UdpBuilder::new_v6()?.bind(&x)?,
+        Some(x @ SocketAddr::V4(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::dgram(),
+                Some(socket2::Protocol::udp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_udp_socket()
+        }
+        Some(x @ SocketAddr::V6(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::dgram(),
+                Some(socket2::Protocol::udp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_udp_socket()
+        }
         None => match globals.upstream_addr {
-            SocketAddr::V4(_) => net2::UdpBuilder::new_v4()?
-                .bind(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0)))?,
-            SocketAddr::V6(s) => net2::UdpBuilder::new_v6()?.bind(SocketAddr::V6(
-                SocketAddrV6::new(Ipv6Addr::UNSPECIFIED, 0, s.flowinfo(), s.scope_id()),
-            ))?,
+            SocketAddr::V4(_) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv4(),
+                    socket2::Type::dgram(),
+                    Some(socket2::Protocol::udp()),
+                )?;
+                kindy.into_udp_socket()
+            }
+            SocketAddr::V6(s) => {
+                let kindy = socket2::Socket::new(
+                    socket2::Domain::ipv6(),
+                    socket2::Type::dgram(),
+                    Some(socket2::Protocol::udp()),
+                )?;
+                kindy.bind(
+                    &SocketAddr::V6(SocketAddrV6::new(
+                        Ipv6Addr::UNSPECIFIED,
+                        0,
+                        s.flowinfo(),
+                        s.scope_id(),
+                    ))
+                    .into(),
+                )?;
+                kindy.into_udp_socket()
+            }
         },
     };
     let mut ext_socket = UdpSocket::from_std(std_socket)?;
@@ -73,11 +109,37 @@ pub async fn resolve_tcp(
     tid: u16,
 ) -> Result<Vec<u8>, Error> {
     let std_socket = match globals.external_addr {
-        Some(x @ SocketAddr::V4(_)) => net2::TcpBuilder::new_v4()?.bind(&x)?.to_tcp_stream()?,
-        Some(x @ SocketAddr::V6(_)) => net2::TcpBuilder::new_v6()?.bind(&x)?.to_tcp_stream()?,
+        Some(x @ SocketAddr::V4(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_tcp_stream()
+        }
+        Some(x @ SocketAddr::V6(_)) => {
+            let kindy = socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?;
+            kindy.bind(&x.into())?;
+            kindy.into_tcp_stream()
+        }
         None => match globals.upstream_addr {
-            SocketAddr::V4(_) => net2::TcpBuilder::new_v4()?.to_tcp_stream()?,
-            SocketAddr::V6(_) => net2::TcpBuilder::new_v6()?.to_tcp_stream()?,
+            SocketAddr::V4(_) => socket2::Socket::new(
+                socket2::Domain::ipv4(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?
+            .into_tcp_stream(),
+            SocketAddr::V6(_) => socket2::Socket::new(
+                socket2::Domain::ipv6(),
+                socket2::Type::stream(),
+                Some(socket2::Protocol::tcp()),
+            )?
+            .into_tcp_stream(),
         },
     };
     let mut ext_socket = TcpStream::connect_std(std_socket, &globals.upstream_addr).await?;
