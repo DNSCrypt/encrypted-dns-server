@@ -2,10 +2,12 @@ use crate::cache::*;
 use crate::dns::{self, *};
 use crate::errors::*;
 use crate::globals::*;
+use crate::ClientCtx;
 
 use byteorder::{BigEndian, ByteOrder};
 use rand::prelude::*;
 use siphasher::sip128::Hasher128;
+use std::cmp;
 use std::hash::Hasher;
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 use tokio::net::{TcpStream, UdpSocket};
@@ -226,9 +228,20 @@ pub async fn resolve(
 
 pub async fn get_cached_response_or_resolve(
     globals: &Globals,
+    client_ctx: &ClientCtx,
     mut packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let packet_qname = dns::qname(&packet)?;
+    if let Some(my_ip) = &globals.my_ip {
+        if &packet_qname.to_ascii_lowercase() == my_ip {
+            let client_ip = match client_ctx {
+                ClientCtx::Udp(u) => u.client_addr,
+                ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
+            }
+            .ip();
+            return serve_ip_response(packet.to_vec(), client_ip, 1);
+        }
+    }
     if let Some(blacklist) = &globals.blacklist {
         if blacklist.find(&packet_qname) {
             #[cfg(feature = "metrics")]
@@ -276,7 +289,14 @@ pub async fn get_cached_response_or_resolve(
                 #[cfg(feature = "metrics")]
                 globals.varz.client_queries_cached.inc();
                 cached_response.set_tid(original_tid);
+                let original_ttl = cached_response.original_ttl();
+                let mut ttl = cached_response.ttl();
+                if ttl.saturating_add(globals.client_ttl_holdon) > original_ttl {
+                    ttl = original_ttl;
+                }
+                ttl = cmp::max(1, ttl);
                 let mut response = cached_response.into_response();
+                dns::set_ttl(&mut response, ttl)?;
                 dns::recase_qname(&mut response, &packet_qname)?;
                 return Ok(response);
             }

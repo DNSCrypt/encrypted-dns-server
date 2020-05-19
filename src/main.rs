@@ -218,7 +218,14 @@ async fn handle_client_query(
         !dns::is_response(&packet),
         "Question expected, but got a response instead"
     );
-    let response = resolver::get_cached_response_or_resolve(&globals, &mut packet).await?;
+    if let Some(tokens) = &globals.access_control_tokens {
+        match query_meta(&mut packet)? {
+            None => bail!("No access token"),
+            Some(token) => ensure!(tokens.contains(&token), "Access token not found"),
+        }
+    }
+    let response =
+        resolver::get_cached_response_or_resolve(&globals, &client_ctx, &mut packet).await?;
     encrypt_and_respond_to_query(
         globals,
         client_ctx,
@@ -702,6 +709,13 @@ fn main() -> Result<(), Error> {
             anonymized_dns.blacklisted_ips,
         ),
     };
+    let access_control_tokens = match config.access_control {
+        Some(access_control) if access_control.enabled && !access_control.tokens.is_empty() => {
+            info!("Access control enabled");
+            Some(access_control.tokens)
+        }
+        _ => None,
+    };
     let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
         runtime_handle: runtime_handle.clone(),
@@ -739,6 +753,9 @@ fn main() -> Result<(), Error> {
         anonymized_dns_allowed_ports,
         anonymized_dns_allow_non_reserved_ports,
         anonymized_dns_blacklisted_ips,
+        access_control_tokens,
+        my_ip: config.my_ip.map(|ip| ip.as_bytes().to_ascii_lowercase()),
+        client_ttl_holdon: config.client_ttl_holdon.unwrap_or(60),
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
     });

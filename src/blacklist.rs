@@ -43,7 +43,7 @@ impl BlackList {
             while line.ends_with('.') {
                 line = &line[..line.len() - 1];
             }
-            let qname = line.as_bytes().to_vec().to_ascii_lowercase();
+            let qname = line.as_bytes().to_ascii_lowercase();
             if qname.is_empty() {
                 bail!("Unexpected blacklist rule at line {}", line_nb)
             }
@@ -53,7 +53,7 @@ impl BlackList {
     }
 
     pub fn find(&self, qname: &[u8]) -> bool {
-        let qname = qname.to_vec().to_ascii_lowercase();
+        let qname = qname.to_ascii_lowercase();
         let mut qname = qname.as_slice();
         let map = &self.inner.map;
         let mut iterations = self.max_iterations;

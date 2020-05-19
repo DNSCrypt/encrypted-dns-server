@@ -2,6 +2,7 @@ use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use std::net::IpAddr;
 use std::sync::Arc;
 
 pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
@@ -101,6 +102,12 @@ fn arcount_inc(packet: &mut [u8]) -> Result<(), Error> {
     ensure!(arcount < 0xffff, "Too many additional records");
     arcount += 1;
     BigEndian::write_u16(&mut packet[10..], arcount);
+    Ok(())
+}
+
+#[inline]
+fn arcount_clear(packet: &mut [u8]) -> Result<(), Error> {
+    BigEndian::write_u16(&mut packet[10..], 0);
     Ok(())
 }
 
@@ -312,13 +319,13 @@ fn traverse_rrs<F: FnMut(usize) -> Result<(), Error>>(
     for _ in 0..rrcount {
         offset = skip_name(packet, offset)?;
         ensure!(packet_len - offset >= 10, "Short packet");
-        cb(offset)?;
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
-        offset += 10;
         ensure!(
-            packet_len - offset >= rdlen,
+            packet_len - offset >= 10 + rdlen,
             "Record length would exceed packet length"
         );
+        cb(offset)?;
+        offset += 10;
         offset += rdlen;
     }
     Ok(offset)
@@ -334,13 +341,13 @@ fn traverse_rrs_mut<F: FnMut(&mut [u8], usize) -> Result<(), Error>>(
     for _ in 0..rrcount {
         offset = skip_name(packet, offset)?;
         ensure!(packet_len - offset >= 10, "Short packet");
-        cb(packet, offset)?;
         let rdlen = BigEndian::read_u16(&packet[offset + 8..]) as usize;
-        offset += 10;
         ensure!(
-            packet_len - offset >= rdlen,
+            packet_len - offset >= 10 + rdlen,
             "Record length would exceed packet length"
         );
+        cb(packet, offset)?;
+        offset += 10;
         offset += rdlen;
     }
     Ok(offset)
@@ -372,6 +379,28 @@ pub fn min_ttl(packet: &[u8], min_ttl: u32, max_ttl: u32, failure_ttl: u32) -> R
     }
     ensure!(packet_len == offset, "Garbage after packet");
     Ok(found_min_ttl)
+}
+
+pub fn set_ttl(packet: &mut [u8], ttl: u32) -> Result<(), Error> {
+    let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
+    ensure!(qdcount(packet) == 1, "No question");
+    let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
+    assert!(offset > DNS_OFFSET_QUESTION);
+    ensure!(packet_len - offset > 4, "Short packet");
+    offset += 4;
+    let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
+    let rrcount = ancount as usize + nscount as usize + arcount as usize;
+    offset = traverse_rrs_mut(packet, offset, rrcount, |packet, offset| {
+        let qtype = BigEndian::read_u16(&packet[offset..]);
+        if qtype != DNS_TYPE_OPT {
+            BigEndian::write_u32(&mut packet[offset + 4..], ttl)
+        }
+        Ok(())
+    })?;
+    ensure!(packet_len == offset, "Garbage after packet");
+    Ok(())
 }
 
 fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), Error> {
@@ -502,6 +531,73 @@ pub fn qtype_qclass(packet: &[u8]) -> Result<(u16, u16), Error> {
     Ok((qtype, qclass))
 }
 
+fn parse_txt_rrdata<F: FnMut(&str) -> Result<(), Error>>(
+    rrdata: &[u8],
+    mut cb: F,
+) -> Result<(), Error> {
+    let rrdata_len = rrdata.len();
+    let mut offset = 0;
+    while offset < rrdata_len {
+        let part_len = rrdata[offset] as usize;
+        if part_len == 0 {
+            break;
+        }
+        ensure!(rrdata_len - offset > part_len, "Short TXT RR data");
+        offset += 1;
+        let part_bin = &rrdata[offset..offset + part_len];
+        let part = std::str::from_utf8(part_bin)?;
+        cb(part)?;
+        offset += part_len;
+    }
+    Ok(())
+}
+
+pub fn query_meta(packet: &mut Vec<u8>) -> Result<Option<String>, Error> {
+    let packet_len = packet.len();
+    ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
+    ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
+    ensure!(qdcount(packet) == 1, "No question");
+    let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
+    assert!(offset > DNS_OFFSET_QUESTION);
+    ensure!(packet_len - offset >= 4, "Short packet");
+    offset += 4;
+    let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
+    offset = traverse_rrs(
+        packet,
+        offset,
+        ancount as usize + nscount as usize,
+        |_offset| Ok(()),
+    )?;
+    let mut token = None;
+    traverse_rrs(packet, offset, arcount as _, |mut offset| {
+        let qtype = BigEndian::read_u16(&packet[offset..]);
+        let qclass = BigEndian::read_u16(&packet[offset + 2..]);
+        if qtype != DNS_TYPE_TXT || qclass != DNS_CLASS_INET {
+            return Ok(());
+        }
+        let len = BigEndian::read_u16(&packet[offset + 8..]) as usize;
+        offset += 10;
+        ensure!(packet_len - offset >= len, "Short packet");
+        let rrdata = &packet[offset..offset + len];
+        parse_txt_rrdata(rrdata, |txt| {
+            if txt.len() < 7 || !txt.starts_with("token:") {
+                return Ok(());
+            }
+            ensure!(token.is_none(), "Duplicate token");
+            let found_token = &txt[6..];
+            let found_token = found_token.to_owned();
+            token = Some(found_token);
+            Ok(())
+        })?;
+        Ok(())
+    })?;
+    if token.is_some() {
+        arcount_clear(packet)?;
+        packet.truncate(offset);
+    }
+    Ok(token)
+}
+
 pub fn serve_nxdomain_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(&client_packet) == 1, "No question");
@@ -545,5 +641,39 @@ pub fn serve_blocked_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error> 
     packet.extend_from_slice(hinfo_cpu);
     packet.push(hinfo_rdata.len() as u8);
     packet.extend_from_slice(hinfo_rdata);
+    Ok(packet)
+}
+
+pub fn serve_ip_response(client_packet: Vec<u8>, ip: IpAddr, ttl: u32) -> Result<Vec<u8>, Error> {
+    ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
+    ensure!(qdcount(&client_packet) == 1, "No question");
+    ensure!(
+        !is_response(&client_packet),
+        "Question expected, but got a response instead"
+    );
+    let offset = skip_name(&client_packet, DNS_HEADER_SIZE)?;
+    let mut packet = client_packet;
+    ensure!(packet.len() - offset >= 4, "Short packet");
+    packet.truncate(offset + 4);
+    an_ns_ar_count_clear(&mut packet);
+    authoritative_response(&mut packet);
+    ancount_inc(&mut packet)?;
+    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
+    match ip {
+        IpAddr::V4(ip) => {
+            packet.write_u16::<BigEndian>(DNS_TYPE_A)?;
+            packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+            packet.write_u32::<BigEndian>(ttl)?;
+            packet.write_u16::<BigEndian>(4)?;
+            packet.extend_from_slice(&ip.octets());
+        }
+        IpAddr::V6(ip) => {
+            packet.write_u16::<BigEndian>(DNS_TYPE_AAAA)?;
+            packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+            packet.write_u32::<BigEndian>(ttl)?;
+            packet.write_u16::<BigEndian>(16)?;
+            packet.extend_from_slice(&ip.octets());
+        }
+    };
     Ok(packet)
 }

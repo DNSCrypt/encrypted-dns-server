@@ -2,12 +2,17 @@ use crate::crypto::*;
 use crate::dnscrypt_certs::*;
 use crate::errors::*;
 
-use std::fs::File;
-use std::io::prelude::*;
+use std::fs;
 use std::mem;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 use tokio::prelude::*;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AccessControlConfig {
+    pub enabled: bool,
+    pub tokens: Vec<String>,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymizedDNSConfig {
@@ -76,9 +81,12 @@ pub struct Config {
     pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,
+    pub my_ip: Option<String>,
+    pub client_ttl_holdon: Option<u32>,
     #[cfg(feature = "metrics")]
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,
+    pub access_control: Option<AccessControlConfig>,
 }
 
 impl Config {
@@ -91,9 +99,7 @@ impl Config {
     }
 
     pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Config, Error> {
-        let mut fd = File::open(path)?;
-        let mut toml = String::new();
-        fd.read_to_string(&mut toml)?;
+        let toml = fs::read_to_string(path)?;
         Config::from_string(&toml)
     }
 }
@@ -135,9 +141,7 @@ impl State {
     }
 
     pub fn from_file<P: AsRef<Path>>(path: P, key_cache_capacity: usize) -> Result<Self, Error> {
-        let mut fp = File::open(path.as_ref())?;
-        let mut state_bin = vec![];
-        fp.read_to_end(&mut state_bin)?;
+        let state_bin = fs::read(path)?;
         let mut state: State = toml::from_slice(&state_bin)?;
         for params_set in &mut state.dnscrypt_encryption_params_set {
             params_set.add_key_cache(key_cache_capacity);
