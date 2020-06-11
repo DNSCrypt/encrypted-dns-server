@@ -98,7 +98,7 @@ impl Config {
         Ok(config)
     }
 
-    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Config, Error> {
+    pub fn from_path(path: impl AsRef<Path>) -> Result<Config, Error> {
         let toml = fs::read_to_string(path)?;
         Config::from_string(&toml)
     }
@@ -127,7 +127,7 @@ impl State {
         State::with_key_pair(provider_kp, key_cache_capacity)
     }
 
-    pub async fn async_save<P: AsRef<Path>>(&self, path: P) -> Result<(), Error> {
+    pub async fn async_save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
         let path_tmp = path.as_ref().with_extension("tmp");
         let mut fpb = tokio::fs::OpenOptions::new();
         let fpb = fpb.create(true).write(true);
@@ -140,7 +140,7 @@ impl State {
         Ok(())
     }
 
-    pub fn from_file<P: AsRef<Path>>(path: P, key_cache_capacity: usize) -> Result<Self, Error> {
+    pub fn from_file(path: impl AsRef<Path>, key_cache_capacity: usize) -> Result<Self, Error> {
         let state_bin = fs::read(path)?;
         let mut state: State = toml::from_slice(&state_bin)?;
         for params_set in &mut state.dnscrypt_encryption_params_set {

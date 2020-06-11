@@ -28,7 +28,7 @@ impl BlackList {
         }
     }
 
-    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, Error> {
+    pub fn load(path: impl AsRef<Path>) -> Result<Self, Error> {
         let mut map = FxHashMap::default();
         let fp = BufReader::new(File::open(path)?);
         for (line_nb, line) in fp.lines().enumerate() {
