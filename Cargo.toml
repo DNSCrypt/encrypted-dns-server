@@ -28,7 +28,7 @@ jemallocator = "0.3.2"
 libsodium-sys-stable= "1.19.5"
 log = { version = "0.4.8", features = ["std", "release_max_level_debug"] }
 socket2 = "0.3"
-parking_lot = "0.10"
+parking_lot = "0.11"
 privdrop = "0.3.4"
 rand = "0.7"
 rustc-hash = "1"
