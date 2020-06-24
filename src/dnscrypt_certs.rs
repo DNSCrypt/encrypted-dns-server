@@ -22,7 +22,7 @@ fn now() -> u32 {
         .as_secs() as _
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, Copy, Clone, Serialize, Deserialize)]
 #[repr(C, packed)]
 pub struct DNSCryptCertInner {
     resolver_pk: [u8; 32],
