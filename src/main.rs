@@ -74,6 +74,8 @@ use tokio::prelude::*;
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
 
+const TCP_BACKLOG: i32 = 1024;
+
 #[derive(Debug)]
 pub struct UdpClientCtx {
     net_udp_socket: std::net::UdpSocket,
@@ -438,7 +440,7 @@ fn bind_listeners(
                 )?;
                 kindy.set_reuse_address(true)?;
                 kindy.bind(&(*listen_addr).into())?;
-                kindy.listen(1024)?;
+                kindy.listen(TCP_BACKLOG as _)?;
                 kindy.into_tcp_listener()
             }
             SocketAddr::V6(_) => {
@@ -450,7 +452,7 @@ fn bind_listeners(
                 kindy.set_reuse_address(true)?;
                 kindy.set_only_v6(true)?;
                 kindy.bind(&(*listen_addr).into())?;
-                kindy.listen(1024)?;
+                kindy.listen(TCP_BACKLOG as _)?;
                 kindy.into_tcp_listener()
             }
         };
