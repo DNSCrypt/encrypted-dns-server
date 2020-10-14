@@ -29,7 +29,7 @@ libsodium-sys-stable= "1.19.10"
 log = { version = "0.4.11", features = ["std", "release_max_level_debug"] }
 socket2 = "0.3"
 parking_lot = "0.11"
-privdrop = "0.3.4"
+privdrop = "0.5.0"
 rand = "0.7"
 rustc-hash = "1"
 serde = "1.0"
