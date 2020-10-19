@@ -20,7 +20,7 @@ coarsetime = "0.1.16"
 daemonize-simple = "0.1.4"
 derivative = "2.1.1"
 dnsstamps = "0.1.4"
-env_logger = { version = "0.7.1", default-features = false, features = ["humantime"] }
+env_logger = { version = "0.8.1", default-features = false, features = ["humantime"] }
 futures = { version = "0.3.5", features = ["async-await"] }
 hyper = { version = "0.13.8", default_features = false, optional = true }
 ipext = "0.1.0"
