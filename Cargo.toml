@@ -12,7 +12,7 @@ categories = ["asynchronous", "network-programming","command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.32"
+anyhow = "1.0.33"
 byteorder = "1.3.4"
 clap = { version = "2.33.3", default-features = false, features = ["wrap_help"] }
 clockpro-cache = "0.1.8"
@@ -20,16 +20,16 @@ coarsetime = "0.1.16"
 daemonize-simple = "0.1.4"
 derivative = "2.1.1"
 dnsstamps = "0.1.4"
-env_logger = { version = "0.7.1", default-features = false, features = ["humantime"] }
-futures = { version = "0.3.5", features = ["async-await"] }
+env_logger = { version = "0.8.1", default-features = false, features = ["humantime"] }
+futures = { version = "0.3.6", features = ["async-await"] }
 hyper = { version = "0.13.8", default_features = false, optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
-libsodium-sys-stable= "1.19.10"
+libsodium-sys-stable= "1.19.11"
 log = { version = "0.4.11", features = ["std", "release_max_level_debug"] }
 socket2 = "0.3"
 parking_lot = "0.11"
-privdrop = "0.3.4"
+privdrop = "0.5.0"
 rand = "0.7"
 rustc-hash = "1"
 serde = "1.0"
