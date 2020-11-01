@@ -20,25 +20,15 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 
 ### Option 1: precompiled binary for Linux
 
-Download the Encrypted DNS Server
-[precompiled application for Linux (x86_64)](https://github.com/jedisct1/encrypted-dns-server/suites/612418335/artifacts/4698672)
+Precompiled tarballs and Debian packages for Linux/x86_64 [can be downloaded here](https://github.com/jedisct1/encrypted-dns-server/releases/latest).
 
-And make the application executable:
+Nothing else has to be installed. The server doesn't require any external dependencies.
 
-```sh
-cd encrypted-dns-linux-x86_64
-chmod +x encrypted-dns
-```
-
-Nothing else has to be installed. It doesn't require any external dependencies.
-
-A [Debian package](https://github.com/jedisct1/encrypted-dns-server/suites/612418335/artifacts/4698671)
-for Linux/x86_64 is also available.
-In this package, the example configuration file can be found in `/usr/share/doc/encrypted-dns/`.
+In the Debian package, the example configuration file can be found in `/usr/share/doc/encrypted-dns/`.
 
 ### Option 2: compilation from source code
 
-The proxy uses recent features of the Rust compiler, and requires rust >= 1.0.39 or rust-nightly.
+The proxy requires rust >= 1.0.39 or rust-nightly.
 
 Rust can installed with:
 
