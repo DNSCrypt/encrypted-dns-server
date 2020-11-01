@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get the version
+        id: get_version
+        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
+
+      - uses: actions/checkout@master
+
+      - uses: hecrj/setup-rust-action@master
+        with:
+          rust-version: stable
+
+      - name: Check Cargo availability
+        run: cargo --version
+
+      - name: Check Rustup default toolchain
+        run: rustup default | grep stable
+
+      - name: Install cargo-deb
+        run: cargo install --debug cargo-deb
+
+      - name: Build
+        run: |
+          echo 'lto = "fat"' >> Cargo.toml
+          env RUSTFLAGS="-C link-arg=-s" cargo build --release
+          mkdir encrypted-dns
+          mv target/release/encrypted-dns encrypted-dns/
+          cp README.md example-encrypted-dns.toml encrypted-dns/
+          tar cJpf encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2 encrypted-dns
+      - name: Debian package
+        run: |
+          cargo deb
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: true
+          prerelease: false
+
+      - name: Upload Debian package
+        id: upload-release-asset-debian
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_name: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_amd64.deb"
+          asset_path: "target/debian/encrypted-dns_${{ steps.get_version.outputs.VERSION }}_amd64.deb"
+          asset_content_type: application/x-debian-package
+
+      - name: Upload tarball
+        id: upload-release-asset-tarball
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_name: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2"
+          asset_path: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2"
+          asset_content_type: application/x-tar
