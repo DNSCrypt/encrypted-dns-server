@@ -485,7 +485,7 @@ fn bind_listeners(
 }
 
 fn privdrop(config: &Config) -> Result<(), Error> {
-    if config.metrics.is_some() {
+    if config.daemonize && config.metrics.is_some() {
         bail!("Metrics are incompatible with daemonization - set 'daemonize = false' in the configuration file if you need metrics.");
     }
     let mut pd = PrivDrop::default();
