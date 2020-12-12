@@ -35,7 +35,7 @@ async fn handle_client_connection(
     let uptime = start_instant.elapsed().as_secs();
     varz.uptime.set(uptime as _);
     let client_queries = varz.client_queries_udp.get() + varz.client_queries_tcp.get();
-    varz.client_queries.set(client_queries);
+    varz.client_queries.set(client_queries as _);
     let metric_families = prometheus::gather();
     let encoder = TextEncoder::new();
     encoder.encode(&metric_families, &mut buffer)?;
