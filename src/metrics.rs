@@ -77,7 +77,8 @@ pub async fn prometheus_service(
             kindy.into_tcp_listener()
         }
     };
-    let mut stream = TcpListener::from_std(std_socket)?;
+    std_socket.set_nonblocking(true)?;
+    let stream = TcpListener::from_std(std_socket)?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
         let (client, _client_addr) = stream.accept().await?;

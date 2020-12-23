@@ -78,7 +78,7 @@ pub async fn handle_anonymized_dns(
             != ANONYMIZED_DNSCRYPT_QUERY_MAGIC,
         "Loop detected"
     );
-    let mut ext_socket = match globals.external_addr {
+    let ext_socket = match globals.external_addr {
         Some(x) => UdpSocket::bind(x).await?,
         None => match upstream_address {
             SocketAddr::V4(_) => {

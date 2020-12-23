@@ -6,7 +6,7 @@ use std::fs;
 use std::mem;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
-use tokio::prelude::*;
+use tokio::io::AsyncWriteExt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AccessControlConfig {

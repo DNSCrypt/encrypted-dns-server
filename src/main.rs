@@ -69,8 +69,8 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::{TcpListener, TcpStream, UdpSocket};
-use tokio::prelude::*;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
 
@@ -127,7 +127,7 @@ pub async fn respond_to_query(client_ctx: ClientCtx, response: Vec<u8>) -> Resul
             BigEndian::write_u16(&mut binlen[..], response_len as u16);
             client_connection.write_all(&binlen).await?;
             client_connection.write_all(&response).await?;
-            client_connection.flush();
+            client_connection.flush().await?;
         }
     }
     Ok(())
@@ -249,41 +249,25 @@ async fn tls_proxy(
         None => return Ok(()),
         Some(tls_upstream_addr) => tls_upstream_addr,
     };
-    let std_socket = match globals.external_addr {
+    let socket = match globals.external_addr {
         Some(x @ SocketAddr::V4(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_tcp_stream()
+            let socket = TcpSocket::new_v4()?;
+            socket.set_reuseaddr(true).ok();
+            socket.bind(x)?;
+            socket
         }
         Some(x @ SocketAddr::V6(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_tcp_stream()
+            let socket = TcpSocket::new_v6()?;
+            socket.set_reuseaddr(true).ok();
+            socket.bind(x)?;
+            socket
         }
         None => match tls_upstream_addr {
-            SocketAddr::V4(_) => socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?
-            .into_tcp_stream(),
-            SocketAddr::V6(_) => socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?
-            .into_tcp_stream(),
+            SocketAddr::V4(_) => TcpSocket::new_v4()?,
+            SocketAddr::V6(_) => TcpSocket::new_v6()?,
         },
     };
-    let mut ext_socket = TcpStream::connect_std(std_socket, tls_upstream_addr).await?;
+    let mut ext_socket = socket.connect(*tls_upstream_addr).await?;
     let (mut erh, mut ewh) = ext_socket.split();
     let (mut rh, mut wh) = client_connection.split();
     ewh.write_all(&binlen).await?;
@@ -295,20 +279,12 @@ async fn tls_proxy(
     }
 }
 
-async fn tcp_acceptor(globals: Arc<Globals>, mut tcp_listener: TcpListener) -> Result<(), Error> {
+async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
     let runtime_handle = globals.runtime_handle.clone();
-    let mut tcp_listener = tcp_listener.incoming();
     let timeout = globals.tcp_timeout;
     let concurrent_connections = globals.tcp_concurrent_connections.clone();
     let active_connections = globals.tcp_active_connections.clone();
-    while let Some(client) = tcp_listener.next().await {
-        let mut client_connection: TcpStream = match client {
-            Ok(client_connection) => client_connection,
-            Err(e) => {
-                debug!("{}", e);
-                continue;
-            }
-        };
+    while let Ok((mut client_connection, _client_addr)) = tcp_listener.accept().await {
         let (tx, rx) = oneshot::channel::<()>();
         {
             let mut active_connections = active_connections.lock();
@@ -363,7 +339,7 @@ async fn udp_acceptor(
     net_udp_socket: std::net::UdpSocket,
 ) -> Result<(), Error> {
     let runtime_handle = globals.runtime_handle.clone();
-    let mut tokio_udp_socket = UdpSocket::try_from(net_udp_socket.try_clone()?)?;
+    let tokio_udp_socket = UdpSocket::try_from(net_udp_socket.try_clone()?)?;
     let timeout = globals.udp_timeout;
     let concurrent_connections = globals.udp_concurrent_connections.clone();
     let active_connections = globals.udp_active_connections.clone();
@@ -456,6 +432,7 @@ fn bind_listeners(
                 kindy.into_tcp_listener()
             }
         };
+        tcp_listener.set_nonblocking(true)?;
         let udp_socket = match listen_addr {
             SocketAddr::V4(_) => {
                 let kindy = socket2::Socket::new(
@@ -479,6 +456,7 @@ fn bind_listeners(
                 kindy.into_udp_socket()
             }
         };
+        udp_socket.set_nonblocking(true)?;
         sockets.push((tcp_listener, udp_socket))
     }
     Ok(sockets)
@@ -565,11 +543,10 @@ fn main() -> Result<(), Error> {
     };
     let external_addr = config.external_addr.map(|addr| SocketAddr::new(addr, 0));
 
-    let mut runtime_builder = tokio::runtime::Builder::new();
+    let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
     runtime_builder.enable_all();
-    runtime_builder.threaded_scheduler();
     runtime_builder.thread_name("encrypted-dns-");
-    let mut runtime = runtime_builder.build()?;
+    let runtime = runtime_builder.build()?;
 
     let listen_addrs: Vec<_> = config.listen_addrs.iter().map(|x| x.local).collect();
     let listeners = bind_listeners(&listen_addrs)

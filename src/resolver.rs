@@ -10,8 +10,8 @@ use siphasher::sip128::Hasher128;
 use std::cmp;
 use std::hash::Hasher;
 use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
-use tokio::net::{TcpStream, UdpSocket};
-use tokio::prelude::*;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpSocket, UdpSocket};
 
 pub async fn resolve_udp(
     globals: &Globals,
@@ -67,7 +67,8 @@ pub async fn resolve_udp(
             }
         },
     };
-    let mut ext_socket = UdpSocket::from_std(std_socket)?;
+    std_socket.set_nonblocking(true)?;
+    let ext_socket = UdpSocket::from_std(std_socket)?;
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
@@ -110,47 +111,31 @@ pub async fn resolve_tcp(
     packet_qname: &[u8],
     tid: u16,
 ) -> Result<Vec<u8>, Error> {
-    let std_socket = match globals.external_addr {
+    let socket = match globals.external_addr {
         Some(x @ SocketAddr::V4(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_tcp_stream()
+            let socket = TcpSocket::new_v4()?;
+            socket.set_reuseaddr(true).ok();
+            socket.bind(x)?;
+            socket
         }
         Some(x @ SocketAddr::V6(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_tcp_stream()
+            let socket = TcpSocket::new_v6()?;
+            socket.set_reuseaddr(true).ok();
+            socket.bind(x)?;
+            socket
         }
         None => match globals.upstream_addr {
-            SocketAddr::V4(_) => socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?
-            .into_tcp_stream(),
-            SocketAddr::V6(_) => socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?
-            .into_tcp_stream(),
+            SocketAddr::V4(_) => TcpSocket::new_v4()?,
+            SocketAddr::V6(_) => TcpSocket::new_v6()?,
         },
     };
-    let mut ext_socket = TcpStream::connect_std(std_socket, &globals.upstream_addr).await?;
+    let mut ext_socket = socket.connect(globals.upstream_addr).await?;
     ext_socket.set_nodelay(true)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
     ext_socket.write_all(&binlen).await?;
     ext_socket.write_all(&packet).await?;
-    ext_socket.flush();
+    ext_socket.flush().await?;
     ext_socket.read_exact(&mut binlen).await?;
     let response_len = BigEndian::read_u16(&binlen) as usize;
     ensure!(
