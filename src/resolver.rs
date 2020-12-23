@@ -9,7 +9,7 @@ use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::cmp;
 use std::hash::Hasher;
-use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
 
@@ -20,55 +20,24 @@ pub async fn resolve_udp(
     tid: u16,
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
-    let std_socket = match globals.external_addr {
-        Some(x @ SocketAddr::V4(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::dgram(),
-                Some(socket2::Protocol::udp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_udp_socket()
-        }
-        Some(x @ SocketAddr::V6(_)) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::dgram(),
-                Some(socket2::Protocol::udp()),
-            )?;
-            kindy.bind(&x.into())?;
-            kindy.into_udp_socket()
-        }
+    let ext_socket = match globals.external_addr {
+        Some(x) => UdpSocket::bind(x).await?,
         None => match globals.upstream_addr {
             SocketAddr::V4(_) => {
-                let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv4(),
-                    socket2::Type::dgram(),
-                    Some(socket2::Protocol::udp()),
-                )?;
-                kindy.into_udp_socket()
+                UdpSocket::bind(&SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0)))
+                    .await?
             }
             SocketAddr::V6(s) => {
-                let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv6(),
-                    socket2::Type::dgram(),
-                    Some(socket2::Protocol::udp()),
-                )?;
-                kindy.bind(
-                    &SocketAddr::V6(SocketAddrV6::new(
-                        Ipv6Addr::UNSPECIFIED,
-                        0,
-                        s.flowinfo(),
-                        s.scope_id(),
-                    ))
-                    .into(),
-                )?;
-                kindy.into_udp_socket()
+                UdpSocket::bind(&SocketAddr::V6(SocketAddrV6::new(
+                    Ipv6Addr::UNSPECIFIED,
+                    0,
+                    s.flowinfo(),
+                    s.scope_id(),
+                )))
+                .await?
             }
         },
     };
-    std_socket.set_nonblocking(true)?;
-    let ext_socket = UdpSocket::from_std(std_socket)?;
     ext_socket.connect(&globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;

@@ -10,7 +10,6 @@ use hyper::service::service_fn;
 use hyper::{Body, Request, Response, StatusCode};
 use prometheus::{self, Encoder, TextEncoder};
 use std::mem;
-use std::net::SocketAddr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -52,33 +51,7 @@ pub async fn prometheus_service(
     runtime_handle: Handle,
 ) -> Result<(), Error> {
     let path = Arc::new(metrics_config.path);
-    let std_socket = match metrics_config.listen_addr {
-        SocketAddr::V4(_) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv4(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.set_reuse_address(true)?;
-            kindy.bind(&metrics_config.listen_addr.into())?;
-            kindy.listen(1024)?;
-            kindy.into_tcp_listener()
-        }
-        SocketAddr::V6(_) => {
-            let kindy = socket2::Socket::new(
-                socket2::Domain::ipv6(),
-                socket2::Type::stream(),
-                Some(socket2::Protocol::tcp()),
-            )?;
-            kindy.set_reuse_address(true)?;
-            kindy.set_only_v6(true)?;
-            kindy.bind(&metrics_config.listen_addr.into())?;
-            kindy.listen(1024)?;
-            kindy.into_tcp_listener()
-        }
-    };
-    std_socket.set_nonblocking(true)?;
-    let stream = TcpListener::from_std(std_socket)?;
+    let stream = TcpListener::bind(metrics_config.listen_addr).await?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
         let (client, _client_addr) = stream.accept().await?;
