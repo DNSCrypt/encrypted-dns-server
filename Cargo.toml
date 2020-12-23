@@ -22,7 +22,7 @@ derivative = "2.1.1"
 dnsstamps = "0.1.4"
 env_logger = { version = "0.8.1", default-features = false, features = ["humantime"] }
 futures = { version = "0.3.8", features = ["async-await"] }
-hyper = { version = "0.14.0", default_features = false, features = ["server", "http1"], optional = true }
+hyper = { version = "0.14.1", default_features = false, features = ["server", "http1"], optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
 libsodium-sys-stable= "1.19.12"
