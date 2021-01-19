@@ -12,32 +12,32 @@ categories = ["asynchronous", "network-programming","command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.36"
-byteorder = "1.3.4"
+anyhow = "1.0.38"
+byteorder = "1.4.2"
 clap = { version = "2.33.3", default-features = false, features = ["wrap_help"] }
 clockpro-cache = "0.1.9"
 coarsetime = "0.1.18"
 daemonize-simple = "0.1.4"
-derivative = "2.1.1"
+derivative = "2.1.3"
 dnsstamps = "0.1.4"
-env_logger = { version = "0.8.1", default-features = false, features = ["humantime"] }
-futures = { version = "0.3.8", features = ["async-await"] }
-hyper = { version = "0.14.1", default_features = false, features = ["server", "http1"], optional = true }
+env_logger = { version = "0.8.2", default-features = false, features = ["humantime"] }
+futures = { version = "0.3.12", features = ["async-await"] }
+hyper = { version = "0.14.2", default_features = false, features = ["server", "http1"], optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
-libsodium-sys-stable= "1.19.12"
-log = { version = "0.4.11", features = ["std", "release_max_level_debug"] }
-socket2 = "0.3"
-parking_lot = "0.11"
+libsodium-sys-stable= "1.19.13"
+log = { version = "0.4.13", features = ["std", "release_max_level_debug"] }
+socket2 = "0.3.19"
+parking_lot = "0.11.1"
 privdrop = "0.5.0"
-rand = "0.8"
-rustc-hash = "1"
-serde = "1.0"
-serde_derive = "1.0"
-serde-big-array = "0.3.0"
-siphasher = "0.3"
-tokio = { version = "1", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
-toml = "0.5"
+rand = "0.8.2"
+rustc-hash = "1.1.0"
+serde = "1.0.120"
+serde_derive = "1.0.120"
+serde-big-array = "0.3.1"
+siphasher = "0.3.3"
+tokio = { version = "1.0.2", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
+toml = "0.5.8"
 
 [dependencies.prometheus]
 optional = true
