@@ -5,7 +5,7 @@ use crate::dnscrypt::*;
 use crate::globals::*;
 
 use byteorder::{BigEndian, ByteOrder};
-use clockpro_cache::ClockProCache;
+use cart_cache::CartCache;
 use parking_lot::Mutex;
 use std::mem;
 use std::slice;
@@ -104,7 +104,7 @@ pub struct DNSCryptEncryptionParams {
     resolver_kp: CryptKeyPair,
     #[serde(skip)]
     #[derivative(Debug = "ignore")]
-    pub cache: Option<Arc<Mutex<ClockProCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
+    pub cache: Option<Arc<Mutex<CartCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
 }
 
 impl DNSCryptEncryptionParams {
@@ -116,7 +116,7 @@ impl DNSCryptEncryptionParams {
                 == &ANONYMIZED_DNSCRYPT_QUERY_MAGIC[..DNSCRYPT_QUERY_MAGIC_SIZE]
         } {}
         let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
-        let cache = ClockProCache::new(cache_capacity).unwrap();
+        let cache = CartCache::new(cache_capacity).unwrap();
         DNSCryptEncryptionParams {
             dnscrypt_cert,
             resolver_kp,
@@ -125,7 +125,7 @@ impl DNSCryptEncryptionParams {
     }
 
     pub fn add_key_cache(&mut self, cache_capacity: usize) {
-        let cache = ClockProCache::new(cache_capacity).unwrap();
+        let cache = CartCache::new(cache_capacity).unwrap();
         self.cache = Some(Arc::new(Mutex::new(cache)));
     }
 

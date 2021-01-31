@@ -1,6 +1,6 @@
 use crate::dns;
 
-use clockpro_cache::ClockProCache;
+use cart_cache::CartCache;
 use coarsetime::{Duration, Instant};
 use parking_lot::{Mutex, MutexGuard};
 use std::sync::Arc;
@@ -54,7 +54,7 @@ impl CachedResponse {
 #[derivative(Debug)]
 pub struct Cache {
     #[derivative(Debug = "ignore")]
-    cache: Arc<Mutex<ClockProCache<u128, CachedResponse>>>,
+    cache: Arc<Mutex<CartCache<u128, CachedResponse>>>,
     pub ttl_min: u32,
     pub ttl_max: u32,
     pub ttl_error: u32,
@@ -62,7 +62,7 @@ pub struct Cache {
 
 impl Cache {
     pub fn new(
-        clockpro_cache: ClockProCache<u128, CachedResponse>,
+        clockpro_cache: CartCache<u128, CachedResponse>,
         ttl_min: u32,
         ttl_max: u32,
         ttl_error: u32,
@@ -76,7 +76,7 @@ impl Cache {
     }
 
     #[inline]
-    pub fn lock(&self) -> MutexGuard<'_, ClockProCache<u128, CachedResponse>> {
+    pub fn lock(&self) -> MutexGuard<'_, CartCache<u128, CachedResponse>> {
         self.cache.lock()
     }
 }

@@ -50,8 +50,8 @@ use globals::*;
 use varz::*;
 
 use byteorder::{BigEndian, ByteOrder};
+use cart_cache::CartCache;
 use clap::Arg;
-use clockpro_cache::ClockProCache;
 use dnsstamps::{InformalProperty, WithInformalProperty};
 use futures::join;
 use futures::prelude::*;
@@ -643,14 +643,14 @@ fn main() -> Result<(), Error> {
     let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
 
     let cache = Cache::new(
-        ClockProCache::new(cache_capacity)
+        CartCache::new(cache_capacity)
             .map_err(|e| anyhow!("Unable to create the DNS cache: [{}]", e))?,
         config.cache_ttl_min,
         config.cache_ttl_max,
         config.cache_ttl_error,
     );
     let cert_cache = Cache::new(
-        ClockProCache::new(RELAYED_CERT_CACHE_SIZE)
+        CartCache::new(RELAYED_CERT_CACHE_SIZE)
             .map_err(|e| anyhow!("Unable to create the relay cert cache: [{}]", e))?,
         RELAYED_CERT_CACHE_TTL,
         RELAYED_CERT_CACHE_TTL,
