@@ -38,7 +38,7 @@ pub async fn resolve_udp(
             }
         },
     };
-    ext_socket.connect(&globals.upstream_addr).await?;
+    ext_socket.connect(globals.upstream_addr).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
     let timeout = if has_cached_response {
