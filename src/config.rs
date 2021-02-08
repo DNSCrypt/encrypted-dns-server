@@ -63,6 +63,7 @@ pub struct Config {
     pub listen_addrs: Vec<ListenAddrConfig>,
     pub external_addr: Option<IpAddr>,
     pub upstream_addr: SocketAddr,
+    pub upstream_addr_private: SocketAddr,
     pub state_file: PathBuf,
     pub udp_timeout: u32,
     pub tcp_timeout: u32,

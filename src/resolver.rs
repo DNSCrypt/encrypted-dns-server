@@ -9,7 +9,7 @@ use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::cmp;
 use std::hash::Hasher;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
 
@@ -19,10 +19,11 @@ pub async fn resolve_udp(
     packet_qname: &[u8],
     tid: u16,
     has_cached_response: bool,
+    upstream_addr_current: &SocketAddr,
 ) -> Result<Vec<u8>, Error> {
     let ext_socket = match globals.external_addr {
         Some(x) => UdpSocket::bind(x).await?,
-        None => match globals.upstream_addr {
+        None => match *upstream_addr_current {
             SocketAddr::V4(_) => {
                 UdpSocket::bind(&SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0)))
                     .await?
@@ -38,7 +39,7 @@ pub async fn resolve_udp(
             }
         },
     };
-    ext_socket.connect(globals.upstream_addr).await?;
+    ext_socket.connect(*upstream_addr_current).await?;
     dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
     let timeout = if has_cached_response {
@@ -54,7 +55,7 @@ pub async fn resolve_udp(
         match fut.await {
             Ok(Ok((response_len, response_addr))) => {
                 response.truncate(response_len);
-                if response_addr == globals.upstream_addr
+                if response_addr == *upstream_addr_current
                     && response_len >= DNS_HEADER_SIZE
                     && dns::tid(&response) == tid
                     && packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice())
@@ -79,6 +80,7 @@ pub async fn resolve_tcp(
     packet: &mut Vec<u8>,
     packet_qname: &[u8],
     tid: u16,
+    upstream_addr_current: &SocketAddr,
 ) -> Result<Vec<u8>, Error> {
     let socket = match globals.external_addr {
         Some(x @ SocketAddr::V4(_)) => {
@@ -93,12 +95,12 @@ pub async fn resolve_tcp(
             socket.bind(x)?;
             socket
         }
-        None => match globals.upstream_addr {
+        None => match *upstream_addr_current {
             SocketAddr::V4(_) => TcpSocket::new_v4()?,
             SocketAddr::V6(_) => TcpSocket::new_v6()?,
         },
     };
-    let mut ext_socket = socket.connect(globals.upstream_addr).await?;
+    let mut ext_socket = socket.connect(*upstream_addr_current).await?;
     ext_socket.set_nodelay(true)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
@@ -128,6 +130,7 @@ pub async fn resolve(
     cached_response: Option<CachedResponse>,
     packet_hash: u128,
     original_tid: u16,
+    upstream_addr_current: &SocketAddr,
 ) -> Result<Vec<u8>, Error> {
     #[cfg(feature = "metrics")]
     globals.varz.upstream_sent.inc();
@@ -139,10 +142,11 @@ pub async fn resolve(
         &packet_qname,
         tid,
         cached_response.is_some(),
+        upstream_addr_current,
     )
     .await?;
     if dns::is_truncated(&response) {
-        response = resolve_tcp(globals, packet, &packet_qname, tid).await?;
+        response = resolve_tcp(globals, packet, &packet_qname, tid, upstream_addr_current).await?;
     }
     #[cfg(feature = "metrics")]
     {
@@ -186,13 +190,24 @@ pub async fn get_cached_response_or_resolve(
     mut packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let packet_qname = dns::qname(&packet)?;
+
+    let mut upstream_addr_current = &globals.upstream_addr;
+    let client_ip = match client_ctx {
+        ClientCtx::Udp(u) => u.client_addr,
+        ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
+    }
+    .ip();
+    match client_ip {
+        IpAddr::V4(ipv4) => {
+            if ipv4.is_private() {
+                upstream_addr_current = &globals.upstream_addr_private;
+            }
+        }
+        IpAddr::V6(_) => { }
+    }
+
     if let Some(my_ip) = &globals.my_ip {
         if &packet_qname.to_ascii_lowercase() == my_ip {
-            let client_ip = match client_ctx {
-                ClientCtx::Udp(u) => u.client_addr,
-                ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
-            }
-            .ip();
             return serve_ip_response(packet.to_vec(), client_ip, 1);
         }
     }
@@ -267,6 +282,7 @@ pub async fn get_cached_response_or_resolve(
         cached_response,
         packet_hash,
         original_tid,
+        upstream_addr_current,
     )
     .await
 }

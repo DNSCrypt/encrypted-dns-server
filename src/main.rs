@@ -709,6 +709,7 @@ fn main() -> Result<(), Error> {
         provider_kp,
         listen_addrs,
         upstream_addr: config.upstream_addr,
+        upstream_addr_private: config.upstream_addr_private,
         tls_upstream_addr: config.tls.upstream_addr,
         external_addr,
         tcp_timeout: Duration::from_secs(u64::from(config.tcp_timeout)),
