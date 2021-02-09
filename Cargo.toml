@@ -1,6 +1,6 @@
 [package]
 name = "encrypted-dns"
-version = "0.3.22"
+version = "0.3.23"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt v2, Anonymized DNSCrypt, DoH)"
@@ -15,14 +15,14 @@ readme = "README.md"
 anyhow = "1.0.38"
 byteorder = "1.4.2"
 clap = { version = "2.33.3", default-features = false, features = ["wrap_help"] }
-clockpro-cache = "0.1.9"
+clockpro-cache = "0.1.10"
 coarsetime = "0.1.18"
 daemonize-simple = "0.1.4"
 derivative = "2.2.0"
 dnsstamps = "0.1.4"
 env_logger = { version = "0.8.2", default-features = false, features = ["humantime"] }
 futures = { version = "0.3.12", features = ["async-await"] }
-hyper = { version = "0.14.2", default_features = false, features = ["server", "http1"], optional = true }
+hyper = { version = "0.14.4", default_features = false, features = ["server", "http1"], optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
 libsodium-sys-stable= "1.19.14"
@@ -36,7 +36,7 @@ serde = "1.0.123"
 serde_derive = "1.0.123"
 serde-big-array = "0.3.1"
 siphasher = "0.3.3"
-tokio = { version = "1.1.1", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
+tokio = { version = "1.2.0", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
 toml = "0.5.8"
 
 [dependencies.prometheus]
