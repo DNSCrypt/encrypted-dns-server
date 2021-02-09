@@ -104,7 +104,7 @@ fn maybe_truncate_response(
         if encrypted_response_min_len > original_packet_size
             || encrypted_response_min_len > DNSCRYPT_UDP_RESPONSE_MAX_SIZE
         {
-            return Ok(dns::serve_truncated_response(packet)?);
+            return dns::serve_truncated_response(packet);
         }
     }
     Ok(response)
