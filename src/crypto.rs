@@ -132,12 +132,15 @@ pub struct CryptKeyPair {
 }
 
 impl CryptKeyPair {
-    pub fn new() -> Self {
+    pub fn from_seed(
+        seed: [u8; crypto_box_curve25519xchacha20poly1305_SEEDBYTES as usize],
+    ) -> Self {
         let mut kp = CryptKeyPair::default();
         unsafe {
-            crypto_box_curve25519xchacha20poly1305_keypair(
+            crypto_box_curve25519xchacha20poly1305_seed_keypair(
                 kp.pk.0.as_mut_ptr(),
                 kp.sk.0.as_mut_ptr(),
+                seed.as_ptr(),
             )
         };
         kp
