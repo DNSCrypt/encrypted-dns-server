@@ -1,6 +1,8 @@
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::type_complexity)]
 #![allow(clippy::cognitive_complexity)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::unnecessary_wraps)]
 #![allow(dead_code)]
 
 #[global_allocator]
