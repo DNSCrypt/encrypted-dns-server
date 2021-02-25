@@ -498,7 +498,7 @@ pub fn serve_certificates<'t>(
     packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
     packet.write_u16::<BigEndian>(1 + cert_bin.len() as u16)?;
     packet.write_u8(cert_bin.len() as u8)?;
-    packet.extend_from_slice(&cert_bin[..]);
+    packet.extend_from_slice(cert_bin);
     ensure!(packet.len() < DNS_MAX_PACKET_SIZE, "Packet too large");
 
     Ok(Some(packet))

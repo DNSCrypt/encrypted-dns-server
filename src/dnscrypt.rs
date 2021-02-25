@@ -71,7 +71,7 @@ pub fn decrypt(
 
     let cached_shared_key = {
         let mut cache = dnscrypt_encryption_params.cache.as_ref().unwrap().lock();
-        match cache.get(&client_pk[..]) {
+        match cache.get(client_pk) {
             None => None,
             Some(cached_shared_key) => Some((*cached_shared_key).clone()),
         }
@@ -83,7 +83,7 @@ pub fn decrypt(
                 .resolver_kp()
                 .compute_shared_key(client_pk)?;
             let mut client_pk_ = [0u8; DNSCRYPT_QUERY_PK_SIZE];
-            client_pk_.copy_from_slice(&client_pk[..]);
+            client_pk_.copy_from_slice(client_pk);
             dnscrypt_encryption_params
                 .cache
                 .as_ref()
