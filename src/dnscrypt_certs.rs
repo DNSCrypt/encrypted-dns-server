@@ -7,6 +7,7 @@ use crate::globals::*;
 use byteorder::{BigEndian, ByteOrder};
 use clockpro_cache::ClockProCache;
 use parking_lot::Mutex;
+use rand::prelude::*;
 use std::mem;
 use std::slice;
 use std::sync::Arc;
@@ -54,8 +55,7 @@ pub struct DNSCryptCert {
 }
 
 impl DNSCryptCert {
-    pub fn new(provider_kp: &SignKeyPair, resolver_kp: &CryptKeyPair) -> Self {
-        let ts_start = now();
+    pub fn new(provider_kp: &SignKeyPair, resolver_kp: &CryptKeyPair, ts_start: u32) -> Self {
         let ts_end = ts_start + DNSCRYPT_CERTS_TTL;
 
         let mut dnscrypt_cert = DNSCryptCert::default();
@@ -92,6 +92,10 @@ impl DNSCryptCert {
         &self.inner.client_magic
     }
 
+    pub fn ts_start(&self) -> u32 {
+        BigEndian::read_u32(&self.inner.ts_start)
+    }
+
     pub fn ts_end(&self) -> u32 {
         BigEndian::read_u32(&self.inner.ts_end)
     }
@@ -108,20 +112,56 @@ pub struct DNSCryptEncryptionParams {
 }
 
 impl DNSCryptEncryptionParams {
-    pub fn new(provider_kp: &SignKeyPair, cache_capacity: usize) -> Self {
-        let mut resolver_kp;
-        while {
-            resolver_kp = CryptKeyPair::new();
-            resolver_kp.pk.as_bytes()
+    pub fn new(
+        provider_kp: &SignKeyPair,
+        cache_capacity: usize,
+        previous_params: Option<Arc<DNSCryptEncryptionParams>>,
+    ) -> Vec<Self> {
+        let now = now();
+        let (mut ts_start, mut seed) = match &previous_params {
+            None => (now, rand::thread_rng().gen()),
+            Some(p) => (
+                p.dnscrypt_cert().ts_start() + DNSCRYPT_CERTS_RENEWAL,
+                *p.resolver_kp().sk.as_bytes(),
+            ),
+        };
+        let mut active_params = vec![];
+        loop {
+            if ts_start > now + DNSCRYPT_CERTS_RENEWAL {
+                break;
+            }
+            let resolver_kp = CryptKeyPair::from_seed(seed);
+            seed = *resolver_kp.sk.as_bytes();
+            if resolver_kp.pk.as_bytes()
                 == &ANONYMIZED_DNSCRYPT_QUERY_MAGIC[..DNSCRYPT_QUERY_MAGIC_SIZE]
-        } {}
-        let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp);
-        let cache = ClockProCache::new(cache_capacity).unwrap();
-        DNSCryptEncryptionParams {
-            dnscrypt_cert,
-            resolver_kp,
-            cache: Some(Arc::new(Mutex::new(cache))),
+            {
+                ts_start += DNSCRYPT_CERTS_RENEWAL;
+                continue;
+            }
+            if now >= ts_start {
+                let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp, ts_start);
+                let cache = ClockProCache::new(cache_capacity).unwrap();
+                active_params.push(DNSCryptEncryptionParams {
+                    dnscrypt_cert,
+                    resolver_kp,
+                    cache: Some(Arc::new(Mutex::new(cache))),
+                });
+            }
+            ts_start += DNSCRYPT_CERTS_RENEWAL;
         }
+        if active_params.is_empty() && previous_params.is_none() {
+            warn!("Unable to recover a seed; creating an emergency certificate");
+            let ts_start = now - (now % DNSCRYPT_CERTS_RENEWAL);
+            let resolver_kp = CryptKeyPair::from_seed(seed);
+            let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp, ts_start);
+            let cache = ClockProCache::new(cache_capacity).unwrap();
+            active_params.push(DNSCryptEncryptionParams {
+                dnscrypt_cert,
+                resolver_kp,
+                cache: Some(Arc::new(Mutex::new(cache))),
+            });
+        }
+        active_params
     }
 
     pub fn add_key_cache(&mut self, cache_capacity: usize) {
@@ -154,19 +194,23 @@ impl DNSCryptEncryptionParamsUpdater {
     pub fn update(&self) {
         let now = now();
         let mut new_params_set = vec![];
-        {
+        let previous_params = {
             let params_set = self.globals.dnscrypt_encryption_params_set.read();
             for params in &**params_set {
                 if params.dnscrypt_cert().ts_end() >= now {
                     new_params_set.push(params.clone());
                 }
             }
-        }
-        let new_params = DNSCryptEncryptionParams::new(
+            params_set.last().cloned()
+        };
+        let active_params = DNSCryptEncryptionParams::new(
             &self.globals.provider_kp,
             self.globals.key_cache_capacity,
+            previous_params,
         );
-        new_params_set.push(Arc::new(new_params));
+        for params in active_params {
+            new_params_set.push(Arc::new(params));
+        }
         let state = State {
             provider_kp: self.globals.provider_kp.clone(),
             dnscrypt_encryption_params_set: new_params_set.iter().map(|x| (**x).clone()).collect(),

@@ -112,10 +112,8 @@ pub struct State {
 
 impl State {
     pub fn with_key_pair(provider_kp: SignKeyPair, key_cache_capacity: usize) -> Self {
-        let dnscrypt_encryption_params_set = vec![DNSCryptEncryptionParams::new(
-            &provider_kp,
-            key_cache_capacity,
-        )];
+        let dnscrypt_encryption_params_set =
+            DNSCryptEncryptionParams::new(&provider_kp, key_cache_capacity, None);
         State {
             provider_kp,
             dnscrypt_encryption_params_set,
