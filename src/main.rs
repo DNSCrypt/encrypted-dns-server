@@ -698,6 +698,20 @@ fn main() -> Result<(), Error> {
         }
         _ => None,
     };
+
+    let (
+        ecs_enabled,
+        ecs_source_prefix_ipv4,
+        ecs_source_prefix_ipv6,
+    ) = match config.ecs {
+        None => (false, 0, 0),
+        Some(ecs) => (
+            ecs.enabled,
+            ecs.source_prefix_ipv4,
+            ecs.source_prefix_ipv6,
+        ),
+    };
+
     let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
         runtime_handle: runtime_handle.clone(),
@@ -736,6 +750,9 @@ fn main() -> Result<(), Error> {
         anonymized_dns_allow_non_reserved_ports,
         anonymized_dns_blacklisted_ips,
         access_control_tokens,
+        ecs_enabled,
+        ecs_source_prefix_ipv4,
+        ecs_source_prefix_ipv6,
         my_ip: config.my_ip.map(|ip| ip.as_bytes().to_ascii_lowercase()),
         client_ttl_holdon: config.client_ttl_holdon.unwrap_or(60),
         #[cfg(feature = "metrics")]

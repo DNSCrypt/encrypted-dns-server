@@ -49,6 +49,9 @@ pub struct Globals {
     pub anonymized_dns_allow_non_reserved_ports: bool,
     pub anonymized_dns_blacklisted_ips: Vec<IpAddr>,
     pub access_control_tokens: Option<Vec<String>>,
+    pub ecs_enabled: bool,
+    pub ecs_source_prefix_ipv4: u8,
+    pub ecs_source_prefix_ipv6: u8,
     pub client_ttl_holdon: u32,
     pub my_ip: Option<Vec<u8>>,
     #[cfg(feature = "metrics")]
