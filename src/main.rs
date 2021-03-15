@@ -3,6 +3,7 @@
 #![allow(clippy::cognitive_complexity)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::unnecessary_wraps)]
+#![allow(clippy::field_reassign_with_default)]
 #![allow(dead_code)]
 
 #[global_allocator]
@@ -409,53 +410,53 @@ fn bind_listeners(
 ) -> Result<Vec<(std::net::TcpListener, std::net::UdpSocket)>, Error> {
     let mut sockets = Vec::with_capacity(listen_addrs.len());
     for listen_addr in listen_addrs {
-        let tcp_listener = match listen_addr {
+        let tcp_listener: std::net::TcpListener = match listen_addr {
             SocketAddr::V4(_) => {
                 let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv4(),
-                    socket2::Type::stream(),
-                    Some(socket2::Protocol::tcp()),
+                    socket2::Domain::IPV4,
+                    socket2::Type::STREAM,
+                    Some(socket2::Protocol::TCP),
                 )?;
                 kindy.set_reuse_address(true)?;
                 kindy.bind(&(*listen_addr).into())?;
                 kindy.listen(TCP_BACKLOG as _)?;
-                kindy.into_tcp_listener()
+                kindy.into()
             }
             SocketAddr::V6(_) => {
                 let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv6(),
-                    socket2::Type::stream(),
-                    Some(socket2::Protocol::tcp()),
+                    socket2::Domain::IPV6,
+                    socket2::Type::STREAM,
+                    Some(socket2::Protocol::TCP),
                 )?;
                 kindy.set_reuse_address(true)?;
                 kindy.set_only_v6(true)?;
                 kindy.bind(&(*listen_addr).into())?;
                 kindy.listen(TCP_BACKLOG as _)?;
-                kindy.into_tcp_listener()
+                kindy.into()
             }
         };
         tcp_listener.set_nonblocking(true)?;
-        let udp_socket = match listen_addr {
+        let udp_socket: std::net::UdpSocket = match listen_addr {
             SocketAddr::V4(_) => {
                 let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv4(),
-                    socket2::Type::dgram(),
-                    Some(socket2::Protocol::udp()),
+                    socket2::Domain::IPV4,
+                    socket2::Type::DGRAM,
+                    Some(socket2::Protocol::UDP),
                 )?;
                 kindy.set_reuse_address(true)?;
                 kindy.bind(&(*listen_addr).into())?;
-                kindy.into_udp_socket()
+                kindy.into()
             }
             SocketAddr::V6(_) => {
                 let kindy = socket2::Socket::new(
-                    socket2::Domain::ipv6(),
-                    socket2::Type::dgram(),
-                    Some(socket2::Protocol::udp()),
+                    socket2::Domain::IPV6,
+                    socket2::Type::DGRAM,
+                    Some(socket2::Protocol::UDP),
                 )?;
                 kindy.set_reuse_address(true)?;
                 kindy.set_only_v6(true)?;
                 kindy.bind(&(*listen_addr).into())?;
-                kindy.into_udp_socket()
+                kindy.into()
             }
         };
         udp_socket.set_nonblocking(true)?;

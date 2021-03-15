@@ -71,10 +71,9 @@ pub fn decrypt(
 
     let cached_shared_key = {
         let mut cache = dnscrypt_encryption_params.cache.as_ref().unwrap().lock();
-        match cache.get(client_pk) {
-            None => None,
-            Some(cached_shared_key) => Some((*cached_shared_key).clone()),
-        }
+        cache
+            .get(client_pk)
+            .map(|cached_shared_key| (*cached_shared_key).clone())
     };
     let shared_key = match cached_shared_key {
         Some(cached_shared_key) => cached_shared_key,
