@@ -27,7 +27,7 @@ ipext = "0.1.0"
 jemallocator = "0.3.2"
 libsodium-sys-stable= "1.19.14"
 log = { version = "0.4.14", features = ["std", "release_max_level_debug"] }
-socket2 = "0.3.19"
+socket2 = "0.4.0"
 parking_lot = "0.11.1"
 privdrop = "0.5.0"
 rand = "0.8.3"
