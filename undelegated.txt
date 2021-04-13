@@ -99,6 +99,7 @@ api
 b.e.f.ip6.arpa
 bbrouter
 belkin
+bind
 blinkap
 corp
 d.f.ip6.arpa
@@ -136,6 +137,7 @@ priv
 private
 prv
 router
+server
 telus
 test
 totolink
