@@ -46,13 +46,13 @@ impl Inner {
             .unwrap(),
             anonymized_queries: register_int_counter!(opts!(
                 "encrypted_dns_anonymized_queries",
-                "Number of anomymized queries received",
+                "Number of anonymized queries received",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
             anonymized_responses: register_int_counter!(opts!(
                 "encrypted_dns_anonymized_responses",
-                "Number of anomymized responses received",
+                "Number of anonymized responses received",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
