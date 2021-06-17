@@ -95,7 +95,7 @@ client_ttl_holdon = 60
 daemonize = false
 
 
-## Log file
+## Log file, when running as a background process
 
 # log_file = "/tmp/encrypted-dns.log"
 
