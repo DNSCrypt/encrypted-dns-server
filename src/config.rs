@@ -78,7 +78,6 @@ pub struct Config {
     pub filtering: FilteringConfig,
     pub dnscrypt: DNSCryptConfig,
     pub tls: TLSConfig,
-    pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,
     pub my_ip: Option<String>,

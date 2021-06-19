@@ -90,16 +90,6 @@ cache_ttl_error = 600
 client_ttl_holdon = 60
 
 
-## Run as a background process
-
-daemonize = false
-
-
-## Log file, when running as a background process
-
-# log_file = "/tmp/encrypted-dns.log"
-
-
 ## PID file
 
 # pid_file = "/tmp/encrypted-dns.pid"
