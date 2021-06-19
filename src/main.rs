@@ -546,11 +546,6 @@ fn main() -> Result<(), Error> {
     };
     let external_addr = config.external_addr.map(|addr| SocketAddr::new(addr, 0));
 
-    let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
-    runtime_builder.enable_all();
-    runtime_builder.thread_name("encrypted-dns-");
-    let runtime = runtime_builder.build()?;
-
     let listen_addrs: Vec<_> = config.listen_addrs.iter().map(|x| x.local).collect();
     let listeners = bind_listeners(&listen_addrs)
         .map_err(|e| {
@@ -559,6 +554,11 @@ fn main() -> Result<(), Error> {
         })
         .unwrap();
     privdrop(&config)?;
+
+    let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
+    runtime_builder.enable_all();
+    runtime_builder.thread_name("encrypted-dns-");
+    let runtime = runtime_builder.build()?;
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let cache_capacity = config.cache_capacity;
