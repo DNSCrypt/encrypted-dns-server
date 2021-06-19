@@ -204,7 +204,7 @@ impl SharedKey {
             max_target_size - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize;
         let mut hasher = SipHasher13::new();
         hasher.write(&self.0);
-        hasher.write(&client_nonce);
+        hasher.write(client_nonce);
         let pad_size: usize = 1 + (hasher.finish() as usize & 0xff);
         let mut padded_plaintext_len = (plaintext_len + pad_size) & !63;
         if padded_plaintext_len < plaintext_len {

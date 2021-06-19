@@ -47,7 +47,7 @@ pub async fn resolve_udp(
         globals.udp_timeout
     };
     loop {
-        ext_socket.send(&packet).await?;
+        ext_socket.send(packet).await?;
         response = vec![0u8; DNS_MAX_PACKET_SIZE];
         dns::set_rcode_servfail(&mut response);
         let fut = tokio::time::timeout(timeout, ext_socket.recv_from(&mut response[..]));
@@ -103,7 +103,7 @@ pub async fn resolve_tcp(
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
     ext_socket.write_all(&binlen).await?;
-    ext_socket.write_all(&packet).await?;
+    ext_socket.write_all(packet).await?;
     ext_socket.flush().await?;
     ext_socket.read_exact(&mut binlen).await?;
     let response_len = BigEndian::read_u16(&binlen) as usize;
@@ -185,7 +185,7 @@ pub async fn get_cached_response_or_resolve(
     client_ctx: &ClientCtx,
     mut packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
-    let packet_qname = dns::qname(&packet)?;
+    let packet_qname = dns::qname(packet)?;
     if let Some(my_ip) = &globals.my_ip {
         if &packet_qname.to_ascii_lowercase() == my_ip {
             let client_ip = match client_ctx {
@@ -206,7 +206,7 @@ pub async fn get_cached_response_or_resolve(
     let tld = dns::qname_tld(&packet_qname);
     let synthesize_nxdomain = {
         if globals.ignore_unqualified_hostnames && tld.len() == packet_qname.len() {
-            let (qtype, qclass) = dns::qtype_qclass(&packet)?;
+            let (qtype, qclass) = dns::qtype_qclass(packet)?;
             qtype == dns::DNS_CLASS_INET
                 && (qclass == dns::DNS_TYPE_A || qclass == dns::DNS_TYPE_AAAA)
         } else if let Some(undelegated_list) = &globals.undelegated_list {
@@ -220,11 +220,11 @@ pub async fn get_cached_response_or_resolve(
         globals.varz.client_queries_rcode_nxdomain.inc();
         return dns::serve_nxdomain_response(packet.to_vec());
     }
-    let original_tid = dns::tid(&packet);
+    let original_tid = dns::tid(packet);
     dns::set_tid(&mut packet, 0);
     dns::normalize_qname(&mut packet)?;
     let mut hasher = globals.hasher;
-    hasher.write(&packet);
+    hasher.write(packet);
     let packet_hash = hasher.finish128().as_u128();
     let cached_response = {
         match globals.cache.lock().get(&packet_hash) {

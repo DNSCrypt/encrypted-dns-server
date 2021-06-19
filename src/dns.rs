@@ -467,7 +467,7 @@ pub fn serve_certificates<'t>(
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(client_packet) == 1, "No question");
     ensure!(
-        !is_response(&client_packet),
+        !is_response(client_packet),
         "Question expected, but got a response instead"
     );
     let offset = skip_name(client_packet, DNS_HEADER_SIZE)?;
@@ -477,7 +477,7 @@ pub fn serve_certificates<'t>(
     if qtype != DNS_TYPE_TXT || qclass != DNS_CLASS_INET {
         return Ok(None);
     }
-    let qname_v = qname(&client_packet)?;
+    let qname_v = qname(client_packet)?;
     let qname = std::str::from_utf8(&qname_v)?;
     if !qname.eq_ignore_ascii_case(expected_qname) {
         return Ok(None);
@@ -523,7 +523,7 @@ pub fn serve_truncated_response(client_packet: Vec<u8>) -> Result<Vec<u8>, Error
 
 pub fn qtype_qclass(packet: &[u8]) -> Result<(u16, u16), Error> {
     ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
-    ensure!(qdcount(&packet) == 1, "No question");
+    ensure!(qdcount(packet) == 1, "No question");
     let offset = skip_name(packet, DNS_HEADER_SIZE)?;
     ensure!(packet.len() - offset >= 4, "Short packet");
     let qtype = BigEndian::read_u16(&packet[offset..]);

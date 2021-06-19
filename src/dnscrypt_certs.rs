@@ -139,7 +139,7 @@ impl DNSCryptEncryptionParams {
                 continue;
             }
             if now >= ts_start {
-                let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp, ts_start);
+                let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
                 let cache = ClockProCache::new(cache_capacity).unwrap();
                 active_params.push(DNSCryptEncryptionParams {
                     dnscrypt_cert,
@@ -153,7 +153,7 @@ impl DNSCryptEncryptionParams {
             warn!("Unable to recover a seed; creating an emergency certificate");
             let ts_start = now - (now % DNSCRYPT_CERTS_RENEWAL);
             let resolver_kp = CryptKeyPair::from_seed(seed);
-            let dnscrypt_cert = DNSCryptCert::new(&provider_kp, &resolver_kp, ts_start);
+            let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
             let cache = ClockProCache::new(cache_capacity).unwrap();
             active_params.push(DNSCryptEncryptionParams {
                 dnscrypt_cert,

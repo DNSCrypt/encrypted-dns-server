@@ -96,7 +96,7 @@ pub async fn handle_anonymized_dns(
         },
     };
     ext_socket.connect(&upstream_address).await?;
-    ext_socket.send(&encrypted_packet).await?;
+    ext_socket.send(encrypted_packet).await?;
     let mut response = vec![0u8; DNSCRYPT_UDP_RESPONSE_MAX_SIZE];
     let (response_len, is_certificate_response) = loop {
         let fut = ext_socket.recv_from(&mut response[..]);
@@ -107,7 +107,7 @@ pub async fn handle_anonymized_dns(
         if is_encrypted_response(&response, response_len) {
             break (response_len, false);
         }
-        if is_certificate_response(&response, &encrypted_packet) {
+        if is_certificate_response(&response, encrypted_packet) {
             break (response_len, true);
         }
     };
@@ -115,7 +115,7 @@ pub async fn handle_anonymized_dns(
     if is_certificate_response {
         let mut hasher = globals.hasher;
         hasher.write(&relayed_packet[..ANONYMIZED_DNSCRYPT_OVERHEAD]);
-        hasher.write(&dns::qname(&encrypted_packet)?);
+        hasher.write(&dns::qname(encrypted_packet)?);
         let packet_hash = hasher.finish128().as_u128();
         let cached_response = {
             match globals.cert_cache.lock().get(&packet_hash) {
