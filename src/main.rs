@@ -466,6 +466,9 @@ fn bind_listeners(
 }
 
 fn privdrop(config: &Config) -> Result<(), Error> {
+    if config.daemonize && config.metrics.is_some() {
+        bail!("Metrics are incompatible with daemonization - set 'daemonize = false' in the configuration file if you need metrics.");
+    }
     let mut pd = PrivDrop::default();
     if let Some(user) = &config.user {
         pd = pd.user(user);
@@ -474,11 +477,26 @@ fn privdrop(config: &Config) -> Result<(), Error> {
         pd = pd.group(group);
     }
     if let Some(chroot) = &config.chroot {
-        pd = pd.chroot(chroot);
+        if !config.daemonize {
+            pd = pd.chroot(chroot);
+        }
     }
     if config.user.is_some() || config.group.is_some() || config.chroot.is_some() {
         info!("Dropping privileges");
         pd.apply()?;
+    }
+    if config.daemonize {
+        let mut daemon = daemonize_simple::Daemonize::default();
+        daemon.stdout_file = config.log_file.clone();
+        daemon.stderr_file = config.log_file.clone();
+        daemon.pid_file = config.pid_file.clone();
+        if let Some(chroot) = &config.chroot {
+            daemon.chdir = Some(chroot.into());
+            daemon.chroot = true;
+        }
+        daemon
+            .doit()
+            .map_err(|e| anyhow!("Unable to daemonize: [{}]", e))?;
     }
     Ok(())
 }
