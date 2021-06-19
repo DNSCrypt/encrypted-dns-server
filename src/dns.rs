@@ -403,8 +403,8 @@ pub fn set_ttl(packet: &mut [u8], ttl: u32) -> Result<(), Error> {
     Ok(())
 }
 
-fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), Error> {
-    let opt_rr: [u8; 11] = [
+fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16, opt_rdata: &Vec<u8>) -> Result<(), Error> {
+    let mut opt_rr = vec![
         0,
         (DNS_TYPE_OPT >> 8) as u8,
         DNS_TYPE_OPT as u8,
@@ -413,10 +413,11 @@ fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), E
         0,
         0,
         0,
-        0,
-        0,
-        0,
+        0
     ];
+    for i in opt_rdata.iter() {
+        opt_rr.push(*i);
+    }
     ensure!(
         DNS_MAX_PACKET_SIZE - packet.len() >= opt_rr.len(),
         "Packet would be too large to add a new record"
@@ -426,7 +427,7 @@ fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), E
     Ok(())
 }
 
-pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), Error> {
+pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16, opt_rdata: &Vec<u8>) -> Result<(), Error> {
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
     ensure!(packet_len <= DNS_MAX_PACKET_SIZE, "Large packet");
@@ -455,7 +456,7 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
     if edns_payload_set {
         return Ok(());
     }
-    add_edns_section(packet, max_payload_size)?;
+    add_edns_section(packet, max_payload_size, opt_rdata)?;
     Ok(())
 }
 

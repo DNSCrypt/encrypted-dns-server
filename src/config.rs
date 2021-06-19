@@ -9,6 +9,13 @@ use std::path::{Path, PathBuf};
 use tokio::io::AsyncWriteExt;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct ECSConfig {
+    pub enabled: bool,
+    pub source_prefix_ipv4: u8,
+    pub source_prefix_ipv6: u8,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AccessControlConfig {
     pub enabled: bool,
     pub tokens: Vec<String>,
@@ -87,6 +94,7 @@ pub struct Config {
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,
     pub access_control: Option<AccessControlConfig>,
+    pub ecs: Option<ECSConfig>,
 }
 
 impl Config {

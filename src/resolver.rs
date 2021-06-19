@@ -9,7 +9,7 @@ use rand::prelude::*;
 use siphasher::sip128::Hasher128;
 use std::cmp;
 use std::hash::Hasher;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
 
@@ -18,6 +18,7 @@ pub async fn resolve_udp(
     mut packet: &mut Vec<u8>,
     packet_qname: &[u8],
     tid: u16,
+    opt_rdata: &Vec<u8>,
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
     let ext_socket = match globals.external_addr {
@@ -39,7 +40,7 @@ pub async fn resolve_udp(
         },
     };
     ext_socket.connect(globals.upstream_addr).await?;
-    dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
+    dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16, opt_rdata)?;
     let mut response;
     let timeout = if has_cached_response {
         globals.udp_timeout / 2
@@ -76,9 +77,10 @@ pub async fn resolve_udp(
 
 pub async fn resolve_tcp(
     globals: &Globals,
-    packet: &mut Vec<u8>,
+    mut packet: &mut Vec<u8>,
     packet_qname: &[u8],
     tid: u16,
+    opt_rdata: &Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let socket = match globals.external_addr {
         Some(x @ SocketAddr::V4(_)) => {
@@ -100,6 +102,7 @@ pub async fn resolve_tcp(
     };
     let mut ext_socket = socket.connect(globals.upstream_addr).await?;
     ext_socket.set_nodelay(true)?;
+    dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16, opt_rdata)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
     ext_socket.write_all(&binlen).await?;
@@ -128,6 +131,7 @@ pub async fn resolve(
     cached_response: Option<CachedResponse>,
     packet_hash: u128,
     original_tid: u16,
+    opt_rdata: &Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     #[cfg(feature = "metrics")]
     globals.varz.upstream_sent.inc();
@@ -138,11 +142,12 @@ pub async fn resolve(
         packet,
         &packet_qname,
         tid,
+        opt_rdata,
         cached_response.is_some(),
     )
     .await?;
     if dns::is_truncated(&response) {
-        response = resolve_tcp(globals, packet, &packet_qname, tid).await?;
+        response = resolve_tcp(globals, packet, &packet_qname, tid, opt_rdata).await?;
     }
     #[cfg(feature = "metrics")]
     {
@@ -186,13 +191,13 @@ pub async fn get_cached_response_or_resolve(
     mut packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let packet_qname = dns::qname(&packet)?;
+    let client_ip = match client_ctx {
+        ClientCtx::Udp(u) => u.client_addr,
+        ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
+    }
+    .ip();
     if let Some(my_ip) = &globals.my_ip {
         if &packet_qname.to_ascii_lowercase() == my_ip {
-            let client_ip = match client_ctx {
-                ClientCtx::Udp(u) => u.client_addr,
-                ClientCtx::Tcp(t) => t.client_connection.peer_addr()?,
-            }
-            .ip();
             return serve_ip_response(packet.to_vec(), client_ip, 1);
         }
     }
@@ -260,6 +265,76 @@ pub async fn get_cached_response_or_resolve(
             Some(cached_response)
         }
     };
+
+    let mut opt_rdata = vec![
+        0,  // 2 octets, all RDATA length https://tools.ietf.org/html/rfc6891#page-7
+        0
+    ];
+    if globals.ecs_enabled {
+        opt_rdata.push(0);  // (Defined in [RFC6891]) OPTION-CODE, 2 octets
+        opt_rdata.push(8);  // for ECS is 8 (0x00 0x08)
+        opt_rdata.push(0);  // (Defined in [RFC6891]) OPTION-LENGTH, 2 octets
+        opt_rdata.push(8);  // contains length of the payload (everything after OPTION-LENGTH) in octets.
+        opt_rdata.push(0);  // FAMILY, 2 octets
+        opt_rdata.push(1);  // (0x00 0x01 ipv4)
+        // SOURCE PREFIX-LENGTH, an unsigned octet representing the leftmost number of significant bits of ADDRESS
+        // SCOPE PREFIX-LENGTH, an unsigned octet representing.. In queries, it MUST be set to 0
+        // ADDRESS, variable number of octets, contains either an IPv4 or
+        // IPv6 address, depending on FAMILY, which MUST be truncated to the
+        // number of bits indicated by the SOURCE PREFIX-LENGTH field,
+        // padding with 0 bits to pad to the end of the last octet needed
+        let mut iplen:usize;
+        match client_ip {
+            IpAddr::V4(ipv4) => {
+                opt_rdata.push(globals.ecs_source_prefix_ipv4);
+                opt_rdata.push(0);
+                let mut mask:u32 = 0xFFFFFFFF;
+                let mut n = 32 - globals.ecs_source_prefix_ipv4;
+                while n > 0 {
+                    mask <<= 1;
+                    n -= 1;
+                }
+                let ipnum = u32::from(ipv4) & mask;
+                let iparr: [u8; 4] = ipnum.to_be_bytes();
+                iplen = iparr.len();
+                while iplen > 1 && iparr[iplen-1] == 0 {
+                    if iparr[iplen-2] != 0 { break; }
+                    iplen -= 1;
+                }
+                let mut z = 0;
+                while z < iplen {
+                    opt_rdata.push(iparr[z]);
+                    z += 1;
+                }
+            }
+            IpAddr::V6(ipv6) => {
+                opt_rdata.push(globals.ecs_source_prefix_ipv6);
+                opt_rdata.push(0);
+                opt_rdata[7] = 2;  // family number 2 = ipv6
+                let mut mask:u128 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
+                let mut n = 128 - globals.ecs_source_prefix_ipv6;
+                while n > 0 {
+                    mask <<= 1;
+                    n -= 1;
+                }
+                let ipnum = u128::from(ipv6) & mask;
+                let iparr: [u8; 16] = ipnum.to_be_bytes();
+                iplen = iparr.len();
+                while iplen > 1 && iparr[iplen-1] == 0 {
+                    if iparr[iplen-2] != 0 { break; }
+                    iplen -= 1;
+                }
+                let mut z = 0;
+                while z < iplen {
+                    opt_rdata.push(iparr[z]);
+                    z += 1;
+                }
+            }
+        }
+        opt_rdata[1] = 8 + iplen as u8;
+    }
+    //info!("ECS data {:?}", opt_rdata);
+
     resolve(
         globals,
         packet,
@@ -267,6 +342,7 @@ pub async fn get_cached_response_or_resolve(
         cached_response,
         packet_hash,
         original_tid,
+        &opt_rdata,
     )
     .await
 }

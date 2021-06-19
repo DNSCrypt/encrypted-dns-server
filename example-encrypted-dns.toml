@@ -254,3 +254,17 @@ enabled = false
 
 tokens = ["Y2oHkDJNHz", "G5zY3J5cHQtY", "C5zZWN1cmUuZG5z"]
 
+
+################################
+#  EDNS Client Subnet Option   #
+################################
+
+[ecs]
+
+# Enable to send to upstream client subnet data in query packet, RFC6891
+enabled = false
+
+# RFC6891
+source_prefix_ipv4 = 24
+source_prefix_ipv6 = 64
+
