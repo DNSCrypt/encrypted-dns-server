@@ -36,7 +36,7 @@ serde = "1.0.126"
 serde_derive = "1.0.126"
 serde-big-array = "0.3.2"
 siphasher = "0.3.5"
-tokio = { version = "1.7.1", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
+tokio = { version = "1.8.0", features = ["net", "io-std", "io-util", "fs", "time", "rt-multi-thread", "parking_lot"] }
 toml = "0.5.8"
 
 [dependencies.prometheus]
