@@ -108,13 +108,13 @@ pub struct DNSCryptEncryptionParams {
     resolver_kp: CryptKeyPair,
     #[serde(skip)]
     #[derivative(Debug = "ignore")]
-    pub cache: Option<Arc<Mutex<ClockProCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
+    pub key_cache: Option<Arc<Mutex<ClockProCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
 }
 
 impl DNSCryptEncryptionParams {
     pub fn new(
         provider_kp: &SignKeyPair,
-        cache_capacity: usize,
+        key_cache_capacity: usize,
         previous_params: Option<Arc<DNSCryptEncryptionParams>>,
     ) -> Vec<Self> {
         let now = now();
@@ -140,11 +140,11 @@ impl DNSCryptEncryptionParams {
             }
             if now >= ts_start {
                 let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
-                let cache = ClockProCache::new(cache_capacity).unwrap();
+                let cache = ClockProCache::new(key_cache_capacity).unwrap();
                 active_params.push(DNSCryptEncryptionParams {
                     dnscrypt_cert,
                     resolver_kp,
-                    cache: Some(Arc::new(Mutex::new(cache))),
+                    key_cache: Some(Arc::new(Mutex::new(cache))),
                 });
             }
             ts_start += DNSCRYPT_CERTS_RENEWAL;
@@ -154,11 +154,11 @@ impl DNSCryptEncryptionParams {
             let ts_start = now - (now % DNSCRYPT_CERTS_RENEWAL);
             let resolver_kp = CryptKeyPair::from_seed(seed);
             let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
-            let cache = ClockProCache::new(cache_capacity).unwrap();
+            let cache = ClockProCache::new(key_cache_capacity).unwrap();
             active_params.push(DNSCryptEncryptionParams {
                 dnscrypt_cert,
                 resolver_kp,
-                cache: Some(Arc::new(Mutex::new(cache))),
+                key_cache: Some(Arc::new(Mutex::new(cache))),
             });
         }
         active_params
@@ -166,7 +166,7 @@ impl DNSCryptEncryptionParams {
 
     pub fn add_key_cache(&mut self, cache_capacity: usize) {
         let cache = ClockProCache::new(cache_capacity).unwrap();
-        self.cache = Some(Arc::new(Mutex::new(cache)));
+        self.key_cache = Some(Arc::new(Mutex::new(cache)));
     }
 
     pub fn client_magic(&self) -> &[u8] {

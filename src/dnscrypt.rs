@@ -70,8 +70,12 @@ pub fn decrypt(
     nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);
 
     let cached_shared_key = {
-        let mut cache = dnscrypt_encryption_params.cache.as_ref().unwrap().lock();
-        cache
+        let mut key_cache = dnscrypt_encryption_params
+            .key_cache
+            .as_ref()
+            .unwrap()
+            .lock();
+        key_cache
             .get(client_pk)
             .map(|cached_shared_key| (*cached_shared_key).clone())
     };
@@ -84,7 +88,7 @@ pub fn decrypt(
             let mut client_pk_ = [0u8; DNSCRYPT_QUERY_PK_SIZE];
             client_pk_.copy_from_slice(client_pk);
             dnscrypt_encryption_params
-                .cache
+                .key_cache
                 .as_ref()
                 .unwrap()
                 .lock()
