@@ -36,7 +36,7 @@ jobs:
           mkdir encrypted-dns
           mv target/release/encrypted-dns encrypted-dns/
           cp README.md example-encrypted-dns.toml encrypted-dns/
-          tar cJpf encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2 encrypted-dns
+          tar cjpf encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2 encrypted-dns
       - name: Debian package
         run: |
           cargo deb
