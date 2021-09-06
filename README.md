@@ -97,7 +97,7 @@ Putting it in a directory that is only readable by the super-user is not a bad i
 
 ## Filtering
 
-Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file.
+Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file. Note: Filtering only works with the DNSCrypt protocol and does not apply to DNS-over-HTTP (DoH) forwarding.
 
 ## Access control
 
