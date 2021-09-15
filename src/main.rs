@@ -550,12 +550,14 @@ fn main() -> Result<(), Error> {
             std::process::exit(1);
         })
         .unwrap();
-    privdrop(&config)?;
+
 
     let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
     runtime_builder.enable_all();
     runtime_builder.thread_name("encrypted-dns-");
     let runtime = runtime_builder.build()?;
+
+    privdrop(&config)?;
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
     let cache_capacity = config.cache_capacity;
