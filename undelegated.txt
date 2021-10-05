@@ -114,6 +114,7 @@ f.f.ip6.arpa
 grp
 gw==
 home
+home.arpa
 hub
 id.opendns.com
 internal
