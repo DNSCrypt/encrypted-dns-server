@@ -511,23 +511,23 @@ fn main() -> Result<(), Error> {
     let time_updater = coarsetime::Updater::new(1000).start()?;
     let matches = app_from_crate!()
         .arg(
-            Arg::with_name("config")
+            Arg::new("config")
                 .long("config")
-                .short("c")
+                .short('c')
                 .value_name("file")
                 .takes_value(true)
                 .default_value("encrypted-dns.toml")
                 .help("Path to the configuration file"),
         )
         .arg(
-            Arg::with_name("import-from-dnscrypt-wrapper")
+            Arg::new("import-from-dnscrypt-wrapper")
                 .long("import-from-dnscrypt-wrapper")
                 .value_name("secret.key file")
                 .takes_value(true)
                 .help("Path to the dnscrypt-wrapper secret key"),
         )
         .arg(
-            Arg::with_name("dry-run")
+            Arg::new("dry-run")
                 .long("dry-run")
                 .takes_value(false)
                 .help("Only print the connection information and quit"),
@@ -550,7 +550,6 @@ fn main() -> Result<(), Error> {
             std::process::exit(1);
         })
         .unwrap();
-
 
     let mut runtime_builder = tokio::runtime::Builder::new_multi_thread();
     runtime_builder.enable_all();
