@@ -15,7 +15,7 @@ use tokio::net::{TcpSocket, UdpSocket};
 
 pub async fn resolve_udp(
     globals: &Globals,
-    mut packet: &mut Vec<u8>,
+    packet: &mut Vec<u8>,
     packet_qname: &[u8],
     tid: u16,
     has_cached_response: bool,
@@ -39,7 +39,7 @@ pub async fn resolve_udp(
         },
     };
     ext_socket.connect(globals.upstream_addr).await?;
-    dns::set_edns_max_payload_size(&mut packet, DNS_MAX_PACKET_SIZE as u16)?;
+    dns::set_edns_max_payload_size(packet, DNS_MAX_PACKET_SIZE as u16)?;
     let mut response;
     let timeout = if has_cached_response {
         globals.udp_timeout / 2
@@ -123,7 +123,7 @@ pub async fn resolve_tcp(
 
 pub async fn resolve(
     globals: &Globals,
-    mut packet: &mut Vec<u8>,
+    packet: &mut Vec<u8>,
     packet_qname: Vec<u8>,
     cached_response: Option<CachedResponse>,
     packet_hash: u128,
@@ -132,7 +132,7 @@ pub async fn resolve(
     #[cfg(feature = "metrics")]
     globals.varz.upstream_sent.inc();
     let tid = random();
-    dns::set_tid(&mut packet, tid);
+    dns::set_tid(packet, tid);
     let mut response = resolve_udp(
         globals,
         packet,
@@ -183,7 +183,7 @@ pub async fn resolve(
 pub async fn get_cached_response_or_resolve(
     globals: &Globals,
     client_ctx: &ClientCtx,
-    mut packet: &mut Vec<u8>,
+    packet: &mut Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let packet_qname = dns::qname(packet)?;
     if let Some(my_ip) = &globals.my_ip {
@@ -221,8 +221,8 @@ pub async fn get_cached_response_or_resolve(
         return dns::serve_nxdomain_response(packet.to_vec());
     }
     let original_tid = dns::tid(packet);
-    dns::set_tid(&mut packet, 0);
-    dns::normalize_qname(&mut packet)?;
+    dns::set_tid(packet, 0);
+    dns::normalize_qname(packet)?;
     let mut hasher = globals.hasher;
     hasher.write(packet);
     let packet_hash = hasher.finish128().as_u128();
