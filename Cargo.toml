@@ -12,15 +12,15 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.52"
+anyhow = "1.0.53"
 byteorder = "1.4.3"
-clap = { version = "3.0.0", default-features = false, features = [
+clap = { version = "3.0.13", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
 ] }
 clockpro-cache = "0.1.10"
-coarsetime = "0.1.20"
+coarsetime = "0.1.21"
 daemonize-simple = "0.1.5"
 derivative = "2.2.0"
 dnsstamps = "0.1.9"
@@ -34,18 +34,18 @@ hyper = { version = "0.14.16", default_features = false, features = [
 ], optional = true }
 ipext = "0.1.0"
 jemallocator = "0.3.2"
-libsodium-sys-stable = "1.19.19"
+libsodium-sys-stable = "1.19.21"
 log = { version = "0.4.14", features = ["std", "release_max_level_debug"] }
-socket2 = "0.4.2"
-parking_lot = "0.11.2"
+socket2 = "0.4.4"
+parking_lot = "0.12.0"
 privdrop = "0.5.1"
 rand = "0.8.4"
 rustc-hash = "1.1.0"
-serde = "1.0.132"
-serde_derive = "1.0.132"
+serde = "1.0.136"
+serde_derive = "1.0.136"
 serde-big-array = "0.3.2"
-siphasher = "0.3.7"
-tokio = { version = "1.15.0", features = [
+siphasher = "0.3.9"
+tokio = { version = "1.16.1", features = [
   "net",
   "io-std",
   "io-util",
