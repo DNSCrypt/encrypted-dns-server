@@ -8,6 +8,7 @@ use byteorder::{BigEndian, ByteOrder};
 use clockpro_cache::ClockProCache;
 use parking_lot::Mutex;
 use rand::prelude::*;
+use serde_big_array::BigArray;
 use std::mem;
 use std::slice;
 use std::sync::Arc;
@@ -38,8 +39,6 @@ impl DNSCryptCertInner {
         unsafe { slice::from_raw_parts(self as *const _ as *const u8, mem::size_of_val(self)) }
     }
 }
-
-big_array! { BigArray; 64 }
 
 #[derive(Derivative, Serialize, Deserialize)]
 #[derivative(Debug, Default, Clone)]

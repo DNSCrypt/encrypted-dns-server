@@ -1,6 +1,7 @@
 use crate::errors::*;
 
 use libsodium_sys::*;
+use serde_big_array::BigArray;
 use siphasher::sip::SipHasher13;
 use std::ffi::CStr;
 use std::hash::Hasher;
@@ -22,8 +23,6 @@ impl Signature {
         Signature(bytes)
     }
 }
-
-big_array! { BigArray; crypto_sign_SECRETKEYBYTES as usize }
 
 #[derive(Serialize, Deserialize, Derivative, Clone)]
 #[derivative(Default)]

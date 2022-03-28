@@ -76,7 +76,7 @@ pub async fn resolve_udp(
 
 pub async fn resolve_tcp(
     globals: &Globals,
-    packet: &mut Vec<u8>,
+    packet: &mut [u8],
     packet_qname: &[u8],
     tid: u16,
 ) -> Result<Vec<u8>, Error> {

@@ -10,15 +10,11 @@
 static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
 
 #[macro_use]
-extern crate clap;
-#[macro_use]
 extern crate derivative;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate serde_derive;
-#[macro_use]
-extern crate serde_big_array;
 #[cfg(feature = "metrics")]
 #[macro_use]
 extern crate prometheus;
@@ -509,7 +505,7 @@ fn main() -> Result<(), Error> {
 
     crypto::init()?;
     let time_updater = coarsetime::Updater::new(1000).start()?;
-    let matches = app_from_crate!()
+    let matches = clap::command!()
         .arg(
             Arg::new("config")
                 .long("config")
