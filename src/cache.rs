@@ -1,9 +1,10 @@
-use crate::dns;
+use std::sync::Arc;
 
 use clockpro_cache::ClockProCache;
 use coarsetime::{Duration, Instant};
 use parking_lot::{Mutex, MutexGuard};
-use std::sync::Arc;
+
+use crate::dns;
 
 #[derive(Clone, Debug)]
 pub struct CachedResponse {

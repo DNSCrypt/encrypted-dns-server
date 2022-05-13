@@ -1,18 +1,19 @@
-use crate::anonymized_dns::*;
-use crate::config::*;
-use crate::crypto::*;
-use crate::dnscrypt::*;
-use crate::globals::*;
+use std::mem;
+use std::slice;
+use std::sync::Arc;
+use std::time::SystemTime;
 
 use byteorder::{BigEndian, ByteOrder};
 use clockpro_cache::ClockProCache;
 use parking_lot::Mutex;
 use rand::prelude::*;
 use serde_big_array::BigArray;
-use std::mem;
-use std::slice;
-use std::sync::Arc;
-use std::time::SystemTime;
+
+use crate::anonymized_dns::*;
+use crate::config::*;
+use crate::crypto::*;
+use crate::dnscrypt::*;
+use crate::globals::*;
 
 pub const DNSCRYPT_CERTS_TTL: u32 = 86400;
 pub const DNSCRYPT_CERTS_RENEWAL: u32 = 28800;

@@ -1,6 +1,7 @@
+use std::sync::Arc;
+
 use coarsetime::Instant;
 use prometheus::{Histogram, IntCounter, IntGauge};
-use std::sync::Arc;
 
 pub struct StartInstant(pub Instant);
 
@@ -64,22 +65,19 @@ impl Inner {
             .unwrap(),
             client_queries_udp: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_udp",
-                "Number of client queries received \
-                 using UDP",
+                "Number of client queries received using UDP",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
             client_queries_tcp: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_tcp",
-                "Number of client queries received \
-                 using TCP",
+                "Number of client queries received using TCP",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
             client_queries_cached: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_cached",
-                "Number of client queries sent from \
-                 the cache",
+                "Number of client queries sent from the cache",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
@@ -91,9 +89,7 @@ impl Inner {
             .unwrap(),
             client_queries_offline: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_offline",
-                "Number of client queries answered \
-                 while upstream resolvers are \
-                 unresponsive",
+                "Number of client queries answered while upstream resolvers are unresponsive",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),

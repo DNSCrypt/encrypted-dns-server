@@ -1,12 +1,13 @@
-use crate::crypto::*;
-use crate::dnscrypt_certs::*;
-use crate::errors::*;
-
 use std::fs;
 use std::mem;
 use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
+
 use tokio::io::AsyncWriteExt;
+
+use crate::crypto::*;
+use crate::dnscrypt_certs::*;
+use crate::errors::*;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AccessControlConfig {

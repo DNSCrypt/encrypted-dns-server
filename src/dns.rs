@@ -1,9 +1,10 @@
-use crate::dnscrypt_certs::*;
-use crate::errors::*;
-
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use std::net::IpAddr;
 use std::sync::Arc;
+
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+
+use crate::dnscrypt_certs::*;
+use crate::errors::*;
 
 pub const DNS_MAX_HOSTNAME_SIZE: usize = 256;
 pub const DNS_HEADER_SIZE: usize = 12;

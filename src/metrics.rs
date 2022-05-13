@@ -1,6 +1,6 @@
-use crate::config::*;
-use crate::errors::*;
-use crate::varz::*;
+use std::mem;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
 
 #[allow(unused_imports)]
 use futures::prelude::*;
@@ -9,11 +9,12 @@ use hyper::server::conn::Http;
 use hyper::service::service_fn;
 use hyper::{Body, Request, Response, StatusCode};
 use prometheus::{self, Encoder, TextEncoder};
-use std::mem;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
+
+use crate::config::*;
+use crate::errors::*;
+use crate::varz::*;
 
 const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
 const METRICS_MAX_CONCURRENT_CONNECTIONS: u32 = 2;

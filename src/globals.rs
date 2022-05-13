@@ -1,20 +1,21 @@
-use crate::blacklist::*;
-use crate::cache::*;
-use crate::crypto::*;
-use crate::dnscrypt_certs::*;
-#[cfg(feature = "metrics")]
-use crate::varz::*;
-
-use parking_lot::{Mutex, RwLock};
-use siphasher::sip128::SipHasher13;
 use std::collections::vec_deque::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
+
+use parking_lot::{Mutex, RwLock};
+use siphasher::sip128::SipHasher13;
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
+
+use crate::blacklist::*;
+use crate::cache::*;
+use crate::crypto::*;
+use crate::dnscrypt_certs::*;
+#[cfg(feature = "metrics")]
+use crate::varz::*;
 
 #[derive(Clone, Derivative)]
 #[derivative(Debug)]

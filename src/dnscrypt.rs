@@ -1,11 +1,12 @@
+use std::sync::Arc;
+
+use libsodium_sys::*;
+use rand::prelude::*;
+
 use crate::crypto::*;
 use crate::dns::*;
 use crate::dnscrypt_certs::*;
 use crate::errors::*;
-
-use libsodium_sys::*;
-use rand::prelude::*;
-use std::sync::Arc;
 
 pub const DNSCRYPT_FULL_NONCE_SIZE: usize =
     crypto_box_curve25519xchacha20poly1305_NONCEBYTES as usize;

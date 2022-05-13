@@ -1,10 +1,11 @@
-use crate::errors::*;
-
-use rustc_hash::FxHashMap;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::sync::Arc;
+
+use rustc_hash::FxHashMap;
+
+use crate::errors::*;
 
 const MAX_ITERATIONS: usize = 5;
 

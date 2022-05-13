@@ -35,30 +35,6 @@ mod resolver;
 #[cfg(feature = "metrics")]
 mod varz;
 
-use anonymized_dns::*;
-use blacklist::*;
-use cache::*;
-use config::*;
-use crypto::*;
-use dns::*;
-use dnscrypt::*;
-use dnscrypt_certs::*;
-use errors::*;
-use globals::*;
-#[cfg(feature = "metrics")]
-use varz::*;
-
-use byteorder::{BigEndian, ByteOrder};
-use clap::Arg;
-use clockpro_cache::ClockProCache;
-use dnsstamps::{InformalProperty, WithInformalProperty};
-use futures::join;
-use futures::prelude::*;
-use parking_lot::Mutex;
-use parking_lot::RwLock;
-use privdrop::PrivDrop;
-use rand::prelude::*;
-use siphasher::sip128::SipHasher13;
 use std::collections::vec_deque::VecDeque;
 use std::convert::TryFrom;
 use std::fs::File;
@@ -68,10 +44,34 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
+
+use anonymized_dns::*;
+use blacklist::*;
+use byteorder::{BigEndian, ByteOrder};
+use cache::*;
+use clap::Arg;
+use clockpro_cache::ClockProCache;
+use config::*;
+use crypto::*;
+use dns::*;
+use dnscrypt::*;
+use dnscrypt_certs::*;
+use dnsstamps::{InformalProperty, WithInformalProperty};
+use errors::*;
+use futures::join;
+use futures::prelude::*;
+use globals::*;
+use parking_lot::Mutex;
+use parking_lot::RwLock;
+use privdrop::PrivDrop;
+use rand::prelude::*;
+use siphasher::sip128::SipHasher13;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
+#[cfg(feature = "metrics")]
+use varz::*;
 
 const TCP_BACKLOG: i32 = 1024;
 

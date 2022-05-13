@@ -1,17 +1,18 @@
+use std::cmp;
+use std::hash::Hasher;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+
+use byteorder::{BigEndian, ByteOrder};
+use rand::prelude::*;
+use siphasher::sip128::Hasher128;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::{TcpSocket, UdpSocket};
+
 use crate::cache::*;
 use crate::dns::{self, *};
 use crate::errors::*;
 use crate::globals::*;
 use crate::ClientCtx;
-
-use byteorder::{BigEndian, ByteOrder};
-use rand::prelude::*;
-use siphasher::sip128::Hasher128;
-use std::cmp;
-use std::hash::Hasher;
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpSocket, UdpSocket};
 
 pub async fn resolve_udp(
     globals: &Globals,

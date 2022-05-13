@@ -1,11 +1,12 @@
-use crate::errors::*;
+use std::ffi::CStr;
+use std::hash::Hasher;
+use std::ptr;
 
 use libsodium_sys::*;
 use serde_big_array::BigArray;
 use siphasher::sip::SipHasher13;
-use std::ffi::CStr;
-use std::hash::Hasher;
-use std::ptr;
+
+use crate::errors::*;
 
 #[derive(Derivative)]
 #[derivative(Default)]
