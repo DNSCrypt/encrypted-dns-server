@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 #[global_allocator]
-static ALLOC: jemallocator::Jemalloc = jemallocator::Jemalloc;
+static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[macro_use]
 extern crate derivative;

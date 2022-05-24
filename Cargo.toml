@@ -33,9 +33,9 @@ hyper = { version = "0.14.16", default_features = false, features = [
   "http1",
 ], optional = true }
 ipext = "0.1.0"
-jemallocator = "0.3.2"
 libsodium-sys-stable = "1.19.21"
 log = { version = "0.4.14", features = ["std", "release_max_level_debug"] }
+mimalloc = { version = "0.1.29", default-features = false }
 socket2 = "0.4.4"
 parking_lot = "0.12.0"
 privdrop = "0.5.1"
