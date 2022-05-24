@@ -60,7 +60,6 @@ toml = "0.5.8"
 optional = true
 version = "0.13.0"
 default_features = false
-features = ["process"]
 
 [features]
 default = ["metrics"]
