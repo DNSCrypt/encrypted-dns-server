@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use clockpro_cache::ClockProCache;
 use coarsetime::{Duration, Instant};
-use parking_lot::{Mutex, MutexGuard};
+use tracing_mutex::parkinglot::TracingMutex as Mutex;
+use tracing_mutex::parkinglot::TracingMutexGuard as MutexGuard;
 
 use crate::dns;
 

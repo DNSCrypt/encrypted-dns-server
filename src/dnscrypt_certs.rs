@@ -5,9 +5,9 @@ use std::time::SystemTime;
 
 use byteorder::{BigEndian, ByteOrder};
 use clockpro_cache::ClockProCache;
-use parking_lot::Mutex;
 use rand::prelude::*;
 use serde_big_array::BigArray;
+use tracing_mutex::parkinglot::TracingMutex as Mutex;
 
 use crate::anonymized_dns::*;
 use crate::config::*;

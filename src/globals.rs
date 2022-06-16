@@ -5,10 +5,11 @@ use std::sync::atomic::AtomicU32;
 use std::sync::Arc;
 use std::time::Duration;
 
-use parking_lot::{Mutex, RwLock};
 use siphasher::sip128::SipHasher13;
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
+use tracing_mutex::parkinglot::TracingMutex as Mutex;
+use tracing_mutex::parkinglot::TracingRwLock as RwLock;
 
 use crate::blacklist::*;
 use crate::cache::*;

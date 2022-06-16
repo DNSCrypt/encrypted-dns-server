@@ -37,7 +37,7 @@ libsodium-sys-stable = "1.19.22"
 log = { version = "0.4.17", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.29", default-features = false }
 socket2 = "0.4.4"
-parking_lot = "0.12.1"
+tracing-mutex = { version = "0.2.1", features = ["parkinglot"] }
 privdrop = "0.5.2"
 rand = "0.8.5"
 rustc-hash = "1.1.0"

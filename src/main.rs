@@ -61,8 +61,6 @@ use errors::*;
 use futures::join;
 use futures::prelude::*;
 use globals::*;
-use parking_lot::Mutex;
-use parking_lot::RwLock;
 use privdrop::PrivDrop;
 use rand::prelude::*;
 use siphasher::sip128::SipHasher13;
@@ -70,6 +68,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
+use tracing_mutex::parkinglot::TracingMutex as Mutex;
+use tracing_mutex::parkinglot::TracingRwLock as RwLock;
 #[cfg(feature = "metrics")]
 use varz::*;
 
