@@ -63,6 +63,7 @@ use futures::prelude::*;
 use globals::*;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
+#[cfg(not(target_family = "windows"))]
 use privdrop::PrivDrop;
 use rand::prelude::*;
 use siphasher::sip128::SipHasher13;
@@ -461,6 +462,7 @@ fn bind_listeners(
     Ok(sockets)
 }
 
+#[cfg(not(target_family = "windows"))]
 fn privdrop(config: &Config) -> Result<(), Error> {
     let mut pd = PrivDrop::default();
     if let Some(user) = &config.user {
@@ -552,6 +554,7 @@ fn main() -> Result<(), Error> {
     runtime_builder.thread_name("encrypted-dns-");
     let runtime = runtime_builder.build()?;
 
+    #[cfg(not(target_family = "windows"))]
     privdrop(&config)?;
 
     let key_cache_capacity = config.dnscrypt.key_cache_capacity;
