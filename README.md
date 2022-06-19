@@ -64,7 +64,7 @@ Make a copy of the `example-encrypted-dns.toml` configuration file named `encryp
 
 Then, review the [`encrypted-dns.toml`](https://raw.githubusercontent.com/jedisct1/encrypted-dns-server/master/example-encrypted-dns.toml) file. This is where all the parameters can be configured, including the IP addresses to listen to.
 
-You should probably at least change the `listen_addresses` and `provider_name` settings.
+You should probably at least change the `listen_addrs` and `provider_name` settings.
 
 Start the proxy. It will automatically create a new provider key pair if there isn't any.
 
