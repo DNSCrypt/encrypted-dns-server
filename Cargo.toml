@@ -38,7 +38,6 @@ log = { version = "0.4.17", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.29", default-features = false }
 socket2 = "0.4.4"
 parking_lot = "0.12.1"
-privdrop = "0.5.2"
 rand = "0.8.5"
 rustc-hash = "1.1.0"
 serde = "1.0.137"
@@ -54,6 +53,9 @@ tokio = { version = "1.19.2", features = [
   "rt-multi-thread"
 ] }
 toml = "0.5.9"
+
+[target.'cfg(not(target_family = "windows"))'.dependencies]
+privdrop = "0.5.2"
 
 [dependencies.prometheus]
 optional = true
