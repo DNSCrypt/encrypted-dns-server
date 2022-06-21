@@ -358,7 +358,7 @@ async fn udp_acceptor(
         let (tx, rx) = oneshot::channel::<()>();
         {
             let mut active_connections = active_connections.lock();
-            if active_connections.len() >= globals.tcp_max_active_connections as _ {
+            if active_connections.len() >= globals.udp_max_active_connections as _ {
                 let tx_oldest = active_connections.pop_back().unwrap();
                 let _ = tx_oldest.send(());
             }
