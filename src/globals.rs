@@ -1,4 +1,3 @@
-use std::collections::vec_deque::VecDeque;
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU32;
@@ -7,6 +6,7 @@ use std::time::Duration;
 
 use parking_lot::{Mutex, RwLock};
 use siphasher::sip128::SipHasher13;
+use slabigator::Slab;
 use tokio::runtime::Handle;
 use tokio::sync::oneshot;
 
@@ -35,8 +35,8 @@ pub struct Globals {
     pub tcp_concurrent_connections: Arc<AtomicU32>,
     pub udp_max_active_connections: u32,
     pub tcp_max_active_connections: u32,
-    pub udp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
-    pub tcp_active_connections: Arc<Mutex<VecDeque<oneshot::Sender<()>>>>,
+    pub udp_active_connections: Arc<Mutex<Slab<oneshot::Sender<()>>>>,
+    pub tcp_active_connections: Arc<Mutex<Slab<oneshot::Sender<()>>>>,
     pub key_cache_capacity: usize,
     pub hasher: SipHasher13,
     pub cache: Cache,
