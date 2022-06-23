@@ -549,6 +549,7 @@ fn main() -> Result<(), Error> {
 
     let config_path = matches.value_of("config").unwrap();
     let config = Config::from_path(config_path)?;
+    _ = set_limits(&config);
     let dnscrypt_enabled = config.dnscrypt.enabled.unwrap_or(true);
     let provider_name = match &config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
@@ -787,5 +788,25 @@ fn main() -> Result<(), Error> {
     );
     runtime.block_on(updater.run());
     time_updater.stop()?;
+    Ok(())
+}
+
+#[cfg(not(target_family = "unix"))]
+fn set_limits(config: &Config) -> Result<(), Error> {
+    Ok(())
+}
+
+#[cfg(target_family = "unix")]
+fn set_limits(config: &Config) -> Result<(), Error> {
+    use rlimit::Resource;
+    let nb_descriptors = 2u32
+        .saturating_mul(
+            config
+                .tcp_max_active_connections
+                .saturating_add(config.udp_max_active_connections)
+                .saturating_add(config.listen_addrs.len() as u32),
+        )
+        .saturating_add(16);
+    Resource::NOFILE.set(nb_descriptors as _, nb_descriptors as _)?;
     Ok(())
 }

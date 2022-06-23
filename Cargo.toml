@@ -39,6 +39,7 @@ mimalloc = { version = "0.1.29", default-features = false }
 socket2 = "0.4.4"
 parking_lot = "0.12.1"
 rand = "0.8.5"
+rlimit = "0.8.3"
 rustc-hash = "1.1.0"
 serde = "1.0.137"
 serde_derive = "1.0.137"
