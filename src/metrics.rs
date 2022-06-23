@@ -55,7 +55,16 @@ pub async fn prometheus_service(
     let stream = TcpListener::bind(metrics_config.listen_addr).await?;
     let concurrent_connections = Arc::new(AtomicU32::new(0));
     loop {
-        let (client, _client_addr) = stream.accept().await?;
+        let (client, _client_addr) = match stream.accept().await {
+            Ok(x) => x,
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    continue;
+                }
+                warn!("Error accepting Prometheus connection: {}", e);
+                continue;
+            }
+        };
         let count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
         if count >= METRICS_MAX_CONCURRENT_CONNECTIONS {
             concurrent_connections.fetch_sub(1, Ordering::Relaxed);
