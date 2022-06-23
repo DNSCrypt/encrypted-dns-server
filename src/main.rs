@@ -284,7 +284,17 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
     let timeout = globals.tcp_timeout;
     let concurrent_connections = globals.tcp_concurrent_connections.clone();
     let active_connections = globals.tcp_active_connections.clone();
-    while let Ok((mut client_connection, _client_addr)) = tcp_listener.accept().await {
+    loop {
+        let (mut client_connection, _client_addr) = match tcp_listener.accept().await {
+            Ok(x) => x,
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::WouldBlock {
+                    continue;
+                }
+                warn!("TCP accept error: {}", e);
+                continue;
+            }
+        };
         let (tx, rx) = oneshot::channel::<()>();
         let tx_channel_index = {
             let mut active_connections = active_connections.lock();
@@ -333,7 +343,6 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             _ = active_connections.remove(tx_channel_index);
         }));
     }
-    Ok(())
 }
 
 #[allow(unreachable_code)]
