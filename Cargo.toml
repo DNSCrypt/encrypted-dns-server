@@ -12,9 +12,9 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.57"
+anyhow = "1.0.58"
 byteorder = "1.4.3"
-clap = { version = "3.1.18", default-features = false, features = [
+clap = { version = "3.2.6", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
