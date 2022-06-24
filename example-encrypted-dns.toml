@@ -54,7 +54,7 @@ udp_max_active_connections = 1000
 
 ## Maximum active TCP connections
 
-tcp_max_active_connections = 100
+tcp_max_active_connections = 250
 
 
 ## Optional IP address to connect to upstream servers from.
