@@ -531,7 +531,10 @@ fn set_limits(config: &Config) -> Result<(), Error> {
                 .saturating_add(config.listen_addrs.len() as u32),
         )
         .saturating_add(16);
-    if let Err(_) = Resource::NOFILE.set(nb_descriptors as _, nb_descriptors as _) {
+    if Resource::NOFILE
+        .set(nb_descriptors as _, nb_descriptors as _)
+        .is_err()
+    {
         let (_soft, hard) = Resource::NOFILE.get()?;
         if nb_descriptors as u64 > hard as u64 {
             warn!(
