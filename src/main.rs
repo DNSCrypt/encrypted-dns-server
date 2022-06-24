@@ -292,6 +292,10 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
                     continue;
                 }
                 warn!("TCP accept error: {}", e);
+                if let Some(tx_oldest) = active_connections.lock().pop_back() {
+                    let _ = tx_oldest.send(());
+                }
+                tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
         };
