@@ -569,7 +569,9 @@ fn main() -> Result<(), Error> {
 
     let config_path = matches.value_of("config").unwrap();
     let config = Config::from_path(config_path)?;
-    _ = set_limits(&config);
+    if let Err(e) = set_limits(&config) {
+        warn!("Unable to set limits: [{}]", e);
+    }
     let dnscrypt_enabled = config.dnscrypt.enabled.unwrap_or(true);
     let provider_name = match &config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
