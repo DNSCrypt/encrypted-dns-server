@@ -523,7 +523,7 @@ fn set_limits(config: &Config) -> Result<(), Error> {
 #[cfg(target_family = "unix")]
 fn set_limits(config: &Config) -> Result<(), Error> {
     use rlimit::Resource;
-    let nb_descriptors = 2u32
+    let nb_descriptors = 4u32
         .saturating_mul(
             config
                 .tcp_max_active_connections
@@ -531,19 +531,15 @@ fn set_limits(config: &Config) -> Result<(), Error> {
                 .saturating_add(config.listen_addrs.len() as u32),
         )
         .saturating_add(16);
-    if Resource::NOFILE
-        .set(nb_descriptors as _, nb_descriptors as _)
-        .is_err()
-    {
-        let (_soft, hard) = Resource::NOFILE.get()?;
-        if nb_descriptors as u64 > hard as u64 {
-            warn!(
-                "Unable to set the number of open files to {}. The hard limit is {}",
-                nb_descriptors, hard
-            );
-        }
-        Resource::NOFILE.set(hard, hard)?;
+    let (_soft, hard) = Resource::NOFILE.get()?;
+    if nb_descriptors as u64 > hard as u64 {
+        warn!(
+            "Unable to set the number of open files to {}. The hard limit is {}",
+            nb_descriptors, hard
+        );
     }
+    let nb_descriptors = std::cmp::max(nb_descriptors as _, hard);
+    Resource::NOFILE.set(nb_descriptors, nb_descriptors)?;
     Ok(())
 }
 
