@@ -531,7 +531,16 @@ fn set_limits(config: &Config) -> Result<(), Error> {
                 .saturating_add(config.listen_addrs.len() as u32),
         )
         .saturating_add(16);
-    Resource::NOFILE.set(nb_descriptors as _, nb_descriptors as _)?;
+    if let Err(_) = Resource::NOFILE.set(nb_descriptors as _, nb_descriptors as _) {
+        let (_soft, hard) = Resource::NOFILE.get()?;
+        if nb_descriptors as u64 > hard as u64 {
+            warn!(
+                "Unable to set the number of open files to {}. The hard limit is {}",
+                nb_descriptors, hard
+            );
+        }
+        Resource::NOFILE.set(hard, hard)?;
+    }
     Ok(())
 }
 
