@@ -516,7 +516,7 @@ fn privdrop(config: &Config) -> Result<(), Error> {
 }
 
 #[cfg(not(target_family = "unix"))]
-fn set_limits(config: &Config) -> Result<(), Error> {
+fn set_limits(_config: &Config) -> Result<(), Error> {
     Ok(())
 }
 
