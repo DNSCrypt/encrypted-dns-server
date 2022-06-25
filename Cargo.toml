@@ -57,7 +57,7 @@ tokio = { version = "1.19.2", features = [
 ] }
 toml = "0.5.9"
 
-[target.'cfg(not(target_family = "windows"))'.dependencies]
+[target.'cfg(target_family = "unix")'.dependencies]
 privdrop = "0.5.2"
 
 [dependencies.prometheus]
