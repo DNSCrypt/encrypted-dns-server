@@ -52,8 +52,7 @@ tokio = { version = "1.19.2", features = [
   "io-util",
   "fs",
   "time",
-  "rt-multi-thread",
-  "parking_lot",
+  "rt-multi-thread"
 ] }
 toml = "0.5.9"
 
