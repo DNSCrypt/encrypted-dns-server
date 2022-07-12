@@ -28,7 +28,7 @@ env_logger = { version = "0.9.0", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.21", features = ["async-await"] }
-hyper = { version = "0.14.19", default_features = false, features = [
+hyper = { version = "0.14.20", default_features = false, features = [
   "server",
   "http1",
 ], optional = true }
@@ -41,8 +41,8 @@ parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.8.3"
 rustc-hash = "1.1.0"
-serde = "1.0.137"
-serde_derive = "1.0.137"
+serde = "1.0.138"
+serde_derive = "1.0.138"
 serde-big-array = "0.4.1"
 siphasher = "0.3.10"
 slabigator = "0.1.4"
