@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.58"
 byteorder = "1.4.3"
-clap = { version = "3.2.8", default-features = false, features = [
+clap = { version = "3.2.11", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -41,12 +41,12 @@ parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.8.3"
 rustc-hash = "1.1.0"
-serde = "1.0.138"
-serde_derive = "1.0.138"
+serde = "1.0.139"
+serde_derive = "1.0.139"
 serde-big-array = "0.4.1"
 siphasher = "0.3.10"
 slabigator = "0.1.4"
-tokio = { version = "1.19.2", features = [
+tokio = { version = "1.20.0", features = [
   "net",
   "io-std",
   "io-util",
