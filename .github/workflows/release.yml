@@ -7,18 +7,34 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            target_alias: linux-x86_64
+            bin_suffix: ''
+            archive_suffix: '.tar.bz2'
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            target_alias: win-x86_64-msvc
+            bin_suffix: '.exe'
+            archive_suffix: '.zip'
+    defaults:
+      run:
+        shell: bash
+    env:
+      ARCHIVE_PATH: encrypted-dns_${{ github.ref_name }}_${{ matrix.target_alias }}${{ matrix.archive_suffix }}
 
     steps:
-      - name: Get the version
-        id: get_version
-        run: echo ::set-output name=VERSION::${GITHUB_REF#refs/tags/}
-
       - uses: actions/checkout@master
 
       - uses: hecrj/setup-rust-action@master
         with:
           rust-version: stable
+          targets: ${{ matrix.target }}
 
       - name: Check Cargo availability
         run: cargo --version
@@ -26,50 +42,54 @@ jobs:
       - name: Check Rustup default toolchain
         run: rustup default | grep stable
 
-      - name: Install cargo-deb
-        run: cargo install --debug cargo-deb
-
       - name: Build
         run: |
           echo 'lto = "fat"' >> Cargo.toml
           env RUSTFLAGS="-C link-arg=-s" cargo build --release
           mkdir encrypted-dns
-          mv target/release/encrypted-dns encrypted-dns/
+          cp target/release/encrypted-dns${{ matrix.bin_suffix }} encrypted-dns/
           cp README.md example-encrypted-dns.toml encrypted-dns/
-          tar cjpf encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2 encrypted-dns
-      - name: Debian package
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            tar cjpf ${ARCHIVE_PATH} encrypted-dns
+          elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+            "/C/Program Files/7-Zip/7z" a ${ARCHIVE_PATH} encrypted-dns
+          fi
+
+      - name: Install cargo-deb and build Debian package
+        if: ${{ matrix.os == 'ubuntu-latest' }}
         run: |
-          cargo deb
+          cargo install --debug cargo-deb
+          cargo deb --output=encrypted-dns_${{ github.ref_name }}_amd64.deb --no-build
+
+      - uses: actions/upload-artifact@master
+        with:
+          name: encrypted-dns_${{ matrix.target_alias }}
+          path: ${{ env.ARCHIVE_PATH }}
+
+      - uses: actions/upload-artifact@master
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        with:
+          name: encrypted-dns_deb-amd64
+          path: encrypted-dns_${{ github.ref_name }}_amd64.deb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v3
 
       - name: Create release
-        id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          name: Release ${{ github.ref_name }}
           draft: true
           prerelease: false
-
-      - name: Upload Debian package
-        id: upload-release-asset-debian
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_amd64.deb"
-          asset_path: "target/debian/encrypted-dns_${{ steps.get_version.outputs.VERSION }}_amd64.deb"
-          asset_content_type: application/x-debian-package
-
-      - name: Upload tarball
-        id: upload-release-asset-tarball
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_name: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2"
-          asset_path: "encrypted-dns_${{ steps.get_version.outputs.VERSION }}_linux-x86_64.tar.bz2"
-          asset_content_type: application/x-tar
+          files: |
+            encrypted-dns_deb-amd64/*.deb
+            encrypted-dns_linux-x86_64/*.tar.bz2
+            encrypted-dns_win-x86_64-msvc/*.zip

@@ -18,9 +18,9 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 
 ## Installation
 
-### Option 1: precompiled binary for Linux
+### Option 1: precompiled x86_64 binary
 
-Precompiled tarballs and Debian packages for Linux/x86_64 [can be downloaded here](https://github.com/jedisct1/encrypted-dns-server/releases/latest).
+Debian packages, archives for Linux and Windows [can be downloaded here](https://github.com/jedisct1/encrypted-dns-server/releases/latest).
 
 Nothing else has to be installed. The server doesn't require any external dependencies.
 
