@@ -483,7 +483,7 @@ pub fn serve_certificates<'t>(
     if !qname.eq_ignore_ascii_case(expected_qname) {
         return Ok(None);
     }
-    let mut packet = (&client_packet[..offset + 4]).to_vec();
+    let mut packet = client_packet[..offset + 4].to_vec();
     an_ns_ar_count_clear(&mut packet);
     authoritative_response(&mut packet);
     let dnscrypt_encryption_params = dnscrypt_encryption_params_set
