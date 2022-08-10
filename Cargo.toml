@@ -1,6 +1,6 @@
 [package]
 name = "encrypted-dns"
-version = "0.9.7"
+version = "0.9.8"
 authors = ["Frank Denis <github@pureftpd.org>"]
 edition = "2018"
 description = "A modern encrypted DNS server (DNSCrypt v2, Anonymized DNSCrypt, DoH)"
@@ -12,9 +12,9 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.58"
+anyhow = "1.0.60"
 byteorder = "1.4.3"
-clap = { version = "3.2.13", default-features = false, features = [
+clap = { version = "3.2.16", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
