@@ -12,9 +12,9 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.62"
+anyhow = "1.0.65"
 byteorder = "1.4.3"
-clap = { version = "3.2.17", default-features = false, features = [
+clap = { version = "3.2.21", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -27,7 +27,7 @@ dnsstamps = "0.1.9"
 env_logger = { version = "0.9.0", default-features = false, features = [
   "humantime",
 ] }
-futures = { version = "0.3.23", features = ["async-await"] }
+futures = { version = "0.3.24", features = ["async-await"] }
 hyper = { version = "0.14.20", default_features = false, features = [
   "server",
   "http1",
@@ -36,7 +36,7 @@ ipext = "0.1.0"
 libsodium-sys-stable = "1.19.22"
 log = { version = "0.4.17", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.29", default-features = false }
-socket2 = "0.4.6"
+socket2 = "0.4.7"
 parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.8.3"
@@ -46,7 +46,7 @@ serde_derive = "1.0.144"
 serde-big-array = "0.4.1"
 siphasher = "0.3.10"
 slabigator = "0.2.0"
-tokio = { version = "1.20.1", features = [
+tokio = { version = "1.21.1", features = [
   "net",
   "io-std",
   "io-util",
