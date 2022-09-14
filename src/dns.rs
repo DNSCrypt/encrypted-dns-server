@@ -423,7 +423,7 @@ fn add_edns_section(packet: &mut Vec<u8>, max_payload_size: u16) -> Result<(), E
         "Packet would be too large to add a new record"
     );
     arcount_inc(packet)?;
-    packet.extend(&opt_rr);
+    packet.extend(opt_rr);
     Ok(())
 }
 
