@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.65"
 byteorder = "1.4.3"
-clap = { version = "3.2.21", default-features = false, features = [
+clap = { version = "3.2.22", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -24,7 +24,7 @@ coarsetime = "0.1.22"
 daemonize-simple = "0.1.5"
 derivative = "2.2.0"
 dnsstamps = "0.1.9"
-env_logger = { version = "0.9.0", default-features = false, features = [
+env_logger = { version = "0.9.1", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.24", features = ["async-await"] }
@@ -41,12 +41,12 @@ parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.8.3"
 rustc-hash = "1.1.0"
-serde = "1.0.144"
-serde_derive = "1.0.144"
+serde = "1.0.145"
+serde_derive = "1.0.145"
 serde-big-array = "0.4.1"
 siphasher = "0.3.10"
 slabigator = "0.2.0"
-tokio = { version = "1.21.1", features = [
+tokio = { version = "1.21.2", features = [
   "net",
   "io-std",
   "io-util",
