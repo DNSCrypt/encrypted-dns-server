@@ -24,7 +24,7 @@ coarsetime = "0.1.22"
 daemonize-simple = "0.1.5"
 derivative = "2.2.0"
 dnsstamps = "0.1.9"
-env_logger = { version = "0.9.1", default-features = false, features = [
+env_logger = { version = "0.9.3", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.24", features = ["async-await"] }
