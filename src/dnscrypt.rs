@@ -46,7 +46,7 @@ pub const DNSCRYPT_TCP_RESPONSE_MAX_SIZE: usize =
 pub fn decrypt(
     wrapped_packet: &[u8],
     dnscrypt_encryption_params_set: &[Arc<DNSCryptEncryptionParams>],
-) -> Result<(SharedKey, [u8; DNSCRYPT_FULL_NONCE_SIZE as usize], Vec<u8>), Error> {
+) -> Result<(SharedKey, [u8; DNSCRYPT_FULL_NONCE_SIZE], Vec<u8>), Error> {
     ensure!(
         wrapped_packet.len()
             >= DNSCRYPT_QUERY_MAGIC_SIZE
@@ -67,7 +67,7 @@ pub fn decrypt(
         .find(|p| p.client_magic() == client_magic)
         .ok_or_else(|| anyhow!("Client magic not found"))?;
 
-    let mut nonce = [0u8; DNSCRYPT_FULL_NONCE_SIZE as usize];
+    let mut nonce = [0u8; DNSCRYPT_FULL_NONCE_SIZE];
     nonce[..DNSCRYPT_QUERY_NONCE_SIZE].copy_from_slice(client_nonce);
 
     let cached_shared_key = {
@@ -106,7 +106,7 @@ pub fn decrypt(
 pub fn encrypt(
     packet: Vec<u8>,
     shared_key: &SharedKey,
-    nonce: &[u8; DNSCRYPT_FULL_NONCE_SIZE as usize],
+    nonce: &[u8; DNSCRYPT_FULL_NONCE_SIZE],
     max_packet_size: usize,
 ) -> Result<Vec<u8>, Error> {
     let mut wrapped_packet = Vec::with_capacity(DNS_MAX_PACKET_SIZE);
