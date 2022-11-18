@@ -550,9 +550,9 @@ dependencies = [
 
 [[package]]
 name = "libsodium-sys-stable"
-version = "1.19.22"
+version = "1.19.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83adf05d86392da08340d9d6fdc4c29bcf2db2009c05a033bc8a0677b9ee0472"
+checksum = "153ba74809a7c08404dfd98795ea680279c85cbf48a19f1160fb7fc167c68eb0"
 dependencies = [
  "cc",
  "libc",
