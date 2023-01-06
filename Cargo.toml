@@ -46,7 +46,7 @@ serde_derive = "1.0.147"
 serde-big-array = "0.4.1"
 siphasher = "0.3.10"
 slabigator = "0.2.0"
-tokio = { version = "1.21.2", features = [
+tokio = { version = "1.24.0", features = [
   "net",
   "io-std",
   "io-util",
