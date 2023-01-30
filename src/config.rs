@@ -131,7 +131,7 @@ impl State {
         let mut fpb = tokio::fs::OpenOptions::new();
         let fpb = fpb.create(true).write(true);
         let mut fp = fpb.open(&path_tmp).await?;
-        let state_str = toml::to_string_pretty(&self)?;
+        let state_str = toml::to_string(&self)?;
         fp.write_all(state_str.as_bytes()).await?;
         fp.sync_data().await?;
         mem::drop(fp);
