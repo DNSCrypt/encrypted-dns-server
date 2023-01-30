@@ -1,5 +1,4 @@
 # ![Encrypted DNS Server](logo.png)
-![Github CI status](https://img.shields.io/github/workflow/status/jedisct1/encrypted-dns-server/Rust)
 ![Github CI status](https://img.shields.io/github/actions/workflow/status/jedisct1/encrypted-dns-server/test.yml?branch=master)
 [![Gitter chat](https://badges.gitter.im/gitter.svg)](https://gitter.im/dnscrypt-operators/Lobby)
 
