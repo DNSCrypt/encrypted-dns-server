@@ -131,8 +131,8 @@ impl State {
         let mut fpb = tokio::fs::OpenOptions::new();
         let fpb = fpb.create(true).write(true);
         let mut fp = fpb.open(&path_tmp).await?;
-        let state_bin = toml::to_vec(&self)?;
-        fp.write_all(&state_bin).await?;
+        let state_str = toml::to_string_pretty(&self)?;
+        fp.write_all(state_str.as_bytes()).await?;
         fp.sync_data().await?;
         mem::drop(fp);
         tokio::fs::rename(path_tmp, path).await?;
@@ -140,8 +140,8 @@ impl State {
     }
 
     pub fn from_file(path: impl AsRef<Path>, key_cache_capacity: usize) -> Result<Self, Error> {
-        let state_bin = fs::read(path)?;
-        let mut state: State = toml::from_slice(&state_bin)?;
+        let state_str = fs::read_to_string(path)?;
+        let mut state: State = toml::from_str(&state_str)?;
         for params_set in &mut state.dnscrypt_encryption_params_set {
             params_set.add_key_cache(key_cache_capacity);
         }
