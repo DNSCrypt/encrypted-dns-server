@@ -212,7 +212,7 @@ async fn handle_client_query(
                     )
                     .await;
                 }
-                bail!("Unencrypted query");
+                bail!("Unencrypted query or QUIC protocol");
             }
         };
     ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
