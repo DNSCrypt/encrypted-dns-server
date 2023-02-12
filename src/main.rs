@@ -196,23 +196,26 @@ async fn handle_client_query(
             Ok(x) => x,
             Err(_) => {
                 let packet = encrypted_packet;
-                if let Some(synth_packet) = serve_certificates(
+                match serve_certificates(
                     &packet,
                     &globals.provider_name,
                     &dnscrypt_encryption_params_set,
-                )? {
-                    return encrypt_and_respond_to_query(
-                        globals,
-                        client_ctx,
-                        packet,
-                        synth_packet,
-                        original_packet_size,
-                        None,
-                        None,
-                    )
-                    .await;
-                }
-                bail!("Unencrypted query or QUIC protocol");
+                ) {
+                    Ok(Some(synth_packet)) => {
+                        return encrypt_and_respond_to_query(
+                            globals,
+                            client_ctx,
+                            packet,
+                            synth_packet,
+                            original_packet_size,
+                            None,
+                            None,
+                        )
+                        .await
+                    }
+                    Ok(None) => return Ok(()),
+                    Err(_) => bail!("Unencrypted query or QUIC protocol"),
+                };
             }
         };
     ensure!(packet.len() >= DNS_HEADER_SIZE, "Short packet");
