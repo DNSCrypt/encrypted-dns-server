@@ -27,7 +27,7 @@ dnsstamps = "0.1.9"
 env_logger = { version = "0.10.0", default-features = false, features = [
   "humantime",
 ] }
-futures = { version = "0.3.26", features = ["async-await"] }
+futures = { version = "0.3.28", features = ["async-await"] }
 hyper = { version = "0.14.24", default-features = false, features = [
   "server",
   "http1",
