@@ -28,7 +28,7 @@ env_logger = { version = "0.10.0", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.28", features = ["async-await"] }
-hyper = { version = "0.14.25", default-features = false, features = [
+hyper = { version = "0.14.26", default-features = false, features = [
   "server",
   "http1",
 ], optional = true }
