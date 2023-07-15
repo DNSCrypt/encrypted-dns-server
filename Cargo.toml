@@ -12,9 +12,9 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.70"
+anyhow = "1.0.71"
 byteorder = "1.4.3"
-clap = { version = "3.2.23", default-features = false, features = [
+clap = { version = "3.2.25", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -28,25 +28,25 @@ env_logger = { version = "0.10.0", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.28", features = ["async-await"] }
-hyper = { version = "0.14.26", default-features = false, features = [
+hyper = { version = "0.14.27", default-features = false, features = [
   "server",
   "http1",
 ], optional = true }
 ipext = "0.1.0"
-libsodium-sys-stable = "1.19.27"
-log = { version = "0.4.17", features = ["std", "release_max_level_debug"] }
-mimalloc = { version = "0.1.36", default-features = false }
-socket2 = "0.5.2"
+libsodium-sys-stable = "1.19.29"
+log = { version = "0.4.19", features = ["std", "release_max_level_debug"] }
+mimalloc = { version = "0.1.37", default-features = false }
+socket2 = "0.5.3"
 parking_lot = "0.12.1"
 rand = "0.8.5"
-rlimit = "0.9.1"
+rlimit = "0.10.0"
 rustc-hash = "1.1.0"
-serde = "1.0.160"
-serde_derive = "1.0.160"
+serde = "1.0.171"
+serde_derive = "1.0.171"
 serde-big-array = "0.5.1"
 siphasher = "0.3.10"
 slabigator = "0.2.0"
-tokio = { version = "1.27.0", features = [
+tokio = { version = "1.29.1", features = [
   "net",
   "io-std",
   "io-util",
@@ -54,10 +54,10 @@ tokio = { version = "1.27.0", features = [
   "time",
   "rt-multi-thread"
 ] }
-toml = "0.7.3"
+toml = "0.7.6"
 
 [target.'cfg(target_family = "unix")'.dependencies]
-privdrop = "0.5.3"
+privdrop = "0.5.4"
 
 [dependencies.prometheus]
 optional = true
