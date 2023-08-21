@@ -215,7 +215,7 @@ async fn handle_client_query(
                     }
                     Ok(None) => return Ok(()),
                     Err(_) => {
-                        if !packet.is_empty() && (64..=127).contains(&packet[0]) {
+                        if may_be_quic(&packet) {
                             bail!("Likely a QUIC packet") // RFC 9443
                         }
                         bail!("Unencrypted query or different protocol")
@@ -353,12 +353,16 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             #[cfg(feature = "metrics")]
             varz.inflight_tcp_queries.set(_count.saturating_sub(1) as _);
 
-            if let Ok(Either::Right(_)) = either {
+            if let Ok(Either::Right(e)) = either {
                 // Removing the active connection was already done during
                 // cancellation.
+                debug!("TCP query canceled: {:?}", e.0)
             } else {
                 let mut active_connections = active_connections.lock();
                 _ = active_connections.remove(tx_channel_index);
+                if let Ok(Either::Left(e)) = either {
+                    debug!("TCP query error: {:?}", e.0)
+                }
             }
         }));
     }
@@ -414,12 +418,16 @@ async fn udp_acceptor(
             #[cfg(feature = "metrics")]
             varz.inflight_udp_queries.set(_count.saturating_sub(1) as _);
 
-            if let Ok(Either::Right(_)) = either {
+            if let Ok(Either::Right(e)) = either {
                 // Removing the active connection was already done during
                 // cancellation.
+                debug!("UDP query canceled: {:?}", e.0)
             } else {
                 let mut active_connections = active_connections.lock();
                 _ = active_connections.remove(tx_channel_index);
+                if let Ok(Either::Left(e)) = either {
+                    debug!("UDP query error: {:?}", e.0)
+                }
             }
         }));
     }
@@ -565,16 +573,6 @@ fn set_limits(config: &Config) -> Result<(), Error> {
 }
 
 fn main() -> Result<(), Error> {
-    env_logger::Builder::from_default_env()
-        .write_style(env_logger::WriteStyle::Never)
-        .format_module_path(false)
-        .format_timestamp(None)
-        .filter_level(log::LevelFilter::Info)
-        .target(env_logger::Target::Stdout)
-        .init();
-
-    crypto::init()?;
-    let time_updater = coarsetime::Updater::new(1000).start()?;
     let matches = clap::command!()
         .arg(
             Arg::new("config")
@@ -598,7 +596,30 @@ fn main() -> Result<(), Error> {
                 .takes_value(false)
                 .help("Only print the connection information and quit"),
         )
+        .arg(
+            Arg::new("debug")
+                .long("debug")
+                .takes_value(false)
+                .help("Enable debug logs"),
+        )
         .get_matches();
+
+    let log_level = if matches.is_present("debug") {
+        log::LevelFilter::Debug
+    } else {
+        log::LevelFilter::Info
+    };
+
+    env_logger::Builder::from_default_env()
+        .write_style(env_logger::WriteStyle::Never)
+        .format_module_path(false)
+        .format_timestamp(None)
+        .filter_level(log_level)
+        .target(env_logger::Target::Stdout)
+        .init();
+
+    crypto::init()?;
+    let time_updater = coarsetime::Updater::new(1000).start()?;
 
     let config_path = matches.value_of("config").unwrap();
     let config = Config::from_path(config_path)?;

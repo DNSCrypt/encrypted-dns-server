@@ -126,3 +126,7 @@ pub fn encrypt(
     )?;
     Ok(wrapped_packet)
 }
+
+pub fn may_be_quic(packet: &[u8]) -> bool {
+    !packet.is_empty() && ((80..=127).contains(&packet[0]) || (192..=255).contains(&packet[0]))
+}
