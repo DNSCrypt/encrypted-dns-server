@@ -214,7 +214,12 @@ async fn handle_client_query(
                         .await
                     }
                     Ok(None) => return Ok(()),
-                    Err(_) => bail!("Unencrypted query or QUIC protocol"),
+                    Err(_) => {
+                        if !packet.is_empty() && (64..=127).contains(&packet[0]) {
+                            bail!("Likely a QUIC packet") // RFC 9443
+                        }
+                        bail!("Unencrypted query or different protocol")
+                    }
                 };
             }
         };
