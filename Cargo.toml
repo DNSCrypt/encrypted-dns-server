@@ -33,19 +33,19 @@ hyper = { version = "0.14.27", default-features = false, features = [
   "http1",
 ], optional = true }
 ipext = "0.1.0"
-libsodium-sys-stable = "1.19.30"
+libsodium-sys-stable = "1.19.31"
 log = { version = "0.4.20", features = ["std", "release_max_level_debug"] }
-mimalloc = { version = "0.1.37", default-features = false }
+mimalloc = { version = "0.1.38", default-features = false }
 socket2 = "0.5.3"
 parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.10.1"
 rustc-hash = "1.1.0"
-serde = "1.0.185"
-serde_derive = "1.0.185"
+serde = "1.0.188"
+serde_derive = "1.0.188"
 serde-big-array = "0.5.1"
-siphasher = "0.3.10"
-slabigator = "0.2.0"
+siphasher = "1.0.0"
+slabigator = "0.9.1"
 tokio = { version = "1.32.0", features = [
   "net",
   "io-std",
@@ -54,7 +54,7 @@ tokio = { version = "1.32.0", features = [
   "time",
   "rt-multi-thread"
 ] }
-toml = "0.7.6"
+toml = "0.7.7"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 privdrop = "0.5.4"
