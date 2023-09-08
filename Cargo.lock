@@ -137,13 +137,12 @@ dependencies = [
 
 [[package]]
 name = "clockpro-cache"
-version = "0.1.11"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b8aed49291f92286c7f4a34cc736b0b10e03f55bd3766cae9af21b2cbd0af5c"
+checksum = "2009f347448d6c03472ac84e51a390c77ac8c1926c5a606ea18095b34d9c4e04"
 dependencies = [
  "bitflags 2.4.0",
- "slab",
- "unsafe_unwrap",
+ "slabigator",
 ]
 
 [[package]]
@@ -1301,12 +1300,6 @@ checksum = "5c5713f0fc4b5db668a2ac63cdb7bb4469d8c9fed047b1d0292cc7b0ce2ba921"
 dependencies = [
  "tinyvec",
 ]
-
-[[package]]
-name = "unsafe_unwrap"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1230ec65f13e0f9b28d789da20d2d419511893ea9dac2c1f4ef67b8b14e5da80"
 
 [[package]]
 name = "untrusted"
