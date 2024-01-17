@@ -4,10 +4,10 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use byteorder::{BigEndian, ByteOrder};
-use sieve_cache::SieveCache;
 use parking_lot::Mutex;
 use rand::prelude::*;
 use serde_big_array::BigArray;
+use sieve_cache::SieveCache;
 
 use crate::anonymized_dns::*;
 use crate::config::*;

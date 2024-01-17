@@ -49,7 +49,6 @@ use blacklist::*;
 use byteorder::{BigEndian, ByteOrder};
 use cache::*;
 use clap::Arg;
-use sieve_cache::SieveCache;
 use config::*;
 use crypto::*;
 use dns::*;
@@ -66,6 +65,7 @@ use parking_lot::RwLock;
 #[cfg(target_family = "unix")]
 use privdrop::PrivDrop;
 use rand::prelude::*;
+use sieve_cache::SieveCache;
 use siphasher::sip128::SipHasher13;
 use slabigator::Slab;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
