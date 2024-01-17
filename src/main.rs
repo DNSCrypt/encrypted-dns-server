@@ -49,7 +49,7 @@ use blacklist::*;
 use byteorder::{BigEndian, ByteOrder};
 use cache::*;
 use clap::Arg;
-use clockpro_cache::ClockProCache;
+use sieve_cache::SieveCache;
 use config::*;
 use crypto::*;
 use dns::*;
@@ -735,14 +735,14 @@ fn main() -> Result<(), Error> {
     let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
 
     let cache = Cache::new(
-        ClockProCache::new(cache_capacity)
+        SieveCache::new(cache_capacity)
             .map_err(|e| anyhow!("Unable to create the DNS cache: [{}]", e))?,
         config.cache_ttl_min,
         config.cache_ttl_max,
         config.cache_ttl_error,
     );
     let cert_cache = Cache::new(
-        ClockProCache::new(RELAYED_CERT_CACHE_SIZE)
+        SieveCache::new(RELAYED_CERT_CACHE_SIZE)
             .map_err(|e| anyhow!("Unable to create the relay cert cache: [{}]", e))?,
         RELAYED_CERT_CACHE_TTL,
         RELAYED_CERT_CACHE_TTL,

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 
 use byteorder::{BigEndian, ByteOrder};
-use clockpro_cache::ClockProCache;
+use sieve_cache::SieveCache;
 use parking_lot::Mutex;
 use rand::prelude::*;
 use serde_big_array::BigArray;
@@ -108,7 +108,7 @@ pub struct DNSCryptEncryptionParams {
     resolver_kp: CryptKeyPair,
     #[serde(skip)]
     #[derivative(Debug = "ignore")]
-    pub key_cache: Option<Arc<Mutex<ClockProCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
+    pub key_cache: Option<Arc<Mutex<SieveCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
 }
 
 impl DNSCryptEncryptionParams {
@@ -140,7 +140,7 @@ impl DNSCryptEncryptionParams {
             }
             if now >= ts_start {
                 let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
-                let cache = ClockProCache::new(key_cache_capacity).unwrap();
+                let cache = SieveCache::new(key_cache_capacity).unwrap();
                 active_params.push(DNSCryptEncryptionParams {
                     dnscrypt_cert,
                     resolver_kp,
@@ -154,7 +154,7 @@ impl DNSCryptEncryptionParams {
             let ts_start = now - (now % DNSCRYPT_CERTS_RENEWAL);
             let resolver_kp = CryptKeyPair::from_seed(seed);
             let dnscrypt_cert = DNSCryptCert::new(provider_kp, &resolver_kp, ts_start);
-            let cache = ClockProCache::new(key_cache_capacity).unwrap();
+            let cache = SieveCache::new(key_cache_capacity).unwrap();
             active_params.push(DNSCryptEncryptionParams {
                 dnscrypt_cert,
                 resolver_kp,
@@ -165,7 +165,7 @@ impl DNSCryptEncryptionParams {
     }
 
     pub fn add_key_cache(&mut self, cache_capacity: usize) {
-        let cache = ClockProCache::new(cache_capacity).unwrap();
+        let cache = SieveCache::new(cache_capacity).unwrap();
         self.key_cache = Some(Arc::new(Mutex::new(cache)));
     }
 
