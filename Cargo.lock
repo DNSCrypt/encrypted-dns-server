@@ -212,7 +212,7 @@ dependencies = [
 
 [[package]]
 name = "encrypted-dns"
-version = "0.9.14"
+version = "0.9.15"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -620,9 +620,9 @@ dependencies = [
 
 [[package]]
 name = "libsodium-sys-stable"
-version = "1.20.4"
+version = "1.20.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1d164bc6f9139c5f95efb4f0be931b2bd5a9edf7e4e3c945d26b95ab8fa669b"
+checksum = "956ff84815195b3d40db429f6cb8c7b1c6548c618797b3b919e08fec250bcdd2"
 dependencies = [
  "cc",
  "libc",
