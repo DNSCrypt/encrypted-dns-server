@@ -44,7 +44,7 @@ serde = "1.0.197"
 serde_derive = "1.0.197"
 serde-big-array = "0.5.1"
 sieve-cache = "0.1.4"
-siphasher = "1.0.0"
+siphasher = "1.0.1"
 slabigator = "0.9.1"
 tokio = { version = "1.36.0", features = [
   "net",
