@@ -46,7 +46,7 @@ serde-big-array = "0.5.1"
 sieve-cache = "0.1.4"
 siphasher = "1.0.1"
 slabigator = "0.9.2"
-tokio = { version = "1.36.0", features = [
+tokio = { version = "1.37.0", features = [
   "net",
   "io-std",
   "io-util",
