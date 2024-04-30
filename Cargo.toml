@@ -35,7 +35,7 @@ ipext = "0.1.0"
 libsodium-sys-stable = "1.20.5"
 log = { version = "0.4.21", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.41", default-features = false }
-socket2 = "0.5.6"
+socket2 = "0.5.7"
 parking_lot = "0.12.1"
 rand = "0.8.5"
 rlimit = "0.10.1"
