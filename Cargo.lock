@@ -1047,9 +1047,9 @@ dependencies = [
 
 [[package]]
 name = "sieve-cache"
-version = "0.1.4"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51bf3a9dccf2c079bf1465d449a485c85b36443caf765f2f127bfec28b180f75"
+checksum = "6596ebf9d6adcf0e56d538a2f3b3f64b20d8139e7148e051eedca07a175aaffd"
 
 [[package]]
 name = "siphasher"

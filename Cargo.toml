@@ -43,7 +43,7 @@ rustc-hash = "1.1.0"
 serde = "1.0.202"
 serde_derive = "1.0.202"
 serde-big-array = "0.5.1"
-sieve-cache = "0.1.4"
+sieve-cache = "0.2.0"
 siphasher = "1.0.1"
 slabigator = "0.9.2"
 tokio = { version = "1.37.0", features = [
