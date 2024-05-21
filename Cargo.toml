@@ -12,7 +12,7 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.86"
 byteorder = "1.5.0"
 clap = { version = "3.2.25", default-features = false, features = [
   "std",
@@ -32,16 +32,16 @@ hyper = { version = "0.14.28", default-features = false, features = [
   "http1",
 ], optional = true }
 ipext = "0.1.0"
-libsodium-sys-stable = "1.20.6"
+libsodium-sys-stable = "1.20.8"
 log = { version = "0.4.21", features = ["std", "release_max_level_debug"] }
-mimalloc = { version = "0.1.41", default-features = false }
+mimalloc = { version = "0.1.42", default-features = false }
 socket2 = "0.5.7"
 parking_lot = "0.12.2"
 rand = "0.8.5"
 rlimit = "0.10.1"
 rustc-hash = "1.1.0"
-serde = "1.0.200"
-serde_derive = "1.0.200"
+serde = "1.0.202"
+serde_derive = "1.0.202"
 serde-big-array = "0.5.1"
 sieve-cache = "0.1.4"
 siphasher = "1.0.1"
@@ -54,7 +54,7 @@ tokio = { version = "1.37.0", features = [
   "time",
   "rt-multi-thread"
 ] }
-toml = "0.8.12"
+toml = "0.8.13"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 privdrop = "0.5.4"
