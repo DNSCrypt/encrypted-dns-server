@@ -530,9 +530,9 @@ fn privdrop(config: &Config) -> Result<(), Error> {
     }
     if config.daemonize {
         let mut daemon = daemonize_simple::Daemonize::default();
-        daemon.stdout_file = config.log_file.clone();
-        daemon.stderr_file = config.log_file.clone();
-        daemon.pid_file = config.pid_file.clone();
+        daemon.stdout_file.clone_from(&config.log_file);
+        daemon.stderr_file.clone_from(&config.log_file);
+        daemon.pid_file.clone_from(&config.pid_file);
         if let Some(chroot) = &config.chroot {
             daemon.chdir = Some(chroot.into());
             daemon.chroot = true;
