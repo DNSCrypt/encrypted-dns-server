@@ -107,6 +107,7 @@ davolink
 dearmyrouter
 dhcp
 dlink
+dnscrypt
 domain
 envoy
 example
