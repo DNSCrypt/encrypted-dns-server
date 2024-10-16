@@ -26,13 +26,13 @@ dnsstamps = "0.1.9"
 env_logger = { version = "0.11.5", default-features = false, features = [
   "humantime",
 ] }
-futures = { version = "0.3.30", features = ["async-await"] }
-hyper = { version = "0.14.30", default-features = false, features = [
+futures = { version = "0.3.31", features = ["async-await"] }
+hyper = { version = "0.14.31", default-features = false, features = [
   "server",
   "http1",
 ], optional = true }
 ipext = "0.1.0"
-libsodium-sys-stable = "1.21.2"
+libsodium-sys-stable = "1.21.3"
 log = { version = "0.4.22", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.43", default-features = false }
 socket2 = "0.5.7"
