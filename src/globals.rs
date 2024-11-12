@@ -17,8 +17,8 @@ use crate::dnscrypt_certs::*;
 #[cfg(feature = "metrics")]
 use crate::varz::*;
 
-#[derive(Clone, Derivative)]
-#[derivative(Debug)]
+#[derive(Clone, Educe)]
+#[educe(Debug)]
 pub struct Globals {
     pub runtime_handle: Handle,
     pub state_file: PathBuf,
@@ -53,6 +53,6 @@ pub struct Globals {
     pub client_ttl_holdon: u32,
     pub my_ip: Option<Vec<u8>>,
     #[cfg(feature = "metrics")]
-    #[derivative(Debug = "ignore")]
+    #[educe(Debug(ignore))]
     pub varz: Varz,
 }

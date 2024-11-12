@@ -10,7 +10,7 @@
 static ALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[macro_use]
-extern crate derivative;
+extern crate educe;
 #[macro_use]
 extern crate log;
 #[macro_use]

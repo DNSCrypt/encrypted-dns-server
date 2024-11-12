@@ -51,10 +51,10 @@ impl CachedResponse {
     }
 }
 
-#[derive(Clone, Derivative)]
-#[derivative(Debug)]
+#[derive(Clone, Educe)]
+#[educe(Debug)]
 pub struct Cache {
-    #[derivative(Debug = "ignore")]
+    #[educe(Debug(ignore))]
     cache: Arc<Mutex<SieveCache<u128, CachedResponse>>>,
     pub ttl_min: u32,
     pub ttl_max: u32,

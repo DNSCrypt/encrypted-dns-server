@@ -8,11 +8,10 @@ use siphasher::sip::SipHasher13;
 
 use crate::errors::*;
 
-#[derive(Derivative)]
-#[derivative(Default)]
+#[derive(Educe)]
+#[educe(Default)]
 pub struct Signature(
-    #[derivative(Default(value = "[0u8; crypto_sign_BYTES as usize]"))]
-    [u8; crypto_sign_BYTES as usize],
+    #[educe(Default = [0u8; crypto_sign_BYTES as usize])] [u8; crypto_sign_BYTES as usize],
 );
 
 impl Signature {
@@ -25,11 +24,11 @@ impl Signature {
     }
 }
 
-#[derive(Serialize, Deserialize, Derivative, Clone)]
-#[derivative(Default)]
+#[derive(Serialize, Deserialize, Educe, Clone)]
+#[educe(Default)]
 pub struct SignSK(
     #[serde(with = "BigArray")]
-    #[derivative(Default(value = "[0u8; crypto_sign_SECRETKEYBYTES as usize]"))]
+    #[educe(Default = [0u8; crypto_sign_SECRETKEYBYTES as usize])]
     [u8; crypto_sign_SECRETKEYBYTES as usize],
 );
 
@@ -75,10 +74,10 @@ impl SignPK {
     }
 }
 
-#[derive(Derivative, Serialize, Deserialize, Clone)]
-#[derivative(Debug, Default)]
+#[derive(Educe, Serialize, Deserialize, Clone)]
+#[educe(Debug, Default)]
 pub struct SignKeyPair {
-    #[derivative(Debug = "ignore")]
+    #[educe(Debug(ignore))]
     pub sk: SignSK,
     pub pk: SignPK,
 }

@@ -41,14 +41,14 @@ impl DNSCryptCertInner {
     }
 }
 
-#[derive(Derivative, Serialize, Deserialize)]
-#[derivative(Debug, Default, Clone)]
+#[derive(Educe, Serialize, Deserialize)]
+#[educe(Debug, Default, Clone)]
 #[repr(C, packed)]
 pub struct DNSCryptCert {
     cert_magic: [u8; 4],
     es_version: [u8; 2],
     minor_version: [u8; 2],
-    #[derivative(Debug = "ignore", Default(value = "[0u8; 64]"))]
+    #[educe(Debug(ignore), Default = [0u8; 64])]
     #[serde(with = "BigArray")]
     signature: [u8; 64],
     inner: DNSCryptCertInner,
@@ -101,13 +101,13 @@ impl DNSCryptCert {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Derivative)]
-#[derivative(Debug)]
+#[derive(Serialize, Deserialize, Clone, Educe)]
+#[educe(Debug)]
 pub struct DNSCryptEncryptionParams {
     dnscrypt_cert: DNSCryptCert,
     resolver_kp: CryptKeyPair,
     #[serde(skip)]
-    #[derivative(Debug = "ignore")]
+    #[educe(Debug(ignore))]
     pub key_cache: Option<Arc<Mutex<SieveCache<[u8; DNSCRYPT_QUERY_PK_SIZE], SharedKey>>>>,
 }
 
