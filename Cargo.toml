@@ -61,8 +61,8 @@ privdrop = "0.5.4"
 
 [dependencies.prometheus]
 optional = true
-package = "prometheus-32bitfix"
-version = "0.13.1"
+package = "prometheus"
+version = "0.13.4"
 default-features = false
 features = ["process"]
 
