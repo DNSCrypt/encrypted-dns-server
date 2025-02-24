@@ -33,7 +33,7 @@ hyper = { version = "1.6.0", default-features = false, features = [
 ], optional = true }
 ipext = "0.1.0"
 libsodium-sys-stable = "1.22.2"
-log = { version = "0.4.25", features = ["std", "release_max_level_debug"] }
+log = { version = "0.4.26", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.43", default-features = false }
 parking_lot = "0.12.3"
 rand = "0.9.0"
