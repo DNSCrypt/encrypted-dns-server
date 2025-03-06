@@ -1210,9 +1210,9 @@ dependencies = [
 
 [[package]]
 name = "slabigator"
-version = "0.9.2"
+version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65134993b6b8bc570e165356c51dc22e87c4b83b4232dc39a7d93a2ca8b0c080"
+checksum = "d18ca099a7c8fec22d1e8809080aa163e8b584d812660421cb0adc01e9682acf"
 
 [[package]]
 name = "smallvec"
