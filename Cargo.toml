@@ -19,7 +19,7 @@ clap = { version = "4.5.27", default-features = false, features = [
   "cargo",
   "wrap_help",
 ] }
-coarsetime = "0.1.35"
+coarsetime = "0.1.36"
 daemonize-simple = "0.1.6"
 dnsstamps = "0.1.10"
 educe = { version = "0.6.0", features = ["full"] }
