@@ -46,7 +46,7 @@ sieve-cache = "0.2.1"
 siphasher = "1.0.1"
 slabigator = "0.9.2"
 socket2 = "0.5.8"
-tokio = { version = "1.43.0", features = [
+tokio = { version = "1.44.2", features = [
   "net",
   "io-std",
   "io-util",
