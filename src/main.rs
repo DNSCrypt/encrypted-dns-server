@@ -731,7 +731,7 @@ fn main() -> Result<(), Error> {
         .map(Arc::new)
         .collect::<Vec<_>>();
 
-    let (sh_k0, sh_k1) = rand::thread_rng().gen();
+    let (sh_k0, sh_k1) = rand::rng().random();
     let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
 
     let cache = Cache::new(

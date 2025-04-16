@@ -119,7 +119,7 @@ impl DNSCryptEncryptionParams {
     ) -> Vec<Self> {
         let now = now();
         let (mut ts_start, mut seed) = match &previous_params {
-            None => (now, rand::thread_rng().gen()),
+            None => (now, rand::rng().random()),
             Some(p) => (
                 p.dnscrypt_cert().ts_start() + DNSCRYPT_CERTS_RENEWAL,
                 *p.resolver_kp().sk.as_bytes(),

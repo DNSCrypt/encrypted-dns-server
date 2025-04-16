@@ -98,7 +98,7 @@ pub fn decrypt(
         }
     };
     let packet = shared_key.decrypt(&nonce, encrypted_packet)?;
-    rand::thread_rng().fill_bytes(&mut nonce[DNSCRYPT_QUERY_NONCE_SIZE..]);
+    rand::rng().fill_bytes(&mut nonce[DNSCRYPT_QUERY_NONCE_SIZE..]);
 
     Ok((shared_key, nonce, packet))
 }

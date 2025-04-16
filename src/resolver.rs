@@ -3,7 +3,7 @@ use std::hash::Hasher;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 use byteorder::{BigEndian, ByteOrder};
-use rand::prelude::*;
+use rand::random;
 use siphasher::sip128::Hasher128;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
