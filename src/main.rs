@@ -579,7 +579,7 @@ fn main() -> Result<(), Error> {
                 .long("config")
                 .short('c')
                 .value_name("file")
-                .takes_value(true)
+                .num_args(1)
                 .default_value("encrypted-dns.toml")
                 .help("Path to the configuration file"),
         )
@@ -587,24 +587,24 @@ fn main() -> Result<(), Error> {
             Arg::new("import-from-dnscrypt-wrapper")
                 .long("import-from-dnscrypt-wrapper")
                 .value_name("secret.key file")
-                .takes_value(true)
+                .num_args(1)
                 .help("Path to the dnscrypt-wrapper secret key"),
         )
         .arg(
             Arg::new("dry-run")
                 .long("dry-run")
-                .takes_value(false)
+                .num_args(0)
                 .help("Only print the connection information and quit"),
         )
         .arg(
             Arg::new("debug")
                 .long("debug")
-                .takes_value(false)
+                .num_args(0)
                 .help("Enable debug logs"),
         )
         .get_matches();
 
-    let log_level = if matches.is_present("debug") {
+    let log_level = if matches.get_flag("debug") {
         log::LevelFilter::Debug
     } else {
         log::LevelFilter::Info
@@ -621,7 +621,7 @@ fn main() -> Result<(), Error> {
     crypto::init()?;
     let time_updater = coarsetime::Updater::new(1000).start()?;
 
-    let config_path = matches.value_of("config").unwrap();
+    let config_path = matches.get_one::<String>("config").unwrap();
     let config = Config::from_path(config_path)?;
     if let Err(e) = set_limits(&config) {
         warn!("Unable to set limits: [{}]", e);
@@ -653,7 +653,7 @@ fn main() -> Result<(), Error> {
     let cache_capacity = config.cache_capacity;
     let state_file = &config.state_file;
 
-    if let Some(secret_key_path) = matches.value_of("import-from-dnscrypt-wrapper") {
+    if let Some(secret_key_path) = matches.get_one::<String>("import-from-dnscrypt-wrapper") {
         let secret_key_path = Path::new(secret_key_path);
         warn!("Importing dnscrypt-wrapper key");
         let mut key = vec![];
@@ -722,7 +722,7 @@ fn main() -> Result<(), Error> {
             }
         }
     }
-    if matches.is_present("dry-run") {
+    if matches.get_flag("dry-run") {
         return Ok(());
     }
     let dnscrypt_encryption_params_set = state
