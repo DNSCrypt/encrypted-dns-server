@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.98"
 byteorder = "1.5.0"
-clap = { version = "4.5.36", default-features = false, features = [
+clap = { version = "4.5.38", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -38,7 +38,7 @@ libsodium-sys-stable = "1.22.3"
 log = { version = "0.4.27", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.46", default-features = false }
 parking_lot = "0.12.3"
-rand = "0.9.0"
+rand = "0.9.1"
 rlimit = "0.10.2"
 rustc-hash = "2.1.1"
 serde = "1.0.219"
@@ -48,7 +48,7 @@ sieve-cache = "0.2.1"
 siphasher = "1.0.1"
 slabigator = "0.9.3"
 socket2 = "0.5.9"
-tokio = { version = "1.44.2", features = [
+tokio = { version = "1.45.0", features = [
   "net",
   "io-std",
   "io-util",
@@ -56,10 +56,10 @@ tokio = { version = "1.44.2", features = [
   "time",
   "rt-multi-thread",
 ] }
-toml = "0.8.20"
+toml = "0.8.22"
 
 [target.'cfg(target_family = "unix")'.dependencies]
-privdrop = "0.5.4"
+privdrop = "0.5.5"
 
 [dependencies.prometheus]
 optional = true
