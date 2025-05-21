@@ -148,12 +148,16 @@ async fn encrypt_and_respond_to_query(
         ClientCtx::Udp(_) => original_packet_size,
         ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
     };
-    let response = match &shared_key {
-        None => response,
-        Some(shared_key) => dnscrypt::encrypt(
+    let response = match (&shared_key, &nonce) {
+        (None, _) => response,
+        (Some(_), None) => {
+            warn!("Shared key provided without nonce");
+            bail!("Internal error: shared key without nonce");
+        },
+        (Some(shared_key), Some(nonce)) => dnscrypt::encrypt(
             maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
             shared_key,
-            nonce.as_ref().unwrap(),
+            nonce,
             max_response_size,
         )?,
     };
@@ -300,10 +304,31 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
                 if e.kind() == std::io::ErrorKind::WouldBlock {
                     continue;
                 }
-                warn!("TCP accept error: {}", e);
-                if let Some(tx_oldest) = active_connections.lock().pop_back() {
-                    let _ = tx_oldest.send(());
+                error!("TCP accept error: {}", e);
+
+                // Rate limit repeated errors to avoid spinning
+                let is_resource_error = matches!(
+                    e.kind(),
+                    std::io::ErrorKind::ConnectionRefused |
+                    std::io::ErrorKind::ConnectionReset |
+                    std::io::ErrorKind::ConnectionAborted |
+                    std::io::ErrorKind::AddrInUse |
+                    std::io::ErrorKind::AddrNotAvailable
+                );
+
+                if is_resource_error {
+                    // For resource-related errors, try to free up connections
+                    let mut connections = active_connections.lock();
+                    let freed = connections.len().min(5);
+                    for _ in 0..freed {
+                        if let Some(tx_oldest) = connections.pop_back() {
+                            let _ = tx_oldest.send(());
+                        }
+                    }
+                    info!("Freed {} connections to recover from resource error", freed);
                 }
+
+                // Add delay to prevent CPU spinning on persistent errors
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
@@ -384,8 +409,28 @@ async fn udp_acceptor(
         if packet_len < DNS_HEADER_SIZE {
             continue;
         }
-        let net_udp_socket = net_udp_socket.try_clone()?;
+        // Create a socket clone only when we've checked the packet is valid
+        // This helps avoid resource exhaustion
         packet.truncate(packet_len);
+
+        // Only create a new socket if there's capacity for a new connection
+        let active_count = concurrent_connections.load(Ordering::Relaxed);
+        if active_count >= globals.udp_max_active_connections {
+            debug!("UDP connection limit reached, dropping packet");
+            continue;
+        }
+
+        // Clone the socket for this request
+        let net_udp_socket = match net_udp_socket.try_clone() {
+            Ok(socket) => socket,
+            Err(e) => {
+                error!("Failed to clone UDP socket: {}", e);
+                // Add a small delay to avoid spinning on socket errors
+                tokio::time::sleep(Duration::from_millis(100)).await;
+                continue;
+            }
+        };
+
         let client_ctx = ClientCtx::Udp(UdpClientCtx {
             net_udp_socket,
             client_addr,
