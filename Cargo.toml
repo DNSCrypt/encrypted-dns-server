@@ -47,7 +47,7 @@ serde-big-array = "0.5.1"
 sieve-cache = "1.1.5"
 siphasher = "1.0.1"
 slabigator = "0.9.5"
-socket2 = "0.5.9"
+socket2 = "0.5.10"
 tokio = { version = "1.45.0", features = [
   "net",
   "io-std",
