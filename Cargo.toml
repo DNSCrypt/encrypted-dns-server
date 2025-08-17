@@ -14,7 +14,7 @@ readme = "README.md"
 [dependencies]
 anyhow = "1.0.99"
 byteorder = "1.5.0"
-clap = { version = "4.5.44", default-features = false, features = [
+clap = { version = "4.5.45", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -44,7 +44,7 @@ rustc-hash = "2.1.1"
 serde = "1.0.219"
 serde_derive = "1.0.219"
 serde-big-array = "0.5.1"
-sieve-cache = "1.1.5"
+sieve-cache = "1.1.6"
 siphasher = "1.0.1"
 slabigator = "0.9.5"
 socket2 = "0.6.0"
