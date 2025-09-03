@@ -29,9 +29,9 @@ jobs:
       ARCHIVE_PATH: encrypted-dns_${{ github.ref_name }}_${{ matrix.target_alias }}${{ matrix.archive_suffix }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: mlugg/setup-zig@v1
+      - uses: mlugg/setup-zig@v2
 
       - uses: hecrj/setup-rust-action@v2
         with:
@@ -63,12 +63,12 @@ jobs:
           cargo install cargo-deb
           cargo deb --output=encrypted-dns_${{ github.ref_name }}_amd64.deb --no-build
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: encrypted-dns_${{ matrix.target_alias }}
           path: ${{ env.ARCHIVE_PATH }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: ${{ matrix.os == 'ubuntu-20.04' }}
         with:
           name: encrypted-dns_deb-amd64
@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
 
       - name: Create release
         uses: softprops/action-gh-release@v2
