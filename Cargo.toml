@@ -34,7 +34,7 @@ hyper = { version = "1.6.0", default-features = false, features = [
 hyper-util = { version = "0.1.16", features = ["tokio"] }
 http-body-util = "0.1.3"
 ipext = "0.1.0"
-libsodium-sys-stable = "1.22.3"
+libsodium-sys-stable = "1.22.4"
 log = { version = "0.4.27", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.47", default-features = false }
 parking_lot = "0.12.4"
