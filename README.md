@@ -12,7 +12,7 @@ The proxy supports the following protocols:
 
 - [DNSCrypt v2](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
-- DNS-over-HTTP (DoH) forwarding
+- DNS-over-HTTPS (DoH) forwarding
 
 All of these can be served simultaneously, on the same port (usually port 443). The proxy automatically detects what protocol is being used by each client.
 
@@ -97,7 +97,7 @@ Putting it in a directory that is only readable by the super-user is not a bad i
 
 ## Filtering
 
-Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file. Note: Filtering only works with the DNSCrypt protocol and does not apply to DNS-over-HTTP (DoH) forwarding.
+Domains can be filtered directly by the proxy, see the `[filtering]` section of the configuration file. Note: Filtering only works with the DNSCrypt protocol and does not apply to DNS-over-HTTPS (DoH) forwarding.
 
 ## Access control
 
