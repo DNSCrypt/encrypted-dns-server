@@ -7,17 +7,17 @@ use sieve_cache::SieveCache;
 
 const DEFAULT_CAPACITY: usize = 10000;
 const DEFAULT_MAX_QPS: u32 = 100;
-const MICROTOKENS_PER_TOKEN: u64 = 1_000_000;
+const MILLITOKENS_PER_TOKEN: u64 = 1000;
 
 struct ClientState {
-    microtokens: u64,
+    millitokens: u64,
     last_update: Instant,
 }
 
 pub struct RateLimiter {
     clients: Mutex<SieveCache<IpAddr, ClientState>>,
-    max_microtokens: u64,
-    refill_rate: u64, // microtokens per microsecond (equals max_qps)
+    max_millitokens: u64,
+    refill_rate: u64, // millitokens per millisecond
 }
 
 impl RateLimiter {
@@ -32,11 +32,12 @@ impl RateLimiter {
         } else {
             max_queries_per_second
         };
+        // max_qps tokens/second = max_qps millitokens/millisecond
         RateLimiter {
             clients: Mutex::new(
                 SieveCache::new(capacity).expect("Failed to create rate limiter cache"),
             ),
-            max_microtokens: (max_qps as u64).saturating_mul(MICROTOKENS_PER_TOKEN),
+            max_millitokens: (max_qps as u64).saturating_mul(MILLITOKENS_PER_TOKEN),
             refill_rate: max_qps as u64,
         }
     }
@@ -46,20 +47,21 @@ impl RateLimiter {
         let mut clients = self.clients.lock();
 
         if let Some(state) = clients.get_mut(&client_ip) {
-            let elapsed_us = now.as_ticks().saturating_sub(state.last_update.as_ticks());
-            let refill = elapsed_us.saturating_mul(self.refill_rate);
-            state.microtokens = state.microtokens.saturating_add(refill).min(self.max_microtokens);
+            let elapsed = now.duration_since(state.last_update);
+            let elapsed_ms = elapsed.as_millis();
+            let refill = elapsed_ms.saturating_mul(self.refill_rate);
+            state.millitokens = state.millitokens.saturating_add(refill).min(self.max_millitokens);
             state.last_update = now;
 
-            if state.microtokens >= MICROTOKENS_PER_TOKEN {
-                state.microtokens -= MICROTOKENS_PER_TOKEN;
+            if state.millitokens >= MILLITOKENS_PER_TOKEN {
+                state.millitokens -= MILLITOKENS_PER_TOKEN;
                 true
             } else {
                 false
             }
         } else {
             let state = ClientState {
-                microtokens: self.max_microtokens.saturating_sub(MICROTOKENS_PER_TOKEN),
+                millitokens: self.max_millitokens.saturating_sub(MILLITOKENS_PER_TOKEN),
                 last_update: now,
             };
             clients.insert(client_ip, state);
