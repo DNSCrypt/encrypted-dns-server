@@ -107,7 +107,7 @@ impl Inner {
             .unwrap(),
             client_queries_resolved: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_resolved",
-                "Number of blocked client resolved",
+                "Number of client queries resolved",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),
