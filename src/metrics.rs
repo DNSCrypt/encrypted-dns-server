@@ -18,15 +18,22 @@ use crate::varz::*;
 
 const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
 const METRICS_MAX_CONCURRENT_CONNECTIONS: u32 = 2;
+const HEALTH_PATH: &str = "/health";
 
 type BoxBody = http_body_util::Full<hyper::body::Bytes>;
 
 async fn handle_client_connection(
     req: Request<hyper::body::Incoming>,
-    _varz: Varz,
+    varz: Varz,
     path: Arc<String>,
 ) -> Result<Response<BoxBody>, Error> {
-    if req.uri().path() != path.as_str() {
+    let request_path = req.uri().path();
+
+    if request_path == HEALTH_PATH {
+        return handle_health_request(&varz);
+    }
+
+    if request_path != path.as_str() {
         return Ok(Response::builder().status(StatusCode::NOT_FOUND).body(
             http_body_util::Full::new(hyper::body::Bytes::from("404 Not Found")),
         )?);
@@ -39,6 +46,38 @@ async fn handle_client_connection(
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, encoder.format_type())
         .body(http_body_util::Full::new(hyper::body::Bytes::from(buffer)))?)
+}
+
+fn handle_health_request(varz: &Varz) -> Result<Response<BoxBody>, Error> {
+    let uptime_secs = varz.start_instant.0.elapsed().as_secs();
+
+    let upstream_sent = varz.upstream_sent.get() as u64;
+    let upstream_received = varz.upstream_received.get() as u64;
+    let upstream_errors = varz.upstream_errors.get() as u64;
+
+    let upstream_status = if upstream_sent == 0 {
+        "unknown"
+    } else if upstream_errors > upstream_received {
+        "degraded"
+    } else {
+        "healthy"
+    };
+
+    let status = if upstream_status == "degraded" {
+        "degraded"
+    } else {
+        "healthy"
+    };
+
+    let body = format!(
+        r#"{{"status":"{}","uptime_secs":{},"upstream":{{"status":"{}","sent":{},"received":{},"errors":{}}}}}"#,
+        status, uptime_secs, upstream_status, upstream_sent, upstream_received, upstream_errors
+    );
+
+    Ok(Response::builder()
+        .status(StatusCode::OK)
+        .header(CONTENT_TYPE, "application/json")
+        .body(http_body_util::Full::new(hyper::body::Bytes::from(body)))?)
 }
 
 pub async fn prometheus_service(
