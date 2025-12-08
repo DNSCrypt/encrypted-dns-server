@@ -208,8 +208,8 @@ pub async fn get_cached_response_or_resolve(
     let synthesize_nxdomain = {
         if globals.ignore_unqualified_hostnames && tld.len() == packet_qname.len() {
             let (qtype, qclass) = dns::qtype_qclass(packet)?;
-            qtype == dns::DNS_CLASS_INET
-                && (qclass == dns::DNS_TYPE_A || qclass == dns::DNS_TYPE_AAAA)
+            qclass == dns::DNS_CLASS_INET
+                && (qtype == dns::DNS_TYPE_A || qtype == dns::DNS_TYPE_AAAA)
         } else if let Some(undelegated_list) = &globals.undelegated_list {
             undelegated_list.find(tld)
         } else {
