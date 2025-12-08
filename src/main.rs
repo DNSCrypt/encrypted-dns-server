@@ -31,6 +31,7 @@ mod errors;
 mod globals;
 #[cfg(feature = "metrics")]
 mod metrics;
+mod rate_limiter;
 mod resolver;
 #[cfg(feature = "metrics")]
 mod varz;
@@ -61,6 +62,7 @@ use futures::join;
 use futures::prelude::*;
 use globals::*;
 use parking_lot::Mutex;
+use rate_limiter::*;
 use parking_lot::RwLock;
 #[cfg(target_family = "unix")]
 use privdrop::PrivDrop;
@@ -298,7 +300,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
     let concurrent_connections = globals.tcp_concurrent_connections.clone();
     let active_connections = globals.tcp_active_connections.clone();
     loop {
-        let (mut client_connection, _client_addr) = match tcp_listener.accept().await {
+        let (mut client_connection, client_addr) = match tcp_listener.accept().await {
             Ok(x) => x,
             Err(e) => {
                 if e.kind() == std::io::ErrorKind::WouldBlock {
@@ -333,6 +335,16 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
                 continue;
             }
         };
+
+        if let Some(ref rate_limiter) = globals.rate_limiter {
+            if !rate_limiter.is_allowed(client_addr.ip()) {
+                debug!("Rate limit exceeded for {}", client_addr.ip());
+                #[cfg(feature = "metrics")]
+                globals.varz.client_queries_rate_limited.inc();
+                continue;
+            }
+        }
+
         let (tx, rx) = oneshot::channel::<()>();
         let tx_channel_index = {
             let mut active_connections = active_connections.lock();
@@ -409,11 +421,18 @@ async fn udp_acceptor(
         if packet_len < DNS_HEADER_SIZE {
             continue;
         }
-        // Create a socket clone only when we've checked the packet is valid
-        // This helps avoid resource exhaustion
+
+        if let Some(ref rate_limiter) = globals.rate_limiter {
+            if !rate_limiter.is_allowed(client_addr.ip()) {
+                debug!("Rate limit exceeded for {}", client_addr.ip());
+                #[cfg(feature = "metrics")]
+                globals.varz.client_queries_rate_limited.inc();
+                continue;
+            }
+        }
+
         packet.truncate(packet_len);
 
-        // Only create a new socket if there's capacity for a new connection
         let active_count = concurrent_connections.load(Ordering::Relaxed);
         if active_count >= globals.udp_max_active_connections {
             debug!("UDP connection limit reached, dropping packet");
@@ -835,6 +854,19 @@ fn main() -> Result<(), Error> {
         }
         _ => None,
     };
+    let rate_limiter: SharedRateLimiter = match config.rate_limit {
+        Some(rate_limit) if rate_limit.enabled => {
+            info!(
+                "Rate limiting enabled: {} queries/second per client",
+                rate_limit.max_queries_per_second
+            );
+            Some(Arc::new(RateLimiter::new(
+                rate_limit.capacity,
+                rate_limit.max_queries_per_second,
+            )))
+        }
+        _ => None,
+    };
     let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
         runtime_handle: runtime_handle.clone(),
@@ -875,6 +907,7 @@ fn main() -> Result<(), Error> {
         access_control_tokens,
         my_ip: config.my_ip.map(|ip| ip.as_bytes().to_ascii_lowercase()),
         client_ttl_holdon: config.client_ttl_holdon.unwrap_or(60),
+        rate_limiter,
         #[cfg(feature = "metrics")]
         varz: Varz::default(),
     });

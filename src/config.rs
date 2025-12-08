@@ -16,6 +16,13 @@ pub struct AccessControlConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RateLimitConfig {
+    pub enabled: bool,
+    pub max_queries_per_second: u32,
+    pub capacity: usize,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct AnonymizedDNSConfig {
     pub enabled: bool,
     pub allowed_ports: Vec<u16>,
@@ -111,6 +118,7 @@ pub struct Config {
     pub metrics: Option<MetricsConfig>,
     pub anonymized_dns: Option<AnonymizedDNSConfig>,
     pub access_control: Option<AccessControlConfig>,
+    pub rate_limit: Option<RateLimitConfig>,
 }
 
 impl Config {

@@ -14,6 +14,7 @@ use crate::blacklist::*;
 use crate::cache::*;
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
+use crate::rate_limiter::*;
 #[cfg(feature = "metrics")]
 use crate::varz::*;
 
@@ -52,6 +53,8 @@ pub struct Globals {
     pub access_control_tokens: Option<Vec<String>>,
     pub client_ttl_holdon: u32,
     pub my_ip: Option<Vec<u8>>,
+    #[educe(Debug(ignore))]
+    pub rate_limiter: SharedRateLimiter,
     #[cfg(feature = "metrics")]
     #[educe(Debug(ignore))]
     pub varz: Varz,

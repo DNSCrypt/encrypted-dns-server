@@ -20,6 +20,7 @@ pub struct Inner {
     pub client_queries_blocked: IntCounter,
     pub client_queries_resolved: IntCounter,
     pub client_queries_rcode_nxdomain: IntCounter,
+    pub client_queries_rate_limited: IntCounter,
     pub inflight_udp_queries: IntGauge,
     pub inflight_tcp_queries: IntGauge,
     pub upstream_errors: IntCounter,
@@ -114,6 +115,12 @@ impl Inner {
             client_queries_rcode_nxdomain: register_int_counter!(opts!(
                 "encrypted_dns_client_queries_rcode_nxdomain",
                 "Number of responses with an NXDOMAIN error code",
+                labels! {"handler" => "all",}
+            ))
+            .unwrap(),
+            client_queries_rate_limited: register_int_counter!(opts!(
+                "encrypted_dns_client_queries_rate_limited",
+                "Number of client queries dropped due to rate limiting",
                 labels! {"handler" => "all",}
             ))
             .unwrap(),

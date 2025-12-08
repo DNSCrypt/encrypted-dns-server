@@ -259,3 +259,22 @@ enabled = false
 
 tokens = ["Y2oHkDJNHz", "G5zY3J5cHQtY", "C5zZWN1cmUuZG5z"]
 
+
+################################
+#         Rate limiting        #
+################################
+
+[rate_limit]
+
+# Enable per-client rate limiting
+
+enabled = false
+
+# Maximum queries per second per client IP
+
+max_queries_per_second = 100
+
+# Maximum number of client IPs to track (uses SIEVE cache for automatic eviction)
+
+capacity = 10000
+
