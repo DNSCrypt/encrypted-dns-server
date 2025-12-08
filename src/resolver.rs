@@ -1,9 +1,10 @@
 use std::cmp;
 use std::hash::Hasher;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::time::Duration;
 
 use byteorder::{BigEndian, ByteOrder};
-use rand::{random, Rng, rng};
+use rand::{random, rng, Rng};
 use siphasher::sip128::Hasher128;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
@@ -14,16 +15,17 @@ use crate::errors::*;
 use crate::globals::*;
 use crate::ClientCtx;
 
-pub async fn resolve_udp(
-    globals: &Globals,
-    packet: &mut Vec<u8>,
+async fn resolve_udp_single(
+    upstream_addr: SocketAddr,
+    external_addr: Option<SocketAddr>,
+    packet: &[u8],
     packet_qname: &[u8],
     tid: u16,
-    has_cached_response: bool,
+    timeout: Duration,
 ) -> Result<Vec<u8>, Error> {
-    let ext_socket = match globals.external_addr {
+    let ext_socket = match external_addr {
         Some(x) => UdpSocket::bind(x).await?,
-        None => match globals.upstream_addr {
+        None => match upstream_addr {
             SocketAddr::V4(_) => {
                 UdpSocket::bind(&SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0)))
                     .await?
@@ -39,49 +41,80 @@ pub async fn resolve_udp(
             }
         },
     };
-    ext_socket.connect(globals.upstream_addr).await?;
+    ext_socket.connect(upstream_addr).await?;
+    ext_socket.send(packet).await?;
+    let mut response = vec![0u8; DNS_MAX_PACKET_SIZE];
+    let fut = tokio::time::timeout(timeout, ext_socket.recv_from(&mut response[..]));
+    match fut.await {
+        Ok(Ok((response_len, response_addr))) => {
+            response.truncate(response_len);
+            if response_addr == upstream_addr
+                && response_len >= DNS_HEADER_SIZE
+                && dns::tid(&response) == tid
+                && packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice())
+            {
+                return Ok(response);
+            }
+            bail!("Invalid response from upstream");
+        }
+        Ok(Err(e)) => bail!("UDP receive error: {}", e),
+        Err(_) => bail!("UDP timeout"),
+    }
+}
+
+pub async fn resolve_udp(
+    globals: &Globals,
+    packet: &mut Vec<u8>,
+    packet_qname: &[u8],
+    tid: u16,
+    has_cached_response: bool,
+) -> Result<Vec<u8>, Error> {
     dns::set_edns_max_payload_size(packet, DNS_MAX_PACKET_SIZE as u16)?;
-    let mut response;
     let timeout = if has_cached_response {
         globals.udp_timeout / 2
     } else {
         globals.udp_timeout
     };
-    loop {
-        ext_socket.send(packet).await?;
-        response = vec![0u8; DNS_MAX_PACKET_SIZE];
-        dns::set_rcode_servfail(&mut response);
-        let fut = tokio::time::timeout(timeout, ext_socket.recv_from(&mut response[..]));
-        match fut.await {
-            Ok(Ok((response_len, response_addr))) => {
-                response.truncate(response_len);
-                if response_addr == globals.upstream_addr
-                    && response_len >= DNS_HEADER_SIZE
-                    && dns::tid(&response) == tid
-                    && packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice())
-                {
-                    break;
-                }
-            }
-            _ => {
-                if has_cached_response {
-                    trace!("Timeout, but cached response is present");
-                    break;
-                }
-                trace!("Timeout, no cached response");
+
+    let mut last_error = None;
+    for upstream_addr in &globals.upstream_addrs {
+        match resolve_udp_single(
+            *upstream_addr,
+            globals.external_addr,
+            packet,
+            packet_qname,
+            tid,
+            timeout,
+        )
+        .await
+        {
+            Ok(response) => return Ok(response),
+            Err(e) => {
+                trace!("Upstream {} failed: {}", upstream_addr, e);
+                last_error = Some(e);
             }
         }
     }
-    Ok(response)
+
+    if has_cached_response {
+        trace!("All upstreams failed, but cached response is present");
+        let mut response = vec![0u8; DNS_MAX_PACKET_SIZE];
+        dns::set_rcode_servfail(&mut response);
+        return Ok(response);
+    }
+
+    Err(last_error.unwrap_or_else(|| anyhow!("No upstream servers configured")))
 }
 
-pub async fn resolve_tcp(
-    globals: &Globals,
-    packet: &mut [u8],
+async fn resolve_tcp_single(
+    upstream_addr: SocketAddr,
+    external_addr: Option<SocketAddr>,
+    packet: &[u8],
     packet_qname: &[u8],
     tid: u16,
+    timeout: Duration,
 ) -> Result<Vec<u8>, Error> {
-    let socket = match globals.external_addr {
+    let socket = match external_addr {
         Some(x @ SocketAddr::V4(_)) => {
             let socket = TcpSocket::new_v4()?;
             socket.set_reuseaddr(true).ok();
@@ -94,32 +127,87 @@ pub async fn resolve_tcp(
             socket.bind(x)?;
             socket
         }
-        None => match globals.upstream_addr {
+        None => match upstream_addr {
             SocketAddr::V4(_) => TcpSocket::new_v4()?,
             SocketAddr::V6(_) => TcpSocket::new_v6()?,
         },
     };
-    let mut ext_socket = socket.connect(globals.upstream_addr).await?;
+
+    let connect_fut = tokio::time::timeout(timeout, socket.connect(upstream_addr));
+    let mut ext_socket = match connect_fut.await {
+        Ok(Ok(s)) => s,
+        Ok(Err(e)) => bail!("TCP connect error: {}", e),
+        Err(_) => bail!("TCP connect timeout"),
+    };
+
     ext_socket.set_nodelay(true)?;
     let mut binlen = [0u8, 0];
     BigEndian::write_u16(&mut binlen[..], packet.len() as u16);
-    ext_socket.write_all(&binlen).await?;
-    ext_socket.write_all(packet).await?;
-    ext_socket.flush().await?;
-    ext_socket.read_exact(&mut binlen).await?;
-    let response_len = BigEndian::read_u16(&binlen) as usize;
-    ensure!(
-        (DNS_HEADER_SIZE..=DNS_MAX_PACKET_SIZE).contains(&response_len),
-        "Unexpected response size"
-    );
-    let mut response = vec![0u8; response_len];
-    ext_socket.read_exact(&mut response).await?;
+
+    let write_fut = async {
+        ext_socket.write_all(&binlen).await?;
+        ext_socket.write_all(packet).await?;
+        ext_socket.flush().await?;
+        Ok::<_, std::io::Error>(())
+    };
+    tokio::time::timeout(timeout, write_fut)
+        .await
+        .map_err(|_| anyhow!("TCP write timeout"))?
+        .map_err(|e| anyhow!("TCP write error: {}", e))?;
+
+    let read_fut = async {
+        ext_socket.read_exact(&mut binlen).await?;
+        let response_len = BigEndian::read_u16(&binlen) as usize;
+        if !(DNS_HEADER_SIZE..=DNS_MAX_PACKET_SIZE).contains(&response_len) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Unexpected response size",
+            ));
+        }
+        let mut response = vec![0u8; response_len];
+        ext_socket.read_exact(&mut response).await?;
+        Ok::<_, std::io::Error>(response)
+    };
+
+    let response = tokio::time::timeout(timeout, read_fut)
+        .await
+        .map_err(|_| anyhow!("TCP read timeout"))?
+        .map_err(|e| anyhow!("TCP read error: {}", e))?;
+
     ensure!(dns::tid(&response) == tid, "Unexpected transaction ID");
     ensure!(
         packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice()),
         "Unexpected query name in the response"
     );
     Ok(response)
+}
+
+pub async fn resolve_tcp(
+    globals: &Globals,
+    packet: &mut [u8],
+    packet_qname: &[u8],
+    tid: u16,
+) -> Result<Vec<u8>, Error> {
+    let mut last_error = None;
+    for upstream_addr in &globals.upstream_addrs {
+        match resolve_tcp_single(
+            *upstream_addr,
+            globals.external_addr,
+            packet,
+            packet_qname,
+            tid,
+            globals.tcp_timeout,
+        )
+        .await
+        {
+            Ok(response) => return Ok(response),
+            Err(e) => {
+                trace!("Upstream {} TCP failed: {}", upstream_addr, e);
+                last_error = Some(e);
+            }
+        }
+    }
+    Err(last_error.unwrap_or_else(|| anyhow!("No upstream servers configured")))
 }
 
 pub async fn resolve(

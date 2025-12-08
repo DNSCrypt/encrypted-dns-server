@@ -27,9 +27,14 @@ listen_addrs = [
 ]
 
 
-## Upstream DNS server and port
+## Upstream DNS server(s) and port(s)
+## The server tries each address in order and fails over on timeout/error.
 
-upstream_addr = "9.9.9.9:53"
+# Single upstream:
+# upstream_addrs = ["9.9.9.9:53"]
+
+# Multiple upstreams with failover:
+upstream_addrs = ["9.9.9.9:53", "149.112.112.112:53"]
 
 
 ## File name to save the state to

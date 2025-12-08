@@ -153,7 +153,7 @@ async fn encrypt_and_respond_to_query(
         (Some(_), None) => {
             warn!("Shared key provided without nonce");
             bail!("Internal error: shared key without nonce");
-        },
+        }
         (Some(shared_key), Some(nonce)) => dnscrypt::encrypt(
             maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
             shared_key,
@@ -309,11 +309,11 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
                 // Rate limit repeated errors to avoid spinning
                 let is_resource_error = matches!(
                     e.kind(),
-                    std::io::ErrorKind::ConnectionRefused |
-                    std::io::ErrorKind::ConnectionReset |
-                    std::io::ErrorKind::ConnectionAborted |
-                    std::io::ErrorKind::AddrInUse |
-                    std::io::ErrorKind::AddrNotAvailable
+                    std::io::ErrorKind::ConnectionRefused
+                        | std::io::ErrorKind::ConnectionReset
+                        | std::io::ErrorKind::ConnectionAborted
+                        | std::io::ErrorKind::AddrInUse
+                        | std::io::ErrorKind::AddrNotAvailable
                 );
 
                 if is_resource_error {
@@ -845,7 +845,7 @@ fn main() -> Result<(), Error> {
         provider_name,
         provider_kp,
         listen_addrs,
-        upstream_addr: config.upstream_addr,
+        upstream_addrs: config.upstream_addrs,
         tls_upstream_addr: config.tls.upstream_addr,
         external_addr,
         tcp_timeout: Duration::from_secs(u64::from(config.tcp_timeout)),

@@ -59,11 +59,34 @@ pub struct FilteringConfig {
     pub ignore_unqualified_hostnames: Option<bool>,
 }
 
+fn deserialize_upstream_addrs<'de, D>(deserializer: D) -> Result<Vec<SocketAddr>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SingleOrVec {
+        Single(SocketAddr),
+        Vec(Vec<SocketAddr>),
+    }
+
+    match SingleOrVec::deserialize(deserializer)? {
+        SingleOrVec::Single(addr) => Ok(vec![addr]),
+        SingleOrVec::Vec(addrs) => Ok(addrs),
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Config {
     pub listen_addrs: Vec<ListenAddrConfig>,
     pub external_addr: Option<IpAddr>,
-    pub upstream_addr: SocketAddr,
+    #[serde(
+        alias = "upstream_addr",
+        deserialize_with = "deserialize_upstream_addrs"
+    )]
+    pub upstream_addrs: Vec<SocketAddr>,
     pub state_file: PathBuf,
     pub udp_timeout: u32,
     pub tcp_timeout: u32,
@@ -91,17 +114,20 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn from_string(toml: &str) -> Result<Config, Error> {
-        let config: Config = match toml::from_str(toml) {
+    pub fn from_string(toml_str: &str) -> Result<Config, Error> {
+        let config: Config = match toml::from_str(toml_str) {
             Ok(config) => config,
             Err(e) => bail!("Parse error in the configuration file: {}", e),
         };
+        if config.upstream_addrs.is_empty() {
+            bail!("At least one upstream address must be specified");
+        }
         Ok(config)
     }
 
     pub fn from_path(path: impl AsRef<Path>) -> Result<Config, Error> {
-        let toml = fs::read_to_string(path)?;
-        Config::from_string(&toml)
+        let toml_str = fs::read_to_string(path)?;
+        Config::from_string(&toml_str)
     }
 }
 
