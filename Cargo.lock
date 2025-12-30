@@ -646,9 +646,9 @@ dependencies = [
 
 [[package]]
 name = "libsodium-sys-stable"
-version = "1.22.6"
+version = "1.22.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "186bf786351b393a91025e9fc2f1058b8b8e1c7ecfde142ed829c209ab95daff"
+checksum = "ac17291fbf287a2b9a7a51ef4688862fc257cab5ca6822020f20b35f647ce3c2"
 dependencies = [
  "cc",
  "libc",
@@ -1520,9 +1520,9 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "6.0.0"
+version = "7.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb2a05c7c36fde6c09b08576c9f7fb4cda705990f73b58fe011abf7dfb24168b"
+checksum = "bdd8a47718a4ee5fe78e07667cd36f3de80e7c2bfe727c7074245ffc7303c037"
 dependencies = [
  "arbitrary",
  "crc32fast",
