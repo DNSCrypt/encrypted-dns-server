@@ -23,7 +23,7 @@ coarsetime = "0.1.37"
 daemonize-simple = "0.1.6"
 dnsstamps = "0.1.10"
 educe = { version = "0.6.0", features = ["full"] }
-env_logger = { version = "0.11.8", default-features = false, features = [
+env_logger = { version = "0.11.9", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.31", features = ["async-await"] }
