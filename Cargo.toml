@@ -26,7 +26,7 @@ educe = { version = "0.6.0", features = ["full"] }
 env_logger = { version = "0.11.8", default-features = false, features = [
   "humantime",
 ] }
-futures = { version = "0.3.31", features = ["async-await"] }
+futures = { version = "0.3.32", features = ["async-await"] }
 hyper = { version = "1.8.1", default-features = false, features = [
   "server",
   "http1",
