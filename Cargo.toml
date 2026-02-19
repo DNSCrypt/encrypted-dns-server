@@ -56,7 +56,7 @@ tokio = { version = "1.49.0", features = [
   "time",
   "rt-multi-thread",
 ] }
-toml = "0.9.11"
+toml = "1.0.3"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 privdrop = "0.5.6"
