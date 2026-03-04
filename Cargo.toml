@@ -12,9 +12,9 @@ categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-anyhow = "1.0.100"
+anyhow = "1.0.102"
 byteorder = "1.5.0"
-clap = { version = "4.5.57", default-features = false, features = [
+clap = { version = "4.5.60", default-features = false, features = [
   "std",
   "cargo",
   "wrap_help",
@@ -23,10 +23,10 @@ coarsetime = "0.1.37"
 daemonize-simple = "0.1.6"
 dnsstamps = "0.1.10"
 educe = { version = "0.6.0", features = ["full"] }
-env_logger = { version = "0.11.8", default-features = false, features = [
+env_logger = { version = "0.11.9", default-features = false, features = [
   "humantime",
 ] }
-futures = { version = "0.3.31", features = ["async-await"] }
+futures = { version = "0.3.32", features = ["async-await"] }
 hyper = { version = "1.8.1", default-features = false, features = [
   "server",
   "http1",
@@ -38,8 +38,8 @@ libsodium-sys-stable = "1.23.2"
 log = { version = "0.4.29", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.48", default-features = false }
 parking_lot = "0.12.5"
-rand = "0.9.2"
-rlimit = "0.10.2"
+rand = "0.10.0"
+rlimit = "0.11.0"
 rustc-hash = "2.1.1"
 serde = "1.0.228"
 serde_derive = "1.0.228"
@@ -48,7 +48,7 @@ sieve-cache = "1.1.6"
 siphasher = "1.0.2"
 slabigator = "0.9.5"
 socket2 = "0.6.2"
-tokio = { version = "1.49.0", features = [
+tokio = { version = "1.50.0", features = [
   "net",
   "io-std",
   "io-util",
@@ -56,7 +56,7 @@ tokio = { version = "1.49.0", features = [
   "time",
   "rt-multi-thread",
 ] }
-toml = "0.9.11"
+toml = "1.0.3"
 
 [target.'cfg(target_family = "unix")'.dependencies]
 privdrop = "0.5.6"
