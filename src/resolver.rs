@@ -4,7 +4,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
 
 use byteorder::{BigEndian, ByteOrder};
-use rand::{random, rng, Rng};
+use rand::{random, rng, RngExt};
 use siphasher::sip128::Hasher128;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
