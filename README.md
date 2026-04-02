@@ -28,7 +28,7 @@ In the Debian package, the example configuration file can be found in `/usr/shar
 
 ### Option 2: compilation from source code
 
-The proxy requires rust >= 1.0.39 or rust-nightly.
+The proxy requires rust and a C compiler (`clang` is recommended).
 
 Rust can installed with:
 
