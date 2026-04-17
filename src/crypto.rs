@@ -165,6 +165,10 @@ pub struct SharedKey([u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES a
 impl SharedKey {
     pub fn decrypt(&self, nonce: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
         let encrypted_len = encrypted.len();
+        ensure!(
+            encrypted_len >= crypto_box_curve25519xchacha20poly1305_MACBYTES as usize,
+            "Unable to decrypt"
+        );
         let mut decrypted =
             vec![0u8; encrypted_len - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
         let res = unsafe {
