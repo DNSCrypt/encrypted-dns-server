@@ -56,7 +56,7 @@ pub struct DNSCryptCert {
 
 impl DNSCryptCert {
     pub fn new(provider_kp: &SignKeyPair, resolver_kp: &CryptKeyPair, ts_start: u32) -> Self {
-        let ts_end = ts_start + DNSCRYPT_CERTS_TTL;
+        let ts_end = ts_start.saturating_add(DNSCRYPT_CERTS_TTL);
 
         let mut dnscrypt_cert = DNSCryptCert::default();
 
