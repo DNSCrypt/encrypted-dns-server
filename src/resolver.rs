@@ -4,7 +4,7 @@ use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
 
 use byteorder::{BigEndian, ByteOrder};
-use rand::{random, rng, RngExt};
+use rand::random;
 use siphasher::sip128::Hasher128;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpSocket, UdpSocket};
@@ -312,9 +312,7 @@ pub async fn get_cached_response_or_resolve(
     let original_tid = dns::tid(packet);
     dns::set_tid(packet, 0);
     dns::normalize_qname(packet)?;
-    // Create a new hasher instance to avoid race conditions
-    let (sh_k0, sh_k1) = rng().random::<(u64, u64)>();
-    let mut hasher = siphasher::sip128::SipHasher13::new_with_keys(sh_k0, sh_k1);
+    let mut hasher = globals.hasher;
     hasher.write(packet);
     let packet_hash = hasher.finish128().as_u128();
     let cached_response = {
