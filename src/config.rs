@@ -161,7 +161,8 @@ impl State {
     }
 
     pub async fn async_save(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let path_tmp = path.as_ref().with_extension("tmp");
+        let path = path.as_ref();
+        let path_tmp = path.with_extension("tmp");
         let mut fpb = tokio::fs::OpenOptions::new();
         let fpb = fpb.create(true).write(true).truncate(true);
         let mut fp = fpb.open(&path_tmp).await?;
@@ -170,6 +171,8 @@ impl State {
         fp.sync_data().await?;
         mem::drop(fp);
         tokio::fs::rename(path_tmp, path).await?;
+        let dir = tokio::fs::File::open(path.parent().unwrap_or_else(|| Path::new("."))).await?;
+        dir.sync_all().await?;
         Ok(())
     }
 
