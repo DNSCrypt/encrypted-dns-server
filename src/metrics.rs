@@ -103,7 +103,7 @@ pub async fn prometheus_service(
         runtime_handle.spawn(async move {
             let io = TokioIo::new(stream);
             let _ = http1::Builder::new()
-                .keep_alive(true)
+                .keep_alive(false)
                 .serve_connection(
                     io,
                     service_fn(move |req| {
