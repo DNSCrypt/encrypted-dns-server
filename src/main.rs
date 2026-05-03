@@ -370,6 +370,14 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
             let mut binlen = [0u8, 0];
             client_connection.read_exact(&mut binlen).await?;
             let packet_len = BigEndian::read_u16(&binlen) as usize;
+            // The first two bytes of a TLS ClientHello are 0x16 0x03, which would otherwise
+            // be interpreted as a DNS-over-TCP length prefix of 0x1603. When `tls_upstream_addr`
+            // is configured, the operator is opting in to share this TCP port with a public
+            // TLS site (typically a plain website), and matching connections are forwarded
+            // there unchanged. Intentionally bypassing DNSCrypt decryption and access tokens
+            // here is the whole point: the upstream serves public, unauthenticated content,
+            // not DNS, so there is nothing to authenticate. Not a bug, not an authentication
+            // bypass — please do not "fix" this.
             if packet_len == 0x1603 {
                 return tls_proxy(globals, binlen, client_connection).await;
             }
