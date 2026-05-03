@@ -50,7 +50,10 @@ impl RateLimiter {
             let elapsed = now.duration_since(state.last_update);
             let elapsed_ms = elapsed.as_millis();
             let refill = elapsed_ms.saturating_mul(self.refill_rate);
-            state.millitokens = state.millitokens.saturating_add(refill).min(self.max_millitokens);
+            state.millitokens = state
+                .millitokens
+                .saturating_add(refill)
+                .min(self.max_millitokens);
             state.last_update = now;
 
             if state.millitokens >= MILLITOKENS_PER_TOKEN {

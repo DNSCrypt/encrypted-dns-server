@@ -62,11 +62,11 @@ use futures::join;
 use futures::prelude::*;
 use globals::*;
 use parking_lot::Mutex;
-use rate_limiter::*;
 use parking_lot::RwLock;
 #[cfg(target_family = "unix")]
 use privdrop::PrivDrop;
 use rand::prelude::*;
+use rate_limiter::*;
 use sieve_cache::SieveCache;
 use siphasher::sip128::SipHasher13;
 use slabigator::Slab;
