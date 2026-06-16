@@ -460,10 +460,32 @@ pub fn set_edns_max_payload_size(packet: &mut Vec<u8>, max_payload_size: u16) ->
     Ok(())
 }
 
+/// Append one certificate as a TXT resource record, splitting it into
+/// character-strings of at most 255 bytes so large (post-quantum) certificates
+/// fit the TXT RR encoding.
+fn append_txt_cert(packet: &mut Vec<u8>, cert_bin: &[u8]) -> Result<(), Error> {
+    let n_chunks = cert_bin.len().div_ceil(255);
+    let rdlength = cert_bin.len() + n_chunks;
+    ensure!(rdlength <= 0xffff, "Certificate too long");
+    ancount_inc(packet)?;
+    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
+    packet.write_u16::<BigEndian>(DNS_TYPE_TXT)?;
+    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
+    packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
+    packet.write_u16::<BigEndian>(rdlength as u16)?;
+    for chunk in cert_bin.chunks(255) {
+        packet.write_u8(chunk.len() as u8)?;
+        packet.extend_from_slice(chunk);
+    }
+    Ok(())
+}
+
 pub fn serve_certificates<'t>(
     client_packet: &[u8],
     expected_qname: &str,
     dnscrypt_encryption_params_set: impl IntoIterator<Item = &'t Arc<DNSCryptEncryptionParams>>,
+    pq_enabled: bool,
+    over_udp: bool,
 ) -> Result<Option<Vec<u8>>, Error> {
     ensure!(client_packet.len() >= DNS_HEADER_SIZE, "Short packet");
     ensure!(qdcount(client_packet) == 1, "No question");
@@ -490,16 +512,20 @@ pub fn serve_certificates<'t>(
         .into_iter()
         .max_by_key(|x| x.dnscrypt_cert().ts_end())
         .ok_or_else(|| anyhow!("No certificates"))?;
-    let cert_bin = dnscrypt_encryption_params.dnscrypt_cert().as_bytes();
-    ensure!(cert_bin.len() <= 0xff, "Certificate too long");
-    ancount_inc(&mut packet)?;
-    packet.write_u16::<BigEndian>(0xc000 + DNS_HEADER_SIZE as u16)?;
-    packet.write_u16::<BigEndian>(DNS_TYPE_TXT)?;
-    packet.write_u16::<BigEndian>(DNS_CLASS_INET)?;
-    packet.write_u32::<BigEndian>(DNSCRYPT_CERTS_RENEWAL)?;
-    packet.write_u16::<BigEndian>(1 + cert_bin.len() as u16)?;
-    packet.write_u8(cert_bin.len() as u8)?;
-    packet.extend_from_slice(cert_bin);
+    append_txt_cert(&mut packet, dnscrypt_encryption_params.dnscrypt_cert().as_bytes())?;
+    if pq_enabled {
+        if let Some(pq) = dnscrypt_encryption_params.pq() {
+            // A PQ certificate is ~1.3 KB, large enough to fragment over UDP and
+            // to be abused for amplification in response to a spoofed query. Over
+            // UDP, return only the small classical certificate and set TC so the
+            // client retries over TCP; over TCP, return the full set.
+            if over_udp {
+                truncate(&mut packet);
+            } else {
+                append_txt_cert(&mut packet, pq.cert_bytes())?;
+            }
+        }
+    }
     ensure!(packet.len() < DNS_MAX_PACKET_SIZE, "Packet too large");
 
     Ok(Some(packet))

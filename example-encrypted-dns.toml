@@ -143,6 +143,15 @@ my_ip = "my.ip"
 provider_name = "secure.dns.test"
 
 
+## Advertise a post-quantum certificate (PQDNSCrypt, X-Wing key exchange)
+## alongside the classical one. Clients that understand it perform a hybrid
+## ML-KEM-768 + X25519 key exchange; clients that don't keep using X25519.
+## Because a PQ certificate is around 1.3 KB, certificate retrieval will
+## usually happen over TCP once this is enabled.
+
+pq_enabled = true
+
+
 ## Does the server support DNSSEC?
 
 dnssec = true

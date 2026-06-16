@@ -163,6 +163,55 @@ impl CryptKeyPair {
 pub struct SharedKey([u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES as usize]);
 
 impl SharedKey {
+    pub fn from_bytes(
+        bytes: [u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES as usize],
+    ) -> Self {
+        SharedKey(bytes)
+    }
+
+    pub fn as_raw_bytes(
+        &self,
+    ) -> &[u8; crypto_box_curve25519xchacha20poly1305_BEFORENMBYTES as usize] {
+        &self.0
+    }
+
+    pub fn seal_raw(&self, nonce: &[u8], plaintext: &[u8]) -> Vec<u8> {
+        let mut encrypted =
+            vec![0u8; plaintext.len() + crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
+        let res = unsafe {
+            crypto_box_curve25519xchacha20poly1305_easy_afternm(
+                encrypted.as_mut_ptr(),
+                plaintext.as_ptr(),
+                plaintext.len() as _,
+                nonce.as_ptr(),
+                self.0.as_ptr(),
+            )
+        };
+        assert_eq!(res, 0);
+        encrypted
+    }
+
+    pub fn open_raw(&self, nonce: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
+        let encrypted_len = encrypted.len();
+        ensure!(
+            encrypted_len >= crypto_box_curve25519xchacha20poly1305_MACBYTES as usize,
+            "Unable to decrypt"
+        );
+        let mut decrypted =
+            vec![0u8; encrypted_len - crypto_box_curve25519xchacha20poly1305_MACBYTES as usize];
+        let res = unsafe {
+            crypto_box_curve25519xchacha20poly1305_open_easy_afternm(
+                decrypted.as_mut_ptr(),
+                encrypted.as_ptr(),
+                encrypted_len as _,
+                nonce.as_ptr(),
+                self.0.as_ptr(),
+            )
+        };
+        ensure!(res == 0, "Unable to decrypt");
+        Ok(decrypted)
+    }
+
     pub fn decrypt(&self, nonce: &[u8], encrypted: &[u8]) -> Result<Vec<u8>, Error> {
         let encrypted_len = encrypted.len();
         ensure!(

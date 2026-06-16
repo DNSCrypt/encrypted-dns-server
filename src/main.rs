@@ -29,6 +29,7 @@ mod dnscrypt;
 mod dnscrypt_certs;
 mod errors;
 mod globals;
+mod pq;
 #[cfg(feature = "metrics")]
 mod metrics;
 mod rate_limiter;
@@ -142,24 +143,18 @@ async fn encrypt_and_respond_to_query(
     packet: Vec<u8>,
     response: Vec<u8>,
     original_packet_size: usize,
-    shared_key: Option<SharedKey>,
-    nonce: Option<[u8; DNSCRYPT_FULL_NONCE_SIZE]>,
+    enc_params: Option<dnscrypt::EncryptionParams>,
 ) -> Result<(), Error> {
     ensure!(dns::is_response(&response), "Packet is not a response");
     let max_response_size = match client_ctx {
         ClientCtx::Udp(_) => original_packet_size,
         ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
     };
-    let response = match (&shared_key, &nonce) {
-        (None, _) => response,
-        (Some(_), None) => {
-            warn!("Shared key provided without nonce");
-            bail!("Internal error: shared key without nonce");
-        }
-        (Some(shared_key), Some(nonce)) => dnscrypt::encrypt(
+    let response = match &enc_params {
+        None => response,
+        Some(enc_params) => dnscrypt::encrypt(
             maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
-            shared_key,
-            nonce,
+            enc_params,
             max_response_size,
         )?,
     };
@@ -197,8 +192,14 @@ async fn handle_client_query(
     for params in &**globals.dnscrypt_encryption_params_set.read() {
         dnscrypt_encryption_params_set.push((*params).clone())
     }
-    let (shared_key, nonce, mut packet) =
-        match dnscrypt::decrypt(&encrypted_packet, &dnscrypt_encryption_params_set) {
+    let over_udp = matches!(&client_ctx, ClientCtx::Udp(_));
+    let (enc_params, mut packet) =
+        match dnscrypt::decrypt(
+            &encrypted_packet,
+            &dnscrypt_encryption_params_set,
+            &globals.pq_ticket_key,
+            globals.pq_enabled,
+        ) {
             Ok(x) => x,
             Err(_) => {
                 let packet = encrypted_packet;
@@ -206,6 +207,8 @@ async fn handle_client_query(
                     &packet,
                     &globals.provider_name,
                     &dnscrypt_encryption_params_set,
+                    globals.pq_enabled,
+                    over_udp,
                 ) {
                     Ok(Some(synth_packet)) => {
                         return encrypt_and_respond_to_query(
@@ -214,7 +217,6 @@ async fn handle_client_query(
                             packet,
                             synth_packet,
                             original_packet_size,
-                            None,
                             None,
                         )
                         .await
@@ -249,8 +251,7 @@ async fn handle_client_query(
         packet,
         response,
         original_packet_size,
-        Some(shared_key),
-        Some(nonce),
+        Some(enc_params),
     )
     .await
 }
@@ -699,6 +700,7 @@ fn main() -> Result<(), Error> {
         warn!("Unable to set limits: [{}]", e);
     }
     let dnscrypt_enabled = config.dnscrypt.enabled.unwrap_or(true);
+    let pq_enabled = config.dnscrypt.pq_enabled.unwrap_or(true);
     let provider_name = match &config.dnscrypt.provider_name {
         provider_name if provider_name.starts_with("2.dnscrypt-cert.") => provider_name.to_string(),
         provider_name => format!("2.dnscrypt-cert.{}", provider_name),
@@ -742,7 +744,7 @@ fn main() -> Result<(), Error> {
             pk: SignPK::from_bytes(sign_pk_u8),
         };
         runtime.block_on(
-            State::with_key_pair(provider_kp, key_cache_capacity).async_save(state_file),
+            State::with_key_pair(provider_kp, key_cache_capacity, pq_enabled).async_save(state_file),
         )?;
         warn!("Key successfully imported");
     }
@@ -750,7 +752,7 @@ fn main() -> Result<(), Error> {
     let (state, state_is_new) = match State::from_file(state_file, key_cache_capacity) {
         Err(_) => {
             warn!("No state file found... creating a new provider key");
-            let state = State::new(key_cache_capacity);
+            let state = State::new(key_cache_capacity, pq_enabled);
             runtime.block_on(state.async_save(state_file))?;
             (state, true)
         }
@@ -797,11 +799,18 @@ fn main() -> Result<(), Error> {
     if matches.get_flag("dry-run") {
         return Ok(());
     }
-    let dnscrypt_encryption_params_set = state
-        .dnscrypt_encryption_params_set
+    let mut dnscrypt_encryption_params_vec = state.dnscrypt_encryption_params_set;
+    if pq_enabled {
+        for params in &mut dnscrypt_encryption_params_vec {
+            params.derive_pq(&provider_kp);
+        }
+    }
+    let dnscrypt_encryption_params_set = dnscrypt_encryption_params_vec
         .into_iter()
         .map(Arc::new)
         .collect::<Vec<_>>();
+
+    let pq_ticket_key = pq::TicketKey::derive(provider_kp.sk.as_bytes());
 
     let (sh_k0, sh_k1) = rand::rng().random();
     let hasher = SipHasher13::new_with_keys(sh_k0, sh_k1);
@@ -908,6 +917,8 @@ fn main() -> Result<(), Error> {
         undelegated_list,
         ignore_unqualified_hostnames,
         dnscrypt_enabled,
+        pq_enabled,
+        pq_ticket_key,
         anonymized_dns_enabled,
         anonymized_dns_allowed_ports,
         anonymized_dns_allow_non_reserved_ports,

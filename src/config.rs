@@ -41,6 +41,7 @@ pub struct MetricsConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DNSCryptConfig {
     pub enabled: Option<bool>,
+    pub pq_enabled: Option<bool>,
     pub provider_name: String,
     pub key_cache_capacity: usize,
     pub dnssec: bool,
@@ -146,18 +147,22 @@ pub struct State {
 }
 
 impl State {
-    pub fn with_key_pair(provider_kp: SignKeyPair, key_cache_capacity: usize) -> Self {
+    pub fn with_key_pair(
+        provider_kp: SignKeyPair,
+        key_cache_capacity: usize,
+        pq_enabled: bool,
+    ) -> Self {
         let dnscrypt_encryption_params_set =
-            DNSCryptEncryptionParams::new(&provider_kp, key_cache_capacity, None);
+            DNSCryptEncryptionParams::new(&provider_kp, key_cache_capacity, None, pq_enabled);
         State {
             provider_kp,
             dnscrypt_encryption_params_set,
         }
     }
 
-    pub fn new(key_cache_capacity: usize) -> Self {
+    pub fn new(key_cache_capacity: usize, pq_enabled: bool) -> Self {
         let provider_kp = SignKeyPair::new();
-        State::with_key_pair(provider_kp, key_cache_capacity)
+        State::with_key_pair(provider_kp, key_cache_capacity, pq_enabled)
     }
 
     pub async fn async_save(&self, path: impl AsRef<Path>) -> Result<(), Error> {

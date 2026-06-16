@@ -46,6 +46,9 @@ pub struct Globals {
     pub undelegated_list: Option<BlackList>,
     pub ignore_unqualified_hostnames: bool,
     pub dnscrypt_enabled: bool,
+    pub pq_enabled: bool,
+    #[educe(Debug(ignore))]
+    pub pq_ticket_key: crate::pq::TicketKey,
     pub anonymized_dns_enabled: bool,
     pub anonymized_dns_allowed_ports: Vec<u16>,
     pub anonymized_dns_allow_non_reserved_ports: bool,
