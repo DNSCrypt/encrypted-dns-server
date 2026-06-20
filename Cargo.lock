@@ -201,7 +201,7 @@ dependencies = [
 
 [[package]]
 name = "encrypted-dns"
-version = "0.9.20"
+version = "0.9.21"
 dependencies = [
  "anyhow",
  "byteorder",

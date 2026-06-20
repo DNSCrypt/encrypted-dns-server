@@ -10,6 +10,14 @@ homepage = "https://github.com/jedisct1/encrypted-dns-server"
 repository = "https://github.com/jedisct1/encrypted-dns-server"
 categories = ["asynchronous", "network-programming", "command-line-utilities"]
 readme = "README.md"
+include = [
+  "src/**/*.rs",
+  "Cargo.toml",
+  "Cargo.lock",
+  "README.md",
+  "LICENSE",
+  "example-encrypted-dns.toml",
+]
 
 [dependencies]
 anyhow = "1.0.102"
