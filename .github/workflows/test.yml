@@ -7,17 +7,21 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v5
-      - uses: hecrj/setup-rust-action@v2
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          rust-version: nightly
+          targets: ${{ matrix.target }}
       - name: Check Cargo availability
         run: cargo --version
       - name: Check Rustup default toolchain
         run: rustup default | grep nightly
       - name: Test
         run: |
-          cargo test
+          cargo test --target ${{ matrix.target }}
