@@ -60,6 +60,7 @@
 67.100.in-addr.arpa
 68.100.in-addr.arpa
 69.100.in-addr.arpa
+6tisch.arpa
 70.100.in-addr.arpa
 71.100.in-addr.arpa
 72.100.in-addr.arpa
@@ -95,6 +96,7 @@
 99.100.in-addr.arpa
 a.e.f.ip6.arpa
 airdream
+alt
 api
 b.e.f.ip6.arpa
 bbrouter
@@ -109,6 +111,7 @@ dhcp
 dlink
 dnscrypt
 domain
+eap.arpa
 envoy
 example
 f.f.ip6.arpa
@@ -142,6 +145,7 @@ private
 prv
 router
 server
+service.arpa
 telus
 test
 totolink
