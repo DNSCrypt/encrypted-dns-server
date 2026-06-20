@@ -105,6 +105,15 @@ pub async fn handle_anonymized_dns(
         if response_addr != upstream_address {
             continue;
         }
+        // Anti-amplification: the relay must never return more bytes to the
+        // client than the client sent, so an upstream response larger than the
+        // request is dropped. This holds for post-quantum certificates too: a
+        // client that wants a large PQ certificate over UDP pads its query to at
+        // least the response size, exactly as a query carrying a ciphertext is
+        // already large enough to cover its response.
+        if response_len > encrypted_packet_len {
+            continue;
+        }
         if is_encrypted_response(&response, response_len) {
             break (response_len, false);
         }
