@@ -138,6 +138,7 @@ pub async fn respond_to_query(client_ctx: ClientCtx, response: Vec<u8>) -> Resul
 }
 
 async fn encrypt_and_respond_to_query(
+    #[cfg_attr(not(feature = "metrics"), allow(unused_variables))]
     globals: Arc<Globals>,
     client_ctx: ClientCtx,
     packet: Vec<u8>,
@@ -152,16 +153,19 @@ async fn encrypt_and_respond_to_query(
     };
     let response = match &enc_params {
         None => response,
-        Some(enc_params) => dnscrypt::encrypt(
-            maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
-            enc_params,
-            max_response_size,
-        )?,
+        Some(_) => maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
     };
-    globals.varz.client_queries_resolved.inc();
-    if dns::rcode_nxdomain(&response) {
-        globals.varz.client_queries_rcode_nxdomain.inc();
+    #[cfg(feature = "metrics")]
+    {
+        globals.varz.client_queries_resolved.inc();
+        if dns::rcode_nxdomain(&response) {
+            globals.varz.client_queries_rcode_nxdomain.inc();
+        }
     }
+    let response = match &enc_params {
+        None => response,
+        Some(enc_params) => dnscrypt::encrypt(response, enc_params, max_response_size)?,
+    };
     respond_to_query(client_ctx, response).await
 }
 
