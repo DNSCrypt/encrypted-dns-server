@@ -10,7 +10,7 @@ An easy to install, high-performance, zero maintenance proxy to run an encrypted
 
 The proxy supports the following protocols:
 
-- [DNSCrypt v2](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
+- [DNSCrypt v2, including post-quantum DNSCrypt (PQDNSCrypt)](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
 - DNS-over-HTTPS (DoH) forwarding
 
