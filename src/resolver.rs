@@ -15,14 +15,13 @@ use crate::errors::*;
 use crate::globals::*;
 use crate::ClientCtx;
 
-async fn resolve_udp_single(
+/// Bind and connect a UDP socket to `upstream_addr`: from `external_addr`
+/// when one is configured, otherwise from an unspecified address of the
+/// matching family.
+pub async fn upstream_udp_socket(
     upstream_addr: SocketAddr,
     external_addr: Option<SocketAddr>,
-    packet: &[u8],
-    packet_qname: &[u8],
-    tid: u16,
-    timeout: Duration,
-) -> Result<Vec<u8>, Error> {
+) -> Result<UdpSocket, Error> {
     let ext_socket = match external_addr {
         Some(x) => UdpSocket::bind(x).await?,
         None => match upstream_addr {
@@ -42,6 +41,18 @@ async fn resolve_udp_single(
         },
     };
     ext_socket.connect(upstream_addr).await?;
+    Ok(ext_socket)
+}
+
+async fn resolve_udp_single(
+    upstream_addr: SocketAddr,
+    external_addr: Option<SocketAddr>,
+    packet: &[u8],
+    packet_qname: &[u8],
+    tid: u16,
+    timeout: Duration,
+) -> Result<Vec<u8>, Error> {
+    let ext_socket = upstream_udp_socket(upstream_addr, external_addr).await?;
     ext_socket.send(packet).await?;
     let mut response = vec![0u8; DNS_MAX_PACKET_SIZE];
     let fut = tokio::time::timeout(timeout, ext_socket.recv_from(&mut response[..]));

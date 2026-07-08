@@ -54,6 +54,33 @@ pub struct TLSConfig {
     pub upstream_addr: Option<SocketAddr>,
 }
 
+fn quic_default_idle_timeout() -> u32 {
+    crate::quic_proxy::QUIC_PROXY_DEFAULT_IDLE_TIMEOUT_SECS
+}
+
+fn quic_default_max_active_flows() -> u32 {
+    crate::quic_proxy::QUIC_PROXY_DEFAULT_MAX_ACTIVE_FLOWS
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QUICConfig {
+    pub upstream_addr: Option<SocketAddr>,
+    #[serde(default = "quic_default_idle_timeout")]
+    pub idle_timeout: u32,
+    #[serde(default = "quic_default_max_active_flows")]
+    pub max_active_flows: u32,
+}
+
+impl Default for QUICConfig {
+    fn default() -> Self {
+        QUICConfig {
+            upstream_addr: None,
+            idle_timeout: quic_default_idle_timeout(),
+            max_active_flows: quic_default_max_active_flows(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ListenAddrConfig {
     pub local: SocketAddr,
@@ -110,6 +137,8 @@ pub struct Config {
     pub filtering: FilteringConfig,
     pub dnscrypt: DNSCryptConfig,
     pub tls: TLSConfig,
+    #[serde(default)]
+    pub quic: QUICConfig,
     pub daemonize: bool,
     pub pid_file: Option<PathBuf>,
     pub log_file: Option<PathBuf>,

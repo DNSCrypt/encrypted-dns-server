@@ -32,6 +32,7 @@ mod globals;
 mod pq;
 #[cfg(feature = "metrics")]
 mod metrics;
+mod quic_proxy;
 mod rate_limiter;
 mod resolver;
 #[cfg(feature = "metrics")]
@@ -64,6 +65,7 @@ use futures::prelude::*;
 use globals::*;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
+use quic_proxy::*;
 #[cfg(target_family = "unix")]
 use privdrop::PrivDrop;
 use rand::prelude::*;
@@ -169,6 +171,30 @@ async fn encrypt_and_respond_to_query(
     respond_to_query(client_ctx, response).await
 }
 
+/// Hand the packet to the QUIC upstream, or return `None` when proxying
+/// doesn't apply: disabled, TCP client, or outside the RFC 9443 ranges.
+async fn maybe_relay_quic(
+    globals: &Arc<Globals>,
+    client_ctx: ClientCtx,
+    packet: &[u8],
+) -> Option<Result<(), Error>> {
+    if globals.quic_proxy.is_none() || !may_be_quic(packet) {
+        return None;
+    }
+    match client_ctx {
+        ClientCtx::Udp(udp_client_ctx) => Some(
+            quic_proxy::relay(
+                globals,
+                udp_client_ctx.net_udp_socket,
+                udp_client_ctx.client_addr,
+                packet,
+            )
+            .await,
+        ),
+        ClientCtx::Tcp(_) => None,
+    }
+}
+
 async fn handle_client_query(
     globals: Arc<Globals>,
     client_ctx: ClientCtx,
@@ -225,8 +251,22 @@ async fn handle_client_query(
                         )
                         .await
                     }
-                    Ok(None) => return Ok(()),
+                    Ok(None) => {
+                        // Random QUIC bytes can parse as a valid non-certificate DNS query.
+                        // Relaying one is harmless: a real stray DNS query gets no answer either way.
+                        if let Some(result) = maybe_relay_quic(&globals, client_ctx, &packet).await
+                        {
+                            return result;
+                        }
+                        return Ok(());
+                    }
                     Err(_) => {
+                        // Not encrypted for us and not a certificate query;
+                        // nothing DNSCrypt-shaped is left for this packet to be.
+                        if let Some(result) = maybe_relay_quic(&globals, client_ctx, &packet).await
+                        {
+                            return result;
+                        }
                         if may_be_quic(&packet) {
                             bail!("Likely a QUIC packet") // RFC 9443
                         }
@@ -428,10 +468,15 @@ async fn udp_acceptor(
     let timeout = globals.udp_timeout;
     let concurrent_connections = globals.udp_concurrent_connections.clone();
     let active_connections = globals.udp_active_connections.clone();
+    // Large enough that a proxied QUIC datagram is never truncated.
+    let mut recv_buffer = vec![0u8; QUIC_PROXY_BUFFER_SIZE];
     loop {
-        let mut packet = vec![0u8; DNSCRYPT_UDP_QUERY_MAX_SIZE];
-        let (packet_len, client_addr) = tokio_udp_socket.recv_from(&mut packet).await?;
+        let (packet_len, client_addr) = tokio_udp_socket.recv_from(&mut recv_buffer).await?;
         if packet_len < DNS_HEADER_SIZE {
+            continue;
+        }
+
+        if quic_proxy::try_forward_established(&globals, client_addr, &recv_buffer[..packet_len]) {
             continue;
         }
 
@@ -444,7 +489,29 @@ async fn udp_acceptor(
             }
         }
 
-        packet.truncate(packet_len);
+        let packet = recv_buffer[..packet_len].to_vec();
+
+        // Only relayed Anonymized DNSCrypt queries may exceed the DNSCrypt
+        // maximum, by the size of the relay header; anything else oversized
+        // never needs DNS processing.
+        let oversized_anonymized_dns = globals.anonymized_dns_enabled
+            && packet_len <= ANONYMIZED_DNSCRYPT_UDP_QUERY_MAX_SIZE
+            && starts_with_relay_magic(&packet);
+        if packet_len > DNSCRYPT_UDP_QUERY_MAX_SIZE && !oversized_anonymized_dns {
+            if globals.quic_proxy.is_some() && may_be_quic(&packet) {
+                if let Ok(net_udp_socket) = net_udp_socket.try_clone() {
+                    let globals = globals.clone();
+                    runtime_handle.spawn(async move {
+                        if let Err(e) =
+                            quic_proxy::relay(&globals, net_udp_socket, client_addr, &packet).await
+                        {
+                            debug!("QUIC relay error: {:?}", e);
+                        }
+                    });
+                }
+            }
+            continue;
+        }
 
         let active_count = concurrent_connections.load(Ordering::Relaxed);
         if active_count >= globals.udp_max_active_connections {
@@ -629,11 +696,16 @@ fn set_limits(_config: &Config) -> Result<(), Error> {
 #[cfg(target_family = "unix")]
 fn set_limits(config: &Config) -> Result<(), Error> {
     use rlimit::Resource;
+    let quic_max_active_flows = match config.quic.upstream_addr {
+        Some(_) => config.quic.max_active_flows,
+        None => 0,
+    };
     let nb_descriptors = 4u32
         .saturating_mul(
             config
                 .tcp_max_active_connections
                 .saturating_add(config.udp_max_active_connections)
+                .saturating_add(quic_max_active_flows)
                 .saturating_add(config.listen_addrs.len() as u32),
         )
         .saturating_add(16);
@@ -888,6 +960,39 @@ fn main() -> Result<(), Error> {
         }
         _ => None,
     };
+    let quic_proxy = match config.quic.upstream_addr {
+        None => None,
+        Some(quic_upstream_addr) => {
+            // Connecting to an unspecified address reaches the local host,
+            // which could loop back to one of our own listening ports.
+            if quic_upstream_addr.ip().is_unspecified() {
+                bail!(
+                    "quic.upstream_addr [{}] must be a specific address",
+                    quic_upstream_addr
+                );
+            }
+            // A packet forwarded to one of our own UDP ports would fail
+            // decryption there, look like QUIC again, and be forwarded again.
+            for listen_addr in &listen_addrs {
+                if listen_addr.port() == quic_upstream_addr.port()
+                    && (listen_addr.ip().is_unspecified()
+                        || listen_addr.ip() == quic_upstream_addr.ip())
+                {
+                    bail!(
+                        "quic.upstream_addr [{}] would loop back to a listening UDP port",
+                        quic_upstream_addr
+                    );
+                }
+            }
+            info!("QUIC proxying enabled, forwarding to [{}]", quic_upstream_addr);
+            Some(Arc::new(QuicProxy::new(
+                quic_upstream_addr,
+                external_addr,
+                config.quic.max_active_flows as usize,
+                config.quic.idle_timeout,
+            )))
+        }
+    };
     let runtime_handle = runtime.handle();
     let globals = Arc::new(Globals {
         runtime_handle: runtime_handle.clone(),
@@ -900,6 +1005,7 @@ fn main() -> Result<(), Error> {
         listen_addrs,
         upstream_addrs: config.upstream_addrs,
         tls_upstream_addr: config.tls.upstream_addr,
+        quic_proxy,
         external_addr,
         tcp_timeout: Duration::from_secs(u64::from(config.tcp_timeout)),
         udp_timeout: Duration::from_secs(u64::from(config.udp_timeout)),

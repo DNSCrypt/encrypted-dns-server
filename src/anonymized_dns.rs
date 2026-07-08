@@ -1,11 +1,10 @@
 use std::hash::Hasher;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use byteorder::{BigEndian, ByteOrder};
 use ipext::IpExt;
 use siphasher::sip128::Hasher128;
-use tokio::net::UdpSocket;
 
 use crate::errors::*;
 use crate::*;
@@ -14,6 +13,15 @@ pub const ANONYMIZED_DNSCRYPT_QUERY_MAGIC: [u8; 10] =
     [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00];
 
 pub const ANONYMIZED_DNSCRYPT_OVERHEAD: usize = 16 + 2;
+
+pub const ANONYMIZED_DNSCRYPT_UDP_QUERY_MAX_SIZE: usize = ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()
+    + ANONYMIZED_DNSCRYPT_OVERHEAD
+    + DNSCRYPT_UDP_QUERY_MAX_SIZE;
+
+pub fn starts_with_relay_magic(packet: &[u8]) -> bool {
+    packet.len() >= ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()
+        && packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()] == ANONYMIZED_DNSCRYPT_QUERY_MAGIC
+}
 
 pub const RELAYED_CERT_CACHE_SIZE: usize = 1000;
 pub const RELAYED_CERT_CACHE_TTL: u32 = 600;
@@ -74,29 +82,9 @@ pub async fn handle_anonymized_dns(
         "Protocol confusion with QUIC"
     );
     debug_assert!(DNSCRYPT_UDP_QUERY_MIN_SIZE > ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len());
-    ensure!(
-        encrypted_packet[..ANONYMIZED_DNSCRYPT_QUERY_MAGIC.len()]
-            != ANONYMIZED_DNSCRYPT_QUERY_MAGIC,
-        "Loop detected"
-    );
-    let ext_socket = match globals.external_addr {
-        Some(x) => UdpSocket::bind(x).await?,
-        None => match upstream_address {
-            SocketAddr::V4(_) => {
-                UdpSocket::bind(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, 0))).await?
-            }
-            SocketAddr::V6(s) => {
-                UdpSocket::bind(SocketAddr::V6(SocketAddrV6::new(
-                    Ipv6Addr::UNSPECIFIED,
-                    0,
-                    s.flowinfo(),
-                    s.scope_id(),
-                )))
-                .await?
-            }
-        },
-    };
-    ext_socket.connect(&upstream_address).await?;
+    ensure!(!starts_with_relay_magic(encrypted_packet), "Loop detected");
+    let ext_socket =
+        crate::resolver::upstream_udp_socket(upstream_address, globals.external_addr).await?;
     ext_socket.send(encrypted_packet).await?;
     let mut response = vec![0u8; DNSCRYPT_UDP_RESPONSE_MAX_SIZE];
     let (response_len, is_certificate_response) = loop {

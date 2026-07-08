@@ -14,6 +14,7 @@ use crate::blacklist::*;
 use crate::cache::*;
 use crate::crypto::*;
 use crate::dnscrypt_certs::*;
+use crate::quic_proxy::QuicProxy;
 use crate::rate_limiter::*;
 #[cfg(feature = "metrics")]
 use crate::varz::*;
@@ -30,6 +31,8 @@ pub struct Globals {
     pub external_addr: Option<SocketAddr>,
     pub upstream_addrs: Vec<SocketAddr>,
     pub tls_upstream_addr: Option<SocketAddr>,
+    #[educe(Debug(ignore))]
+    pub quic_proxy: Option<Arc<QuicProxy>>,
     pub udp_timeout: Duration,
     pub tcp_timeout: Duration,
     pub udp_concurrent_connections: Arc<AtomicU32>,

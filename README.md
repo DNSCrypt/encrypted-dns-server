@@ -13,6 +13,7 @@ The proxy supports the following protocols:
 - [DNSCrypt v2, including post-quantum DNSCrypt (PQDNSCrypt)](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
 - DNS-over-HTTPS (DoH) forwarding
+- QUIC forwarding (e.g. to an HTTP/3 server), sharing the UDP port with DNSCrypt
 
 All of these can be served simultaneously, on the same port (usually port 443). The proxy automatically detects what protocol is being used by each client.
 

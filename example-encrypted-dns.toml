@@ -185,6 +185,32 @@ key_cache_capacity = 10000
 
 
 
+###############################
+#        QUIC settings        #
+###############################
+
+[quic]
+
+## Where to proxy QUIC datagrams to (e.g. an HTTP/3 server), sharing
+## the UDP port with DNSCrypt. Incoming packets are only forwarded there
+## once every DNSCrypt interpretation has been ruled out.
+
+# upstream_addr = "127.0.0.1:4443"
+
+
+## How long a QUIC flow without any traffic in either direction is kept
+## around, in seconds.
+
+# idle_timeout = 30
+
+
+## Maximum number of simultaneous QUIC flows. When the limit is reached,
+## the flow that has been quiet the longest is dropped.
+
+# max_active_flows = 512
+
+
+
 #######################################
 #        Server-side filtering        #
 #######################################
