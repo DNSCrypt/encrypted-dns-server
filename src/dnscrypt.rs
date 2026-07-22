@@ -33,6 +33,14 @@ pub const DNSCRYPT_RESPONSE_MIN_PADDING_SIZE: usize = 1;
 pub const DNSCRYPT_RESPONSE_MIN_OVERHEAD: usize =
     DNSCRYPT_RESPONSE_HEADER_SIZE + DNSCRYPT_MAC_SIZE + DNSCRYPT_RESPONSE_MIN_PADDING_SIZE;
 
+/// Minimum overhead of a PQ response: the classical overhead plus the
+/// `<control-len>` field. The control block itself is not part of the
+/// minimum, since ticket issuance is skipped when the size budget is too
+/// tight for it.
+pub const DNSCRYPT_PQ_CONTROL_LEN_SIZE: usize = 2;
+pub const DNSCRYPT_PQ_RESPONSE_MIN_OVERHEAD: usize =
+    DNSCRYPT_RESPONSE_MIN_OVERHEAD + DNSCRYPT_PQ_CONTROL_LEN_SIZE;
+
 pub const DNSCRYPT_UDP_QUERY_MIN_SIZE: usize = DNSCRYPT_QUERY_MIN_OVERHEAD + DNS_HEADER_SIZE;
 pub const DNSCRYPT_UDP_QUERY_MAX_SIZE: usize = DNS_MAX_PACKET_SIZE;
 pub const DNSCRYPT_TCP_QUERY_MIN_SIZE: usize = DNSCRYPT_QUERY_MIN_OVERHEAD + DNS_HEADER_SIZE;
@@ -56,6 +64,17 @@ pub enum EncryptionParams {
         nonce: [u8; DNSCRYPT_FULL_NONCE_SIZE],
         control: Vec<u8>,
     },
+}
+
+impl EncryptionParams {
+    /// Minimum wire overhead of a response encrypted under these parameters:
+    /// anything this much smaller than the size budget is guaranteed to fit.
+    pub fn min_response_overhead(&self) -> usize {
+        match self {
+            EncryptionParams::Classical { .. } => DNSCRYPT_RESPONSE_MIN_OVERHEAD,
+            EncryptionParams::Pq { .. } => DNSCRYPT_PQ_RESPONSE_MIN_OVERHEAD,
+        }
+    }
 }
 
 pub fn decrypt(
@@ -276,12 +295,23 @@ pub fn encrypt(
                 "Max packet size too short"
             );
             let max_plaintext = max_packet_size - wrapped_packet.len() - DNSCRYPT_MAC_SIZE;
+            // A ticket is an optimization, not response data: when the control
+            // block would not leave room for the DNS payload and its padding,
+            // the ticket is withheld rather than the response truncated.
+            let min_plaintext = DNSCRYPT_PQ_CONTROL_LEN_SIZE
+                + control.len()
+                + packet.len()
+                + DNSCRYPT_RESPONSE_MIN_PADDING_SIZE;
+            let control: &[u8] = if min_plaintext <= max_plaintext {
+                control
+            } else {
+                &[]
+            };
             let mut plaintext = Vec::with_capacity(2 + control.len() + packet.len() + 64);
             plaintext.extend_from_slice(&(control.len() as u16).to_be_bytes());
             plaintext.extend_from_slice(control);
             plaintext.extend_from_slice(&packet);
-            pq::pad7816(&mut plaintext, 64);
-            ensure!(plaintext.len() <= max_plaintext, "PQ response too large to pad");
+            pq::pad7816_within(&mut plaintext, 64, max_plaintext)?;
             let encrypted = shared_key.seal_raw(nonce, &plaintext);
             wrapped_packet.extend_from_slice(&encrypted);
         }
@@ -291,4 +321,80 @@ pub fn encrypt(
 
 pub fn may_be_quic(packet: &[u8]) -> bool {
     !packet.is_empty() && ((80..=127).contains(&packet[0]) || (192..=255).contains(&packet[0]))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pq;
+
+    // Any response the `maybe_truncate_response` gate lets through must
+    // encrypt into the query-size budget, shrinking the padding and
+    // withholding the ticket as needed; anything larger must fail, keeping
+    // the gate the single point of truth. Responses of 318..=375 bytes to a
+    // 424-byte resumed query used to fail here instead and were silently
+    // dropped, leaving the client to time out (dnscrypt-server-docker#49).
+    #[test]
+    fn pq_responses_fit_the_query_size_budget() {
+        unsafe {
+            assert!(sodium_init() >= 0);
+        }
+        let shared_key = SharedKey::from_bytes([0x42; 32]);
+        let nonce = [0x07u8; DNSCRYPT_FULL_NONCE_SIZE];
+        let ticket_control = pq::control_block(600, &[0x24u8; 130]);
+        for control in [&ticket_control[..], &[]] {
+            for budget in [232usize, 424, 680, 1220, 1284] {
+                let params = EncryptionParams::Pq {
+                    shared_key: shared_key.clone(),
+                    nonce,
+                    control: control.to_vec(),
+                };
+                for response_len in 1..=budget {
+                    let result = encrypt(vec![0xdau8; response_len], &params, budget);
+                    if response_len + DNSCRYPT_PQ_RESPONSE_MIN_OVERHEAD <= budget {
+                        let encrypted = result.expect("response within budget failed to encrypt");
+                        assert!(encrypted.len() <= budget);
+                    } else {
+                        assert!(result.is_err(), "response over budget was not rejected");
+                    }
+                }
+            }
+        }
+    }
+
+    // A 319-byte response to a 424-byte resumed query is the exact shape of
+    // the www.amazon.it AAAA lookup from the issue report: the ticket must
+    // be withheld and the response delivered whole. With a roomy budget the
+    // control block rides along untouched.
+    #[test]
+    fn pq_ticket_is_withheld_before_the_response_is_truncated() {
+        unsafe {
+            assert!(sodium_init() >= 0);
+        }
+        let shared_key = SharedKey::from_bytes([0x42; 32]);
+        let nonce = [0x07u8; DNSCRYPT_FULL_NONCE_SIZE];
+        let control = pq::control_block(600, &[0x24u8; 130]);
+        let response = vec![0xdau8; 319];
+        let encrypt_and_open = |budget: usize| {
+            let params = EncryptionParams::Pq {
+                shared_key: shared_key.clone(),
+                nonce,
+                control: control.clone(),
+            };
+            let encrypted = encrypt(response.clone(), &params, budget).unwrap();
+            assert!(encrypted.len() <= budget);
+            shared_key
+                .decrypt(&nonce, &encrypted[DNSCRYPT_RESPONSE_HEADER_SIZE..])
+                .unwrap()
+        };
+
+        let plain = encrypt_and_open(424);
+        assert_eq!(&plain[..2], &[0u8, 0][..]);
+        assert_eq!(&plain[2..], &response[..]);
+
+        let plain = encrypt_and_open(1220);
+        assert_eq!(plain[..2], (control.len() as u16).to_be_bytes());
+        assert_eq!(&plain[2..2 + control.len()], &control[..]);
+        assert_eq!(&plain[2 + control.len()..], &response[..]);
+    }
 }

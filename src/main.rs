@@ -100,18 +100,13 @@ pub enum ClientCtx {
 }
 
 fn maybe_truncate_response(
-    client_ctx: &ClientCtx,
     packet: Vec<u8>,
     response: Vec<u8>,
-    original_packet_size: usize,
+    max_response_size: usize,
+    enc_params: &EncryptionParams,
 ) -> Result<Vec<u8>, Error> {
-    if let ClientCtx::Udp(_) = client_ctx {
-        let encrypted_response_min_len = response.len() + DNSCRYPT_RESPONSE_MIN_OVERHEAD;
-        if encrypted_response_min_len > original_packet_size
-            || encrypted_response_min_len > DNSCRYPT_UDP_RESPONSE_MAX_SIZE
-        {
-            return dns::serve_truncated_response(packet);
-        }
+    if response.len() + enc_params.min_response_overhead() > max_response_size {
+        return dns::serve_truncated_response(packet);
     }
     Ok(response)
 }
@@ -150,12 +145,14 @@ async fn encrypt_and_respond_to_query(
 ) -> Result<(), Error> {
     ensure!(dns::is_response(&response), "Packet is not a response");
     let max_response_size = match client_ctx {
-        ClientCtx::Udp(_) => original_packet_size,
+        ClientCtx::Udp(_) => original_packet_size.min(DNSCRYPT_UDP_RESPONSE_MAX_SIZE),
         ClientCtx::Tcp(_) => DNSCRYPT_TCP_RESPONSE_MAX_SIZE,
     };
     let response = match &enc_params {
         None => response,
-        Some(_) => maybe_truncate_response(&client_ctx, packet, response, original_packet_size)?,
+        Some(enc_params) => {
+            maybe_truncate_response(packet, response, max_response_size, enc_params)?
+        }
     };
     #[cfg(feature = "metrics")]
     {

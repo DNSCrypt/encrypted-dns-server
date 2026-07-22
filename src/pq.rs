@@ -294,6 +294,16 @@ pub fn pad7816(plaintext: &mut Vec<u8>, floor: usize) {
     plaintext.resize(target, 0);
 }
 
+/// Like `pad7816`, but never grows the plaintext beyond `max_len`: when the
+/// preferred multiple of 64 does not fit, the padding shrinks, down to the
+/// lone `0x80` delimiter. Fails when even that one byte would not fit.
+pub fn pad7816_within(plaintext: &mut Vec<u8>, floor: usize, max_len: usize) -> Result<(), Error> {
+    ensure!(plaintext.len() < max_len, "No room for padding");
+    pad7816(plaintext, floor);
+    plaintext.truncate(max_len);
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
