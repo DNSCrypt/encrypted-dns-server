@@ -164,6 +164,13 @@ fn is_certificate_response(response: &[u8], query: &[u8]) -> bool {
         debug!("Unexpected relayed cert response");
         return false;
     }
+    let expected_question = (dns::DNS_TYPE_TXT, dns::DNS_CLASS_INET);
+    if dns::qtype_qclass(query).ok() != Some(expected_question)
+        || dns::qtype_qclass(response).ok() != Some(expected_question)
+    {
+        debug!("Relayed cert query or response wasn't TXT/IN");
+        return false;
+    }
     let qname = match (dns::qname(query), dns::qname(response)) {
         (Ok(response_qname), Ok(query_qname)) if response_qname == query_qname => query_qname,
         _ => {
@@ -176,4 +183,35 @@ fn is_certificate_response(response: &[u8], query: &[u8]) -> bool {
         return false;
     }
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn cert_packet(qtype: u16, is_response: bool) -> Vec<u8> {
+        let mut packet = vec![
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, b'2',
+            0x0d, b'd', b'n', b's', b'c', b'r', b'y', b'p', b't', b'-', b'c', b'e', b'r', b't',
+            0x07, b'e', b'x', b'a', b'm', b'p', b'l', b'e', 0x00,
+        ];
+        packet.extend_from_slice(&qtype.to_be_bytes());
+        packet.extend_from_slice(&dns::DNS_CLASS_INET.to_be_bytes());
+        if is_response {
+            packet[2] |= 0x80;
+        }
+        packet
+    }
+
+    #[test]
+    fn only_txt_in_answers_are_certificate_responses() {
+        let txt_query = cert_packet(dns::DNS_TYPE_TXT, false);
+        let txt_response = cert_packet(dns::DNS_TYPE_TXT, true);
+        assert!(is_certificate_response(&txt_response, &txt_query));
+
+        let a_query = cert_packet(dns::DNS_TYPE_A, false);
+        let a_response = cert_packet(dns::DNS_TYPE_A, true);
+        assert!(!is_certificate_response(&a_response, &a_query));
+        assert!(!is_certificate_response(&a_response, &txt_query));
+    }
 }

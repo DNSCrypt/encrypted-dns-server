@@ -62,7 +62,9 @@ async fn resolve_udp_single(
             if response_addr == upstream_addr
                 && response_len >= DNS_HEADER_SIZE
                 && dns::tid(&response) == tid
+                && dns::is_response(&response)
                 && packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice())
+                && dns::qtype_qclass(&response)? == dns::qtype_qclass(packet)?
             {
                 return Ok(response);
             }
@@ -81,40 +83,71 @@ pub async fn resolve_udp(
     has_cached_response: bool,
 ) -> Result<Vec<u8>, Error> {
     dns::set_edns_max_payload_size(packet, DNS_MAX_PACKET_SIZE as u16)?;
-    let timeout = if has_cached_response {
+    let total_timeout = if has_cached_response {
         globals.udp_timeout / 2
     } else {
         globals.udp_timeout
     };
 
+    resolve_udp_upstreams(
+        &globals.upstream_addrs,
+        globals.external_addr,
+        packet,
+        packet_qname,
+        tid,
+        total_timeout,
+    )
+    .await
+    .or_else(|e| {
+        if has_cached_response {
+            trace!("All upstreams failed, but cached response is present");
+            let mut response = vec![0u8; DNS_MAX_PACKET_SIZE];
+            dns::set_rcode_servfail(&mut response);
+            Ok(response)
+        } else {
+            Err(e)
+        }
+    })
+}
+
+async fn resolve_udp_upstreams(
+    upstream_addrs: &[SocketAddr],
+    external_addr: Option<SocketAddr>,
+    packet: &[u8],
+    packet_qname: &[u8],
+    tid: u16,
+    total_timeout: Duration,
+) -> Result<Vec<u8>, Error> {
+    ensure!(!upstream_addrs.is_empty(), "No upstream servers configured");
+    let timeout = total_timeout / upstream_addrs.len() as u32;
+
     let mut last_error = None;
-    for upstream_addr in &globals.upstream_addrs {
-        match resolve_udp_single(
-            *upstream_addr,
-            globals.external_addr,
-            packet,
-            packet_qname,
-            tid,
+    for upstream_addr in upstream_addrs {
+        match tokio::time::timeout(
             timeout,
+            resolve_udp_single(
+                *upstream_addr,
+                external_addr,
+                packet,
+                packet_qname,
+                tid,
+                timeout,
+            ),
         )
         .await
         {
-            Ok(response) => return Ok(response),
-            Err(e) => {
+            Ok(Ok(response)) => return Ok(response),
+            Ok(Err(e)) => {
                 trace!("Upstream {} failed: {}", upstream_addr, e);
                 last_error = Some(e);
             }
+            Err(_) => {
+                trace!("Upstream {} timed out", upstream_addr);
+                last_error = Some(anyhow!("UDP timeout"));
+            }
         }
     }
-
-    if has_cached_response {
-        trace!("All upstreams failed, but cached response is present");
-        let mut response = vec![0u8; DNS_MAX_PACKET_SIZE];
-        dns::set_rcode_servfail(&mut response);
-        return Ok(response);
-    }
-
-    Err(last_error.unwrap_or_else(|| anyhow!("No upstream servers configured")))
+    Err(last_error.unwrap())
 }
 
 async fn resolve_tcp_single(
@@ -187,8 +220,16 @@ async fn resolve_tcp_single(
 
     ensure!(dns::tid(&response) == tid, "Unexpected transaction ID");
     ensure!(
+        dns::is_response(&response),
+        "Query received instead of response"
+    );
+    ensure!(
         packet_qname.eq_ignore_ascii_case(dns::qname(&response)?.as_slice()),
         "Unexpected query name in the response"
+    );
+    ensure!(
+        dns::qtype_qclass(&response)? == dns::qtype_qclass(packet)?,
+        "Unexpected query type or class in the response"
     );
     Ok(response)
 }
@@ -200,25 +241,37 @@ pub async fn resolve_tcp(
     tid: u16,
 ) -> Result<Vec<u8>, Error> {
     let mut last_error = None;
+    ensure!(
+        !globals.upstream_addrs.is_empty(),
+        "No upstream servers configured"
+    );
+    let timeout = globals.tcp_timeout / globals.upstream_addrs.len() as u32;
     for upstream_addr in &globals.upstream_addrs {
-        match resolve_tcp_single(
-            *upstream_addr,
-            globals.external_addr,
-            packet,
-            packet_qname,
-            tid,
-            globals.tcp_timeout,
+        match tokio::time::timeout(
+            timeout,
+            resolve_tcp_single(
+                *upstream_addr,
+                globals.external_addr,
+                packet,
+                packet_qname,
+                tid,
+                timeout,
+            ),
         )
         .await
         {
-            Ok(response) => return Ok(response),
-            Err(e) => {
+            Ok(Ok(response)) => return Ok(response),
+            Ok(Err(e)) => {
                 trace!("Upstream {} TCP failed: {}", upstream_addr, e);
                 last_error = Some(e);
             }
+            Err(_) => {
+                trace!("Upstream {} TCP timed out", upstream_addr);
+                last_error = Some(anyhow!("TCP timeout"));
+            }
         }
     }
-    Err(last_error.unwrap_or_else(|| anyhow!("No upstream servers configured")))
+    Err(last_error.unwrap())
 }
 
 pub async fn resolve(
@@ -369,4 +422,111 @@ pub async fn get_cached_response_or_resolve(
         original_tid,
     )
     .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::net::TcpListener;
+
+    fn query() -> Vec<u8> {
+        vec![
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, b'e',
+            b'x', b'a', b'm', b'p', b'l', b'e', 0x03, b'o', b'r', b'g', 0x00, 0x00, 0x01, 0x00,
+            0x01,
+        ]
+    }
+
+    fn runtime() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap()
+    }
+
+    #[test]
+    fn udp_rejects_an_echoed_query() {
+        runtime().block_on(async {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let server_addr = server.local_addr().unwrap();
+            tokio::spawn(async move {
+                let mut packet = [0u8; 512];
+                let (len, peer) = server.recv_from(&mut packet).await.unwrap();
+                server.send_to(&packet[..len], peer).await.unwrap();
+            });
+            let packet = query();
+            let result = resolve_udp_single(
+                server_addr,
+                None,
+                &packet,
+                b"example.org",
+                0x1234,
+                Duration::from_secs(1),
+            )
+            .await;
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn udp_failover_reaches_the_second_upstream_within_the_request_timeout() {
+        runtime().block_on(async {
+            let silent = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let silent_addr = silent.local_addr().unwrap();
+            let responsive = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let responsive_addr = responsive.local_addr().unwrap();
+            tokio::spawn(async move {
+                let mut packet = [0u8; 512];
+                let (len, peer) = responsive.recv_from(&mut packet).await.unwrap();
+                packet[2] |= 0x80;
+                responsive.send_to(&packet[..len], peer).await.unwrap();
+            });
+            let packet = query();
+            let total_timeout = Duration::from_millis(400);
+            let result = tokio::time::timeout(
+                total_timeout,
+                resolve_udp_upstreams(
+                    &[silent_addr, responsive_addr],
+                    None,
+                    &packet,
+                    b"example.org",
+                    0x1234,
+                    total_timeout,
+                ),
+            )
+            .await
+            .expect("failover exceeded the request timeout")
+            .unwrap();
+            assert!(dns::is_response(&result));
+            drop(silent);
+        });
+    }
+
+    #[test]
+    fn tcp_rejects_an_echoed_query() {
+        runtime().block_on(async {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let server_addr = listener.local_addr().unwrap();
+            tokio::spawn(async move {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut len = [0u8; 2];
+                stream.read_exact(&mut len).await.unwrap();
+                let mut packet = vec![0u8; BigEndian::read_u16(&len) as usize];
+                stream.read_exact(&mut packet).await.unwrap();
+                stream.write_all(&len).await.unwrap();
+                stream.write_all(&packet).await.unwrap();
+            });
+            let packet = query();
+            let result = resolve_tcp_single(
+                server_addr,
+                None,
+                &packet,
+                b"example.org",
+                0x1234,
+                Duration::from_secs(1),
+            )
+            .await;
+            assert!(result.is_err());
+        });
+    }
 }
