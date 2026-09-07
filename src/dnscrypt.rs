@@ -328,6 +328,36 @@ mod tests {
     use super::*;
     use crate::pq;
 
+    #[test]
+    fn classical_responses_fit_and_round_trip_at_padding_boundaries() {
+        crate::crypto::init().unwrap();
+        let shared_key = SharedKey::from_bytes([0x42; 32]);
+        for nonce_byte in 0..=255 {
+            let nonce = [nonce_byte; DNSCRYPT_FULL_NONCE_SIZE];
+            let params = EncryptionParams::Classical {
+                shared_key: shared_key.clone(),
+                nonce,
+            };
+            for len in [63, 64, 65, 127, 128, 129] {
+                let response = vec![0xda; len];
+                for budget in [len + DNSCRYPT_RESPONSE_MIN_OVERHEAD, 512] {
+                    let encrypted = encrypt(response.clone(), &params, budget)
+                        .expect("response within budget failed to encrypt");
+                    assert!(encrypted.len() <= budget);
+                    assert_eq!(
+                        shared_key
+                            .decrypt(&nonce, &encrypted[DNSCRYPT_RESPONSE_HEADER_SIZE..])
+                            .unwrap(),
+                        response
+                    );
+                }
+                assert!(
+                    encrypt(response, &params, len + DNSCRYPT_RESPONSE_MIN_OVERHEAD - 1).is_err()
+                );
+            }
+        }
+    }
+
     // Any response the `maybe_truncate_response` gate lets through must
     // encrypt into the query-size budget, shrinking the padding and
     // withholding the ticket as needed; anything larger must fail, keeping

@@ -106,7 +106,11 @@ fn maybe_truncate_response(
     enc_params: &EncryptionParams,
 ) -> Result<Vec<u8>, Error> {
     if response.len() + enc_params.min_response_overhead() > max_response_size {
-        return dns::serve_truncated_response(packet);
+        let mut truncated = dns::serve_truncated_response(packet)?;
+        // Resolution rewrites the query's ID and case for the upstream/cache.
+        dns::set_tid(&mut truncated, dns::tid(&response));
+        dns::recase_qname(&mut truncated, &dns::qname(&response)?)?;
+        return Ok(truncated);
     }
     Ok(response)
 }
@@ -1069,4 +1073,58 @@ fn main() -> Result<(), Error> {
     runtime.block_on(updater.run());
     time_updater.stop()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn globals(upstream_addr: SocketAddr) -> Globals {
+        Globals {
+            runtime_handle: Handle::current(),
+            state_file: Default::default(),
+            dnscrypt_encryption_params_set: Arc::new(RwLock::new(Arc::new(vec![]))),
+            provider_name: "2.dnscrypt-cert.example".into(),
+            provider_kp: SignKeyPair::default(),
+            listen_addrs: vec![],
+            external_addr: None,
+            upstream_addrs: vec![upstream_addr],
+            tls_upstream_addr: None,
+            quic_proxy: None,
+            udp_timeout: Duration::from_secs(1),
+            tcp_timeout: Duration::from_secs(1),
+            udp_concurrent_connections: Arc::new(AtomicU32::new(0)),
+            tcp_concurrent_connections: Arc::new(AtomicU32::new(0)),
+            udp_max_active_connections: 10,
+            tcp_max_active_connections: 10,
+            udp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(10).unwrap())),
+            tcp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(10).unwrap())),
+            key_cache_capacity: 10,
+            hasher: SipHasher13::new(),
+            cache: Cache::new(SieveCache::new(10).unwrap(), 0, 3600, 60),
+            cert_cache: Cache::new(SieveCache::new(10).unwrap(), 600, 600, 600),
+            blacklist: None,
+            undelegated_list: None,
+            ignore_unqualified_hostnames: false,
+            dnscrypt_enabled: true,
+            pq_enabled: false,
+            pq_ticket_key: pq::TicketKey {
+                id: [0; 4],
+                key: SharedKey::default(),
+            },
+            anonymized_dns_enabled: false,
+            anonymized_dns_allowed_ports: vec![],
+            anonymized_dns_allow_non_reserved_ports: false,
+            anonymized_dns_blacklisted_ips: vec![],
+            access_control_tokens: None,
+            client_ttl_holdon: 0,
+            my_ip: None,
+            rate_limiter: None,
+            #[cfg(feature = "metrics")]
+            varz: {
+                static VARZ: std::sync::OnceLock<Varz> = std::sync::OnceLock::new();
+                VARZ.get_or_init(Varz::default).clone()
+            },
+        }
+    }
 }

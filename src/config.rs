@@ -205,7 +205,10 @@ impl State {
         fp.sync_data().await?;
         mem::drop(fp);
         tokio::fs::rename(path_tmp, path).await?;
-        let dir = tokio::fs::File::open(path.parent().unwrap_or_else(|| Path::new("."))).await?;
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty());
+        let dir = tokio::fs::File::open(parent.unwrap_or_else(|| Path::new("."))).await?;
         dir.sync_all().await?;
         Ok(())
     }
@@ -217,5 +220,32 @@ impl State {
             params_set.add_key_cache(key_cache_capacity);
         }
         Ok(state)
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn save_state_to_a_bare_filename() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let path = PathBuf::from(format!(".test-state-{:016x}.state", rand::random::<u64>()));
+        let state = State {
+            provider_kp: SignKeyPair::default(),
+            dnscrypt_encryption_params_set: vec![],
+        };
+        let result = runtime.block_on(state.async_save(&path));
+        let loaded = State::from_file(&path, 10);
+        let _ = fs::remove_file(&path);
+        let _ = fs::remove_file(path.with_extension("tmp"));
+        result.unwrap();
+        assert_eq!(
+            loaded.unwrap().provider_kp.pk.as_bytes(),
+            state.provider_kp.pk.as_bytes()
+        );
     }
 }

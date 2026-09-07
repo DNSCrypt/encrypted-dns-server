@@ -361,7 +361,7 @@ pub fn min_ttl(packet: &[u8], min_ttl: u32, max_ttl: u32, failure_ttl: u32) -> R
     ensure!(qdcount(packet) == 1, "No question");
     let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
     assert!(offset > DNS_OFFSET_QUESTION);
-    ensure!(packet_len - offset > 4, "Short packet");
+    ensure!(packet_len - offset >= 4, "Short packet");
     offset += 4;
     let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
     let rrcount = ancount as usize + nscount as usize + arcount as usize;
@@ -389,7 +389,7 @@ pub fn set_ttl(packet: &mut [u8], ttl: u32) -> Result<(), Error> {
     ensure!(qdcount(packet) == 1, "No question");
     let mut offset = skip_name(packet, DNS_OFFSET_QUESTION)?;
     assert!(offset > DNS_OFFSET_QUESTION);
-    ensure!(packet_len - offset > 4, "Short packet");
+    ensure!(packet_len - offset >= 4, "Short packet");
     offset += 4;
     let (ancount, nscount, arcount) = (ancount(packet), nscount(packet), arcount(packet));
     let rrcount = ancount as usize + nscount as usize + arcount as usize;
@@ -728,6 +728,26 @@ pub fn serve_ip_response(client_packet: Vec<u8>, ip: IpAddr, ttl: u32) -> Result
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ttl_processing_accepts_responses_without_resource_records() {
+        let query = vec![
+            0x12, 0x34, 0x01, 0x00, 0x00, 0x01, 0, 0, 0, 0, 0, 0, 7, b'e', b'x', b'a', b'm', b'p',
+            b'l', b'e', 3, b'o', b'r', b'g', 0, 0, 1, 0, 1,
+        ];
+        for rcode in [0, DNS_RCODE_NXDOMAIN] {
+            let mut response = query.clone();
+            authoritative_response(&mut response);
+            set_rcode(&mut response, rcode);
+            assert_eq!(min_ttl(&response, 0, 3600, 60).unwrap(), 60);
+            let original = response.clone();
+            set_ttl(&mut response, 30).unwrap();
+            assert_eq!(response, original);
+            response.pop();
+            assert!(min_ttl(&response, 0, 3600, 60).is_err());
+            assert!(set_ttl(&mut response, 30).is_err());
+        }
+    }
 
     fn appended_len(cert_bin: &[u8]) -> usize {
         let mut packet = vec![0u8; DNS_HEADER_SIZE];

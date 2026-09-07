@@ -313,7 +313,10 @@ pub async fn resolve(
                 globals.varz.client_queries_offline.inc();
                 globals.varz.client_queries_cached.inc();
             }
-            return Ok(cached_response.into_response());
+            let mut response = cached_response.into_response();
+            dns::set_tid(&mut response, original_tid);
+            dns::recase_qname(&mut response, &packet_qname)?;
+            return Ok(response);
         } else {
             #[cfg(feature = "metrics")]
             globals.varz.upstream_errors.inc();
@@ -442,6 +445,88 @@ mod tests {
             .enable_all()
             .build()
             .unwrap()
+    }
+
+    #[test]
+    fn stale_response_restores_the_current_client_question() {
+        runtime().block_on(async {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let globals = crate::tests::globals(server.local_addr().unwrap());
+            let task = tokio::spawn(async move {
+                for rcode in [DNS_RCODE_SERVFAIL, DNS_RCODE_REFUSED] {
+                    let mut packet = [0; 512];
+                    let (len, peer) = server.recv_from(&mut packet).await.unwrap();
+                    dns::authoritative_response(&mut packet[..len]);
+                    dns::set_rcode(&mut packet[..len], rcode);
+                    server.send_to(&packet[..len], peer).await.unwrap();
+                }
+            });
+            for _ in 0..2 {
+                let mut old_response = query();
+                dns::authoritative_response(&mut old_response);
+                dns::set_tid(&mut old_response, 0xabcd);
+                let cached = CachedResponse::new(&globals.cache, old_response);
+                let mut packet = query();
+                let response = resolve(
+                    &globals,
+                    &mut packet,
+                    b"EXample.ORG".to_vec(),
+                    Some(cached),
+                    0,
+                    0x5678,
+                )
+                .await
+                .unwrap();
+                assert_eq!(dns::tid(&response), 0x5678);
+                assert_eq!(dns::qname(&response).unwrap(), b"EXample.ORG");
+                assert_eq!(dns::rcode(&response), 0);
+            }
+            task.await.unwrap();
+        });
+    }
+
+    #[test]
+    fn truncated_fresh_and_cached_responses_restore_the_current_client_question() {
+        runtime().block_on(async {
+            let server = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+            let globals = crate::tests::globals(server.local_addr().unwrap());
+            let task = tokio::spawn(async move {
+                let mut packet = [0; 512];
+                let (len, peer) = server.recv_from(&mut packet).await.unwrap();
+                let response = dns::serve_ip_response(
+                    packet[..len].to_vec(),
+                    "192.0.2.1".parse().unwrap(),
+                    60,
+                )
+                .unwrap();
+                server.send_to(&response, peer).await.unwrap();
+            });
+            let socket = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+            let ctx = ClientCtx::Udp(crate::UdpClientCtx {
+                client_addr: socket.local_addr().unwrap(),
+                net_udp_socket: socket,
+            });
+            let params = crate::dnscrypt::EncryptionParams::Classical {
+                shared_key: crate::crypto::SharedKey::default(),
+                nonce: [0; crate::dnscrypt::DNSCRYPT_FULL_NONCE_SIZE],
+            };
+            for tid in [0x5678, 0x6789] {
+                let mut packet = query();
+                dns::set_tid(&mut packet, tid);
+                dns::recase_qname(&mut packet, b"EXample.ORG").unwrap();
+                let response = get_cached_response_or_resolve(&globals, &ctx, &mut packet)
+                    .await
+                    .unwrap();
+                let budget = query().len() + params.min_response_overhead();
+                let truncated =
+                    crate::maybe_truncate_response(packet, response, budget, &params).unwrap();
+                assert!(dns::is_truncated(&truncated));
+                assert_eq!(dns::tid(&truncated), tid);
+                assert_eq!(dns::qname(&truncated).unwrap(), b"EXample.ORG");
+                assert_eq!(dns::ancount(&truncated), 0);
+            }
+            task.await.unwrap();
+        });
     }
 
     #[test]

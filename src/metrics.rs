@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 #[allow(unused_imports)]
 use futures::prelude::*;
@@ -102,7 +103,7 @@ pub async fn prometheus_service(
 
         runtime_handle.spawn(async move {
             let io = TokioIo::new(stream);
-            let _ = http1::Builder::new()
+            let connection = http1::Builder::new()
                 .keep_alive(false)
                 .serve_connection(
                     io,
@@ -110,10 +111,97 @@ pub async fn prometheus_service(
                         handle_client_connection(req, varz.clone(), path.clone())
                     }),
                 )
-                .with_upgrades()
-                .await;
+                .with_upgrades();
+            let _ = tokio::time::timeout(
+                Duration::from_secs(METRICS_CONNECTION_TIMEOUT_SECS),
+                connection,
+            )
+            .await;
 
             connection_count.fetch_sub(1, Ordering::Relaxed);
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::TcpStream;
+
+    #[test]
+    fn idle_metrics_connections_time_out() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let reserved = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = reserved.local_addr().unwrap();
+            let varz = crate::tests::globals(addr).varz;
+            drop(reserved);
+            let task = tokio::spawn(prometheus_service(
+                varz,
+                MetricsConfig {
+                    r#type: "prometheus".into(),
+                    listen_addr: addr,
+                    path: "/metrics".into(),
+                },
+                Handle::current(),
+            ));
+            let client = tokio::time::timeout(Duration::from_secs(1), async {
+                loop {
+                    match TcpStream::connect(addr).await {
+                        Ok(client) => break client,
+                        Err(_) => tokio::time::sleep(Duration::from_millis(10)).await,
+                    }
+                }
+            })
+            .await
+            .unwrap();
+            async fn get(mut client: TcpStream, path: &str) -> String {
+                client
+                    .write_all(format!("GET {path} HTTP/1.1\r\nHost: localhost\r\n\r\n").as_bytes())
+                    .await
+                    .unwrap();
+                let mut response = String::new();
+                tokio::time::timeout(Duration::from_secs(2), client.read_to_string(&mut response))
+                    .await
+                    .unwrap()
+                    .unwrap();
+                assert!(response.starts_with("HTTP/1.1 200"));
+                response
+            }
+            assert!(get(client, "/health").await.contains("\"uptime_secs\""));
+            assert!(get(TcpStream::connect(addr).await.unwrap(), "/metrics")
+                .await
+                .contains("encrypted_dns_upstream_sent"));
+            let mut client = TcpStream::connect(addr).await.unwrap();
+            let mut second_client = TcpStream::connect(addr).await.unwrap();
+            let mut byte = [0];
+            let result = tokio::time::timeout(
+                Duration::from_secs(METRICS_CONNECTION_TIMEOUT_SECS + 2),
+                client.read(&mut byte),
+            )
+            .await;
+            assert_eq!(
+                result
+                    .expect("idle connection kept its slot past the timeout")
+                    .unwrap(),
+                0
+            );
+            assert_eq!(
+                tokio::time::timeout(Duration::from_secs(2), second_client.read(&mut byte))
+                    .await
+                    .unwrap()
+                    .unwrap(),
+                0
+            );
+            assert!(get(TcpStream::connect(addr).await.unwrap(), "/metrics")
+                .await
+                .contains("encrypted_dns_upstream_sent"));
+            task.abort();
         });
     }
 }
