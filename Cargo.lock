@@ -229,9 +229,9 @@ dependencies = [
 
 [[package]]
 name = "educe"
-version = "0.7.6"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e451fac8dd8dece16234604bf1efce6e90fddd8ab6ad4d66eec0eca5160959dd"
+checksum = "366499b044b8944fc0a309be2255b540f9772c176c29d45cfdc8191370bf1298"
 dependencies = [
  "enum-ordinalize",
  "proc-macro2",
