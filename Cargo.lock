@@ -1100,9 +1100,9 @@ checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
 
 [[package]]
 name = "slabigator"
-version = "0.9.5"
+version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "420cf8ae97042519eb6eceb15ab3a454c216dcd7655d4e14522488928793821f"
+checksum = "cb883aafa09c05553d899a8f16ce09b9f5ae82a6997c45860605b83df9a512b7"
 
 [[package]]
 name = "smallvec"
