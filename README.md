@@ -10,7 +10,7 @@ An easy to install, high-performance, zero maintenance proxy to run an encrypted
 
 The proxy supports the following protocols:
 
-- [DNSCrypt v2, including post-quantum DNSCrypt (PQDNSCrypt)](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/DNSCRYPT-V2-PROTOCOL.txt)
+- [DNSCrypt v2, including post-quantum DNSCrypt (PQDNSCrypt)](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/draft-denis-dprive-dnscrypt.md)
 - [Anonymized DNSCrypt](https://github.com/DNSCrypt/dnscrypt-protocol/blob/master/ANONYMIZED-DNSCRYPT.txt)
 - DNS-over-HTTPS (DoH) forwarding
 - QUIC forwarding (e.g. to an HTTP/3 server), sharing the UDP port with DNSCrypt
@@ -21,7 +21,7 @@ All of these can be served simultaneously, on the same port (usually port 443). 
 
 ### Option 1: precompiled x86_64 binary
 
-Debian packages, archives for Linux and Windows [can be downloaded here](https://github.com/jedisct1/encrypted-dns-server/releases/latest).
+Debian packages, archives for Linux and Windows [can be downloaded here](https://github.com/DNSCrypt/encrypted-dns-server/releases/latest).
 
 Nothing else has to be installed. The server doesn't require any external dependencies.
 
@@ -59,7 +59,7 @@ The proxy requires a recursive DNS resolver, such as Knot, PowerDNS or Unbound.
 
 That resolver can run locally and only respond to `127.0.0.1`. External resolvers such as Quad9 or Cloudflare DNS can also be used, but this may be less reliable due to rate limits.
 
-In order to support DoH in addition to DNSCrypt, a DoH proxy must be running as well. [rust-doh](https://github.com/jedisct1/rust-doh) is the recommended DoH proxy server. DoH support is optional, as it is currently way more complicated to setup than DNSCrypt due to certificate management.
+In order to support DoH in addition to DNSCrypt, a DoH proxy must be running as well. [rust-doh](https://github.com/DNSCrypt/doh-server) is the recommended DoH proxy server. DoH support is optional, as it is currently way more complicated to setup than DNSCrypt due to certificate management.
 
 Make a copy of the `example-encrypted-dns.toml` configuration file named `encrypted-dns.toml`.
 
