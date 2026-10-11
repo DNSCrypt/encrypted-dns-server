@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[allow(unused_imports)]
 use futures::prelude::*;
-use hyper::header::CONTENT_TYPE;
+use hyper::header::{CACHE_CONTROL, CONTENT_TYPE};
 use hyper::server::conn::http1;
 use hyper::service::service_fn;
 use hyper::{Request, Response, StatusCode};
@@ -20,6 +20,8 @@ use crate::varz::*;
 const METRICS_CONNECTION_TIMEOUT_SECS: u64 = 10;
 const METRICS_MAX_CONCURRENT_CONNECTIONS: u32 = 2;
 const HEALTH_PATH: &str = "/health";
+
+const NO_CACHE: &str = "no-store";
 
 type BoxBody = http_body_util::Full<hyper::body::Bytes>;
 
@@ -46,6 +48,7 @@ async fn handle_client_connection(
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, encoder.format_type())
+        .header(CACHE_CONTROL, NO_CACHE)
         .body(http_body_util::Full::new(hyper::body::Bytes::from(buffer)))?)
 }
 
@@ -78,6 +81,7 @@ fn handle_health_request(varz: &Varz) -> Result<Response<BoxBody>, Error> {
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(CONTENT_TYPE, "application/json")
+        .header(CACHE_CONTROL, NO_CACHE)
         .body(http_body_util::Full::new(hyper::body::Bytes::from(body)))?)
 }
 
