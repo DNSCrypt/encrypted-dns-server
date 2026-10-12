@@ -23,6 +23,7 @@ mod anonymized_dns;
 mod blacklist;
 mod cache;
 mod config;
+mod connection_slots;
 mod crypto;
 mod dns;
 mod dnscrypt;
@@ -43,7 +44,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -53,6 +53,7 @@ use byteorder::{BigEndian, ByteOrder};
 use cache::*;
 use clap::Arg;
 use config::*;
+use connection_slots::ConnectionSlots;
 use crypto::*;
 use dns::*;
 use dnscrypt::*;
@@ -72,7 +73,6 @@ use rand::prelude::*;
 use rate_limiter::*;
 use sieve_cache::SieveCache;
 use siphasher::sip128::SipHasher13;
-use slabigator::Slab;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpSocket, TcpStream, UdpSocket};
 use tokio::runtime::Handle;
@@ -343,7 +343,6 @@ async fn tls_proxy(
 async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Result<(), Error> {
     let runtime_handle = globals.runtime_handle.clone();
     let timeout = globals.tcp_timeout;
-    let concurrent_connections = globals.tcp_concurrent_connections.clone();
     let active_connections = globals.tcp_active_connections.clone();
     loop {
         let (mut client_connection, client_addr) = match tcp_listener.accept().await {
@@ -367,12 +366,7 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
                 if is_resource_error {
                     // For resource-related errors, try to free up connections
                     let mut connections = active_connections.lock();
-                    let freed = connections.len().min(5);
-                    for _ in 0..freed {
-                        if let Some(tx_oldest) = connections.pop_back() {
-                            let _ = tx_oldest.send(());
-                        }
-                    }
+                    let freed = (0..5).take_while(|_| connections.evict_busiest()).count();
                     info!("Freed {} connections to recover from resource error", freed);
                 }
 
@@ -392,26 +386,22 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
         }
 
         let (tx, rx) = oneshot::channel::<()>();
-        let tx_channel_index = {
-            let mut active_connections = active_connections.lock();
-            if active_connections.is_full() {
-                let tx_oldest = active_connections.pop_back().unwrap();
-                let _ = tx_oldest.send(());
+        let slot = match ConnectionSlots::register(&active_connections, client_addr.ip(), tx) {
+            Some(slot) => slot,
+            None => {
+                debug!("TCP connection limit reached");
+                continue;
             }
-            active_connections.push_front(tx)?
         };
-        let _count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
         #[cfg(feature = "metrics")]
         let varz = globals.varz.clone();
         #[cfg(feature = "metrics")]
         {
-            varz.inflight_tcp_queries.set(_count.saturating_add(1) as _);
+            varz.inflight_tcp_queries.inc();
             varz.client_queries_tcp.inc();
         }
         client_connection.set_nodelay(true)?;
         let globals = globals.clone();
-        let active_connections = active_connections.clone();
-        let concurrent_connections = concurrent_connections.clone();
         let fut = async {
             let mut binlen = [0u8, 0];
             client_connection.read_exact(&mut binlen).await?;
@@ -440,20 +430,13 @@ async fn tcp_acceptor(globals: Arc<Globals>, tcp_listener: TcpListener) -> Resul
         let fut_abort = rx;
         let fut_all = tokio::time::timeout(timeout, future::select(fut.boxed(), fut_abort));
         runtime_handle.spawn(fut_all.map(move |either| {
-            let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            drop(slot);
             #[cfg(feature = "metrics")]
-            varz.inflight_tcp_queries.set(_count.saturating_sub(1) as _);
-
-            if let Ok(Either::Right(e)) = either {
-                // Removing the active connection was already done during
-                // cancellation.
-                debug!("TCP query canceled: {:?}", e.0)
-            } else {
-                let mut active_connections = active_connections.lock();
-                _ = active_connections.remove(tx_channel_index);
-                if let Ok(Either::Left(e)) = either {
-                    debug!("TCP query error: {:?}", e.0)
-                }
+            varz.inflight_tcp_queries.dec();
+            match either {
+                Ok(Either::Left(e)) => debug!("TCP query error: {:?}", e.0),
+                Ok(Either::Right(e)) => debug!("TCP query canceled: {:?}", e.0),
+                Err(_) => {}
             }
         }));
     }
@@ -467,7 +450,6 @@ async fn udp_acceptor(
     let runtime_handle = globals.runtime_handle.clone();
     let tokio_udp_socket = UdpSocket::try_from(net_udp_socket.try_clone()?)?;
     let timeout = globals.udp_timeout;
-    let concurrent_connections = globals.udp_concurrent_connections.clone();
     let active_connections = globals.udp_active_connections.clone();
     // Large enough that a proxied QUIC datagram is never truncated.
     let mut recv_buffer = vec![0u8; QUIC_PROXY_BUFFER_SIZE];
@@ -514,11 +496,14 @@ async fn udp_acceptor(
             continue;
         }
 
-        let active_count = concurrent_connections.load(Ordering::Relaxed);
-        if active_count >= globals.udp_max_active_connections {
-            debug!("UDP connection limit reached, dropping packet");
-            continue;
-        }
+        let (tx, rx) = oneshot::channel::<()>();
+        let slot = match ConnectionSlots::register(&active_connections, client_addr.ip(), tx) {
+            Some(slot) => slot,
+            None => {
+                debug!("UDP connection limit reached, dropping packet");
+                continue;
+            }
+        };
 
         // Clone the socket for this request
         let net_udp_socket = match net_udp_socket.try_clone() {
@@ -535,44 +520,25 @@ async fn udp_acceptor(
             net_udp_socket,
             client_addr,
         });
-        let (tx, rx) = oneshot::channel::<()>();
-        let tx_channel_index = {
-            let mut active_connections = active_connections.lock();
-            if active_connections.is_full() {
-                let tx_oldest = active_connections.pop_back().unwrap();
-                let _ = tx_oldest.send(());
-            }
-            active_connections.push_front(tx)?
-        };
-        let _count = concurrent_connections.fetch_add(1, Ordering::Relaxed);
         #[cfg(feature = "metrics")]
         let varz = globals.varz.clone();
         #[cfg(feature = "metrics")]
         {
-            varz.inflight_udp_queries.set(_count.saturating_add(1) as _);
+            varz.inflight_udp_queries.inc();
             varz.client_queries_udp.inc();
         }
         let globals = globals.clone();
-        let active_connections = active_connections.clone();
-        let concurrent_connections = concurrent_connections.clone();
         let fut = handle_client_query(globals, client_ctx, packet);
         let fut_abort = rx;
         let fut_all = tokio::time::timeout(timeout, future::select(fut.boxed(), fut_abort));
         runtime_handle.spawn(fut_all.map(move |either| {
-            let _count = concurrent_connections.fetch_sub(1, Ordering::Relaxed);
+            drop(slot);
             #[cfg(feature = "metrics")]
-            varz.inflight_udp_queries.set(_count.saturating_sub(1) as _);
-
-            if let Ok(Either::Right(e)) = either {
-                // Removing the active connection was already done during
-                // cancellation.
-                debug!("UDP query canceled: {:?}", e.0)
-            } else {
-                let mut active_connections = active_connections.lock();
-                _ = active_connections.remove(tx_channel_index);
-                if let Ok(Either::Left(e)) = either {
-                    debug!("UDP query error: {:?}", e.0)
-                }
+            varz.inflight_udp_queries.dec();
+            match either {
+                Ok(Either::Left(e)) => debug!("UDP query error: {:?}", e.0),
+                Ok(Either::Right(e)) => debug!("UDP query canceled: {:?}", e.0),
+                Err(_) => {}
             }
         }));
     }
@@ -1010,16 +976,12 @@ fn main() -> Result<(), Error> {
         external_addr,
         tcp_timeout: Duration::from_secs(u64::from(config.tcp_timeout)),
         udp_timeout: Duration::from_secs(u64::from(config.udp_timeout)),
-        udp_concurrent_connections: Arc::new(AtomicU32::new(0)),
-        tcp_concurrent_connections: Arc::new(AtomicU32::new(0)),
-        udp_max_active_connections: config.udp_max_active_connections,
-        tcp_max_active_connections: config.tcp_max_active_connections,
-        udp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(
+        udp_active_connections: Arc::new(Mutex::new(ConnectionSlots::new(
             config.udp_max_active_connections as _,
-        )?)),
-        tcp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(
+        ))),
+        tcp_active_connections: Arc::new(Mutex::new(ConnectionSlots::new(
             config.tcp_max_active_connections as _,
-        )?)),
+        ))),
         key_cache_capacity,
         hasher,
         cache,
@@ -1093,12 +1055,8 @@ mod tests {
             quic_proxy: None,
             udp_timeout: Duration::from_secs(1),
             tcp_timeout: Duration::from_secs(1),
-            udp_concurrent_connections: Arc::new(AtomicU32::new(0)),
-            tcp_concurrent_connections: Arc::new(AtomicU32::new(0)),
-            udp_max_active_connections: 10,
-            tcp_max_active_connections: 10,
-            udp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(10).unwrap())),
-            tcp_active_connections: Arc::new(Mutex::new(Slab::with_capacity(10).unwrap())),
+            udp_active_connections: Arc::new(Mutex::new(ConnectionSlots::new(10))),
+            tcp_active_connections: Arc::new(Mutex::new(ConnectionSlots::new(10))),
             key_cache_capacity: 10,
             hasher: SipHasher13::new(),
             cache: Cache::new(SieveCache::new(10).unwrap(), 0, 3600, 60),
