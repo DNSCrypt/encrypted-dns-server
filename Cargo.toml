@@ -27,22 +27,22 @@ clap = { version = "4.6.7", default-features = false, features = [
   "cargo",
   "wrap_help",
 ] }
-coarsetime = "0.1.37"
-daemonize-simple = "0.1.6"
-dnsstamps = "0.1.10"
+coarsetime = "0.1.38"
+daemonize-simple = "0.1.7"
+dnsstamps = "0.1.11"
 educe = { version = "0.7.6", features = ["full"] }
 env_logger = { version = "0.11.11", default-features = false, features = [
   "humantime",
 ] }
 futures = { version = "0.3.34", features = ["async-await"] }
-hyper = { version = "1.11.1", default-features = false, features = [
+hyper = { version = "1.12.0", default-features = false, features = [
   "server",
   "http1",
 ], optional = true }
-hyper-util = { version = "0.1.20", features = ["tokio"] }
+hyper-util = { version = "0.1.21", features = ["tokio"] }
 http-body-util = "0.1.5"
-ipext = "0.1.0"
-libsodium-sys-stable = "1.24.0"
+ipext = "0.1.1"
+libsodium-sys-stable = "1.24.1"
 log = { version = "0.4.34", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.52", default-features = false }
 parking_lot = "0.12.5"
@@ -52,11 +52,11 @@ rustc-hash = "2.1.3"
 serde = "1.0.229"
 serde_derive = "1.0.229"
 serde-big-array = "0.5.1"
-sieve-cache = "1.1.6"
-siphasher = "1.0.3"
-slabigator = "0.9.6"
+sieve-cache = "1.2.0"
+siphasher = "1.0.4"
+slabigator = "0.9.7"
 socket2 = "0.6.5"
-tokio = { version = "1.53.1", features = [
+tokio = { version = "1.53.2", features = [
   "net",
   "io-std",
   "io-util",
@@ -64,10 +64,10 @@ tokio = { version = "1.53.1", features = [
   "time",
   "rt-multi-thread",
 ] }
-toml = "1.1.6"
+toml = "1.1.8"
 
 [target.'cfg(target_family = "unix")'.dependencies]
-privdrop = "0.5.6"
+privdrop = "0.5.7"
 
 [dependencies.prometheus]
 optional = true
