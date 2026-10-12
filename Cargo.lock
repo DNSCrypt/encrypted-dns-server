@@ -270,7 +270,6 @@ dependencies = [
  "serde_derive",
  "sieve-cache",
  "siphasher",
- "slabigator",
  "socket2",
  "tokio",
  "toml",
@@ -1097,12 +1096,6 @@ name = "slab"
 version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c790de23124f9ab44544d7ac05d60440adc586479ce501c1d6d7da3cd8c9cf5"
-
-[[package]]
-name = "slabigator"
-version = "0.9.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a75aec3cea991e7ce3d714bdcee260e699f5523e1356dc7a78d663c03ec6295"
 
 [[package]]
 name = "smallvec"
