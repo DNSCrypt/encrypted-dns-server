@@ -159,7 +159,7 @@ pub fn is_truncated(packet: &[u8]) -> bool {
 }
 
 pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
-    debug_assert!(std::usize::MAX > 0xffff);
+    debug_assert!(usize::MAX > 0xffff);
     debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
@@ -197,7 +197,7 @@ pub fn qname(packet: &[u8]) -> Result<Vec<u8>, Error> {
 }
 
 pub fn normalize_qname(packet: &mut [u8]) -> Result<(), Error> {
-    debug_assert!(std::usize::MAX > 0xffff);
+    debug_assert!(usize::MAX > 0xffff);
     debug_assert!(DNS_MAX_HOSTNAME_SIZE > 0xff);
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
@@ -234,7 +234,7 @@ pub fn qname_tld(qname: &[u8]) -> &[u8] {
 }
 
 pub fn recase_qname(packet: &mut [u8], qname: &[u8]) -> Result<(), Error> {
-    debug_assert!(std::usize::MAX > 0xffff);
+    debug_assert!(usize::MAX > 0xffff);
     let packet_len = packet.len();
     ensure!(packet_len > DNS_OFFSET_QUESTION, "Short packet");
     ensure!(qdcount(packet) == 1, "Unexpected query count");
