@@ -45,7 +45,7 @@ ipext = "0.1.1"
 libsodium-sys-stable = "1.24.1"
 log = { version = "0.4.34", features = ["std", "release_max_level_debug"] }
 mimalloc = { version = "0.1.52", default-features = false }
-parking_lot = "0.12.5"
+parking_lot = "0.13.0"
 rand = "0.10.3"
 rlimit = "0.11.0"
 rustc-hash = "2.1.3"
